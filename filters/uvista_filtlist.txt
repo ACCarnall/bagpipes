@@ -1,0 +1,12 @@
+uvista/CFHT_u_reformat2.txt
+uvista/CFHT_g_reformat2.txt
+uvista/CFHT_r_reformat2.txt
+uvista/CFHT_i+i2_reformat2.txt
+uvista/CFHT_z_reformat2.txt
+uvista/subaru_z
+uvista/VISTA_Y_reformat2.txt
+uvista/VISTA_J_reformat2.txt
+uvista/VISTA_H_reformat2.txt
+uvista/VISTA_Ks_reformat2.txt
+uvista/IRAC1
+uvista/IRAC2
