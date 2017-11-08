@@ -4,13 +4,21 @@
 
 Bagpipes is a state of the art model galaxy generation framework and fitting tool. It is designed to generate a highly diverse range of complex model galaxy spectra, and to fit these models to arbitrary combinations of spectroscopic and photometric data using the MultiNest algorithm.
 
-![](examples/example_pipes_model.pdf)
+![](examples/example_pipes_model.jpg)
 
 ### Installation
 
-Bagpipes setup is a fairly quick process. Simply clone this repository, add the bagpipes folder to your PYTHONPATH variable and install the Python package dependencies (astropy, corner) and you're ready to run the first example file. For fitting to be supported you must also install [MultiNest](https://github.com/JohannesBuchner/MultiNest) and the Python interface PyMultiNest which can be installed with pip.
+Bagpipes setup is a fairly quick process:
 
-You will also need to download at least one suite of BAGPIPES spectral models. These are relatively large and so are stored separately. Currently the only set of models pre-prepared are the BC03 miles models used in the BAGPIPES definition paper. They can be downloaded from .  You should copy the bc03_miles folder into the bagpipes/models directory.
+1. Clone this repository.
+
+2. Download the model files (currently only BC03 are pre-packaged) from Google drive [here](https://drive.google.com/open?id=18Ark6Ya5URuJ2rdTsYlUieJlOz9CM0E2), untar them and put the bc03_miles folder in the bagpipes/models folder.
+
+3. Add the bagpipes folder to your PYTHONPATH variable 
+
+4. Install the Python package dependencies (astropy, corner) and you're ready to run the first example file. 
+
+5. For fitting to be supported you must also install [MultiNest](https://github.com/JohannesBuchner/MultiNest) and the Python interface PyMultiNest which can be installed with pip.
 
 ### Usage
 
@@ -18,5 +26,5 @@ The code is not currently properly documented, for which I apologise and intend 
 
 If you have any problems please contact me at adamc@roe.ac.uk.
 
-![](examples/example_spectral_plot.pdf)
-![](examples/example_corner_plot.pdf)
+![](examples/example_spectral_plot.jpg)
+![](examples/example_corner_plot.jpg)
