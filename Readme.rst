@@ -9,7 +9,7 @@ Bagpipes is a state of the art model galaxy generation framework and fitting too
 Documentation
 -------------
 
-The Bagpipes documentation can be found `here <bagpipes.readthedocs.io>`_, this is currently a work in progress, but most of the key elements are there. You will also find a suite of examples in the examples folder of this repository.  
+The Bagpipes documentation can be found `here <https://github.com/ACCarnall/bagpipes/docs/_build/html/index.html>`_, this is currently a work in progress, but most of the key elements are there. You will also find a suite of examples in the examples folder of this repository.  
 
 Bagpipes is described in Section 3 of `ArXiv1712.99999 <https://arxiv.org/abs/1712.99999>`_, if you make use of Bagpipes in your research, please cite this work.
 
