@@ -1,0 +1,9 @@
+Model Galaxy
+====================================
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   model_components
+   model_galaxy

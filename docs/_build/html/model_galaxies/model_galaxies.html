@@ -1,0 +1,266 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Making model galaxies &mdash; Bagpipes 1.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="Bagpipes 1.0.0 documentation" href="../index.html"/>
+        <link rel="next" title="Generating models: the model_components dictionary" href="model_components.html"/>
+        <link rel="prev" title="Installation" href="../installation.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Bagpipes
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Making model galaxies</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="model_components.html">Generating models: the model_components dictionary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fields.html">Obtaining model photometry: defining fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="updating.html">Manipulating models: the update method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api_doc.html">Model_Galaxy API documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../loading_galaxies/loading_galaxies.html">Loading observational data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fitting_galaxies/fitting_galaxies.html">Fitting observational data</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Bagpipes</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Making model galaxies</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/model_galaxies/model_galaxies.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="making-model-galaxies">
+<h1>Making model galaxies<a class="headerlink" href="#making-model-galaxies" title="Permalink to this headline">¶</a></h1>
+<p>This section of the documentation will introduce you to making model galaxies with Bagpipes.</p>
+<p>This is implemented through the <strong>Model_Galaxy</strong> class, which takes the <strong>model_components</strong> dictionary as an argument, into which the attributes of the model must be entered. Learn how to build a <strong>model_components</strong> dictionary <a class="reference external" href="model_components.html">here</a>.</p>
+<p>In order to tell the code where to find filter curves for calculating observed photometry it is necessary to define a field (so called because objects within the same fields on the sky usually have observations through the same filter curves). Learn how to do this <a class="reference external" href="fields.html">here</a>.</p>
+<p>Bagpipes is designed to rapidly update the parameters of models of the same kind, in order to faciliate fitting. Learn how to use the <strong>update</strong> method of <strong>Model_Galaxy</strong> in order to generate large numbers of models fast <a class="reference external" href="updating.html">here</a>.</p>
+<p>Finally, detailed API documentation for the <strong>Model_Galaxy</strong> class is available <a class="reference external" href="api_doc.html">here</a>.</p>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="model_components.html">Generating models: the model_components dictionary</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="model_components.html#global-options">Global options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_components.html#dust-component">Dust component</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_components.html#nebular-component">Nebular component</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_components.html#star-formation-history-components">Star formation history components</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_components.html#putting-it-all-together">Putting it all together</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_components.html#accessing-output">Accessing output</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="fields.html">Obtaining model photometry: defining fields</a></li>
+<li class="toctree-l1"><a class="reference internal" href="updating.html">Manipulating models: the update method</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_doc.html">Model_Galaxy API documentation</a></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="model_components.html" class="btn btn-neutral float-right" title="Generating models: the model_components dictionary" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../installation.html" class="btn btn-neutral" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, Adam Carnall.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.0.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
