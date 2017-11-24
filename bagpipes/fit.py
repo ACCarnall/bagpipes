@@ -207,8 +207,9 @@ class Fit:
                 print str(np.round(self.conf_int[x], 4)), np.round(self.posterior_median[x], 4), self.fit_params[x]
             print " "
 
-        self.get_post_info()
         self.get_model(self.posterior_median)
+        self.get_post_info()
+
 
 
     """ Prior function for MultiNest algorithm, currently just converts unit cube to uniform prior between set units. """
