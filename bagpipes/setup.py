@@ -71,9 +71,6 @@ zmet_fnames = {}
 mstar_liv = {}
 
 model_type = "bc03_miles"
-n_live_points = 400
-sampling_efficiency = "parameter"
-pmn_verbose = True
 full_age_sampling = False
 max_zred = 10.
 

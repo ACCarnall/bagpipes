@@ -368,11 +368,26 @@ class Star_Formation_History:
     """ Creates a plot of sfr(t) normalised to one Solar mass of star formation by the present time. """
     def plot(self):
 
-        plt.figure()
-        plt.plot(self.ages*10**-9, self.sfr) 
-        plt.ylabel("SFR ($\mathrm{M_\odot\ yr^{-1}}$)")
-        plt.xlabel("Time before observation (Gyr)")
+        sfh_x = np.zeros(2*self.ages.shape[0])
+        sfh_y = np.zeros(2*self.sfr.shape[0])
+
+        for j in range(self.sfr.shape[0]):
+
+            sfh_x[2*j] = self.age_lhs[j]
+            if j+1 < self.sfr.shape[0]:
+                sfh_x[2*j + 1] = self.age_lhs[j+1]
+
+            sfh_y[2*j] = self.sfr[j]
+            sfh_y[2*j + 1] = self.sfr[j]
+
+        sfh_x[-2:] = 1.5*10**10
+
+        plt.figure(figsize=(12, 4))
+        plt.plot(sfh_x*10**-9, sfh_y, color="black")
+        plt.ylabel("$\mathrm{SFR\ (M_\odot\ yr^{-1}})$")
+        plt.xlabel("$\mathrm{Time\ before\ observation\ (Gyr)}$")
         plt.ylim(0, 1.1*np.max(self.sfr))
         plt.xlim(0, 1.05*self.maxage)
+        #plt.savefig("examplesfh.jpg", bbox_inches="tight")
         plt.show()
         

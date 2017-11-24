@@ -15,14 +15,43 @@ rc('text', usetex=True)
 
 class Galaxy:
 
-    def __init__(self, ID, data_load_func, field=None, zred=None, out_units="ergscma", spectrum_exists=True, photometry_exists=True, no_of_spectra=1):
+    """ 
+    Load up observational data into Bagpipes for plotting and fitting.
+
+    Parameters
+    ----------
+
+    ID : str
+        string denoting the ID of the object to be loaded. This will be passed to data_load_function.
+
+    data_load_function : function
+        Function which takes ID, field as its two arguments and returns the model spectrum and photometry. Spectrum should come first and 
+        be an array with a column of wavelengths in Angstroms, a column of fluxes in erg/s/cm^2/A and a column of flux errors in the same 
+        units. Photometry should come second and be an array with a column of fluxes in microjanskys and a column of flux errors in the 
+        same units.
+
+    field : str
+        The name of the field, must be specified if photometry is to be loaded.
+
+    spectrum_exists : bool
+        If you do not have a spectrum for this object, set this to False. In this case, data_load_function should only return photometry.
+
+    photometry_exists : bool
+        If you do not have photometry for this object, set this to False. In this case, data_load_function should only return a spectrum.
+
+    
+    """
+
+    def __init__(self, ID, data_load_function, field=None, spectrum_exists=True, photometry_exists=True):
+
+        out_units="ergscma"
+        no_of_spectra=1
 
         self.ID = ID
         self.field = field
         self.out_units = out_units
         self.spectrum_exists = spectrum_exists
         self.photometry_exists = photometry_exists
-        self.zred = zred
         self.no_of_spectra = no_of_spectra
 
         if spectrum_exists == False and photometry_exists == False:
@@ -30,25 +59,25 @@ class Galaxy:
 
         elif spectrum_exists == True and photometry_exists == False:
             if self.no_of_spectra == 1:
-                self.spectrum = data_load_func(self.ID, self.field)
+                self.spectrum = data_load_function(self.ID, self.field)
 
             else:
-                data = data_load_func(self.ID, self.field)
+                data = data_load_function(self.ID, self.field)
                 self.spectrum = data[0]
                 self.extra_spectra = []
                 for i in range(len(data)-1):
                     self.extra_spectra.append(data[i+1])
 
         elif spectrum_exists == False and photometry_exists == True:
-            photometry_nowavs = data_load_func(self.ID, self.field)
+            photometry_nowavs = data_load_function(self.ID, self.field)
             self.no_of_spectra = 0
 
         else:
             if self.no_of_spectra == 1:
-                self.spectrum, photometry_nowavs = data_load_func(self.ID, self.field)
+                self.spectrum, photometry_nowavs = data_load_function(self.ID, self.field)
 
             else:
-                data = data_load_func(self.ID, self.field)
+                data = data_load_function(self.ID, self.field)
                 self.spectrum = data[0]
                 self.extra_spectra = []
                 photometry_nowavs = data[-1]
@@ -57,7 +86,7 @@ class Galaxy:
 
         if photometry_exists == True:
             self.photometry = np.zeros(3*len(photometry_nowavs))
-            self.photometry.shape = (len(photometry_nowavs), 3)
+            self.photometry.shape = (photometry_nowavs.shape[0], 3)
             self.photometry[:, 1:] = photometry_nowavs
             self.get_eff_wavs()
         
@@ -75,12 +104,14 @@ class Galaxy:
                     self.extra_spectra[i][:,2] /= ((10**-29)*(2.9979*10**18/self.extra_spectra[i][:,0]/self.extra_spectra[i][:,0])) 
 
         if spectrum_exists == True:
+            # Mask the regions of the spectrum which have been specified in the [ID].mask file.
             self.spectrum = self.mask_spectrum(self.spectrum)
 
             if self.no_of_spectra > 1:
                 for i in range(len(self.extra_spectra)):
                     self.extra_spectra[i] = self.mask_spectrum(self.extra_spectra[i])
 
+            # Removes any regions at the start end end of the spectrum if flux values are zero.
             startn = 0
             while self.spectrum[startn,1] == 0.:
                 startn += 1
@@ -94,6 +125,10 @@ class Galaxy:
 
 
     def plot(self):
+
+        """
+        Plots the data which has been loaded.
+        """
 
         naxes = self.no_of_spectra
 
@@ -115,8 +150,10 @@ class Galaxy:
         # Plot spectral data
         if self.spectrum_exists == True:
             ax1.set_xlim(self.spectrum[0,0], self.spectrum[-1,0])
+            ax1.set_ylim(0., 1.05*np.max(self.spectrum[:,1]))
+
             ax1.plot(self.spectrum[:, 0], self.spectrum[:, 1], color="dodgerblue", zorder=1)
-            #ax1.fill_between(self.spectrum[:, 0], self.spectrum[:, 1]/polynomial - self.spectrum[:, 2], self.spectrum[:, 1]/polynomial + self.spectrum[:, 2], color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
+            ax1.fill_between(self.spectrum[:, 0], self.spectrum[:, 1] - self.spectrum[:, 2], self.spectrum[:, 1] + self.spectrum[:, 2], color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
 
         # Plot any extra spectra
         if self.no_of_spectra > 1:

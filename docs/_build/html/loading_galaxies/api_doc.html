@@ -170,7 +170,7 @@
 <h1>Galaxy API documentation<a class="headerlink" href="#galaxy-api-documentation" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="bagpipes.Galaxy">
-<em class="property">class </em><code class="descclassname">bagpipes.</code><code class="descname">Galaxy</code><span class="sig-paren">(</span><em>ID</em>, <em>data_load_func</em>, <em>field=None</em>, <em>spectrum_exists=True</em>, <em>photometry_exists=True</em><span class="sig-paren">)</span><a class="headerlink" href="#bagpipes.Galaxy" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">bagpipes.</code><code class="descname">Galaxy</code><span class="sig-paren">(</span><em>ID</em>, <em>data_load_function</em>, <em>field=None</em>, <em>spectrum_exists=True</em>, <em>photometry_exists=True</em><span class="sig-paren">)</span><a class="headerlink" href="#bagpipes.Galaxy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load up observational data into Bagpipes for plotting and fitting.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -178,9 +178,9 @@
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>ID</strong> : str</p>
 <blockquote>
-<div><p>string denoting the ID of the object to be loaded. This will be passed to data_load_func.</p>
+<div><p>string denoting the ID of the object to be loaded. This will be passed to data_load_function.</p>
 </div></blockquote>
-<p><strong>data_load_func</strong> : function</p>
+<p><strong>data_load_function</strong> : function</p>
 <blockquote>
 <div><p>Function which takes ID, field as its two arguments and returns the model spectrum and photometry. Spectrum should come first and 
 be an array with a column of wavelengths in Angstroms, a column of fluxes in erg/s/cm^2/A and a column of flux errors in the same 
@@ -193,11 +193,11 @@ same units.</p>
 </div></blockquote>
 <p><strong>spectrum_exists</strong> : bool</p>
 <blockquote>
-<div><p>If you do not have a spectrum for this object, set this to False. In this case, data_load_func should only return photometry.</p>
+<div><p>If you do not have a spectrum for this object, set this to False. In this case, data_load_function should only return photometry.</p>
 </div></blockquote>
 <p><strong>photometry_exists</strong> : bool</p>
 <blockquote class="last">
-<div><p>If you do not have photometry for this object, set this to False. In this case, data_load_func should only return a spectrum.</p>
+<div><p>If you do not have photometry for this object, set this to False. In this case, data_load_function should only return a spectrum.</p>
 </div></blockquote>
 </td>
 </tr>

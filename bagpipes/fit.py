@@ -27,14 +27,13 @@ age_at_z = cosmo.age(z_array).value
 from numpy.polynomial.chebyshev import chebval as cheb
 
 from matplotlib import rc
-rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica'], "size": 10})
 rc('text', usetex=True)
-
 
 
 class Fit:
 
-    def __init__(self, Galaxy, fit_instructions, mode=None, run="."):
+    def __init__(self, Galaxy, fit_instructions, run="."):
 
         self.times = []
 
@@ -70,21 +69,14 @@ class Fit:
         # Populate the previous four lists using the fit_instructions dictionary
         self.process_fit_instructions()
 
-        # conf_int: A list of tuples representing the 16th and 84th percentiles of the posterior distributions for each fit parameter
-        self.conf_int = []
-
-        # best_fitvals: an array of the best fit (max. likelihood) parameters found
-        self.best_fitvals = None
+        # posterior: Will be used to store posterior samples.
+        self.posterior = {}
 
         # extra_models: a list into which extra model items will be placed if the galaxy object has more thna one spectrum
         if self.Galaxy.no_of_spectra > 1:
             self.extra_models = []
             for i in range(self.Galaxy.no_of_spectra-1):
                 self.extra_models.append(None)
-
-        # median_uncertainty: the median of the uncertainties on the spectral data points. Used for modelling intrinsic scatter.
-        if self.Galaxy.spectrum_exists == True:
-            self.median_sigma = np.median(self.Galaxy.spectrum[:,2])
 
         #Set up directories to contain the outputs, if they don't already exist
         if self.run is not ".":
@@ -100,30 +92,31 @@ class Fit:
             if not os.path.exists(setup.install_dir + "/plots/" + self.run):
                 os.mkdir(setup.install_dir + "/plots/" + self.run)
 
-        #Calculate the number of degrees of freedom
-
-        # ndof: The number of degrees of freedom in the fit
-        self.ndof = -self.ndim
+        # Set up a bunch of variables which will be used when calculating the lnprob values.
+        self.K_phot, self.K_spec = 0., 0.
+        self.N_spec, self.N_phot =  0., 0.
+        self.hyp_spec, self.hyp_phot = 1., 1.
+        self.chisq_spec, self.chisq_phot = 0., 0.
 
         if self.Galaxy.spectrum_exists == True:
-            self.ndof += self.Galaxy.spectrum.shape[0]
+            self.K_spec = -0.5*np.sum(np.log(2*np.pi*self.Galaxy.spectrum[:,2]**2))
+            self.N_spec = self.Galaxy.spectrum.shape[0]
 
+        if self.Galaxy.photometry_exists == True:
+            self.K_phot = -0.5*np.sum(np.log(2*np.pi*self.Galaxy.photometry[:,2]**2))
+            self.N_phot = self.Galaxy.photometry.shape[0]
+
+        # Set up corresponding variables for any extra spectra 
         if self.Galaxy.no_of_spectra > 1:
-            for i in range(self.Galaxy.no_of_spectra - 1):
-                self.ndof += self.Galaxy.extra_spectra[i].shape[0]
+            self.extra_K_spec = np.zeros(self.Galaxy.no_of_spectra-1)
+            self.extra_N_spec = np.zeros(self.Galaxy.no_of_spectra-1)
+            self.hyp_extra_spec = np.zeros(self.Galaxy.no_of_spectra-1) + 1.
+            self.chisq_extra_spec = np.zeros(self.Galaxy.no_of_spectra-1)
 
-        if self.Galaxy.photometry_exists == True:
-            self.ndof += self.Galaxy.photometry.shape[0]
+            for i in range(self.Galaxy.no_of_spectra-1):
+                self.extra_K_spec[i] = -0.5*np.sum(np.log(2*np.pi*self.Galaxy.extra_spectra[i][:,2]**2))
+                self.extra_N_spec[i] = self.Galaxy.extra_spectra[i].shape[0]
 
-        if self.Galaxy.spectrum_exists == True:
-            for i in range(len(self.Galaxy.spectrum)):
-                if self.Galaxy.spectrum[i,2] > 10**50:
-                    self.ndof -= 1
-                    
-        if self.Galaxy.photometry_exists == True:
-            for i in range(len(self.Galaxy.photometry)):
-                if self.Galaxy.photometry[i,2] > 10**50:
-                    self.ndof -= 1
 
 
 
@@ -178,13 +171,15 @@ class Fit:
 
         self.ndim = len(self.fit_params)
 
+        if self.ndim > 5:
+            rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica'], "size": 12})
 
 
 
-    """ Run the MultiNest sampling algorithm and update the confidence intervals and best parameter dictionaries accordingly."""
-    def fit(self, simplex=True):
+    def fit(self, verbose=False, sampling_efficiency="parameter", n_live=400, const_efficiency_mode=False):
+        """ Fit the specified model to the input galaxy data. """
 
-        pmn.run(self.get_lnprob, self.prior, self.ndim, importance_nested_sampling = False, verbose = setup.pmn_verbose, sampling_efficiency = setup.sampling_efficiency, n_live_points = setup.n_live_points, outputfiles_basename=setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
+        pmn.run(self.get_lnprob, self.prior_transform, self.ndim, const_efficiency_mode = const_efficiency_mode, importance_nested_sampling = False, verbose = verbose, sampling_efficiency = sampling_efficiency, n_live_points = n_live, outputfiles_basename=setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
 
         a = pmn.Analyzer(n_params = self.ndim, outputfiles_basename=setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
 
@@ -194,72 +189,30 @@ class Fit:
         for i in range(len(s["modes"])):
             mode_evidences.append(s["modes"][i]["local log-evidence"])
 
-        # Best fit values taken to be the highest point in probability surface
-        self.best_fitvals = s["modes"][np.argmax(mode_evidences)]["maximum"]
-
-        # Median values of the marginalised posterior distributions
         self.posterior_median = np.zeros(self.ndim)
         for j in range(self.ndim):
             self.posterior_median[j] = s["marginals"][j]["median"]
 
-        """
-        for i in range(len(s["modes"])):
-
-            bestpar_mode = dict(zip(self.fit_params, s["modes"][i]["maximum"]))
-            print "Mode number:", i
-            print "Best params: ", bestpar_mode
-            print "Mode log evidence:", s["modes"][i]["local log-evidence"]
-            print "Min chisq:", self.get_lnprob(s["modes"][i]["maximum"], self.ndim, self.ndim, mode="chisq")
-            print "  "
-        """
-        
-        # Best fit values determined by performing Nelder-Mead minimisation starting from the best fit output from MultiNest
-        
-        if simplex == True:
-
-            print "BAGPIPES: Min Chisq Reduced: ", self.get_lnprob(self.best_fitvals, self.ndim, self.ndim, mode="chisq")/self.ndof
-
-            print "BAGPIPES: Performing simplex minimisation."
-
-            min_chi = []
-            min_par = []
-
-            minim = minimize(self.get_lnprob, self.best_fitvals, args=(self.ndim, self.ndim, "lnprob_neg"), method="Nelder-Mead")#, bounds=self.fit_limits)
-            min_chi.append(minim["fun"])
-            min_par.append(minim["x"])
-
-            for i in range(9):
-                minim = minimize(self.get_lnprob, self.best_fitvals+0.01*np.random.randn(self.ndim), args=(self.ndim, self.ndim, "lnprob_neg"), method="Nelder-Mead")#, bounds=self.fit_limits)
-                min_chi.append(minim["fun"])
-                min_par.append(minim["x"])
-
-            self.best_fitvals = min_par[np.argmin(np.array(min_chi))]
-            
-        else:
-            print "BAGPIPES: Skipping simplex minimisation step."
-
-        self.median_param_dict = dict(zip(self.fit_params, self.posterior_median))
-        self.best_param_dict = dict(zip(self.fit_params, self.best_fitvals))
-        self.max_lnp = self.get_lnprob(self.best_fitvals, self.ndim, self.ndim)
-        self.min_chisq_reduced = self.get_lnprob(self.best_fitvals, self.ndim, self.ndim, mode="chisq")/self.ndof
-
-        self.global_evidence = s['nested sampling global log-evidence']
-
+        self.conf_int = []
         for j in range(self.ndim):
             self.conf_int.append((s["marginals"][j]["1sigma"][0], s["marginals"][j]["1sigma"][1]))
-        
-        if setup.pmn_verbose == True:
-            print "Min Chisq Reduced: ", self.min_chisq_reduced
+
+        self.global_log_evidence = s["nested sampling global log-evidence"]
+        self.global_log_evidence_err = s["nested sampling global log-evidence error"]
+
+        if verbose == True:
             print " "
-            print "Confidence interval:"
+            print "BAGPIPES: Confidence interval:"
             for x in range(self.ndim):
-                print str(np.round(self.conf_int[x], 4)), np.round(self.best_fitvals[x], 4), self.fit_params[x]
+                print str(np.round(self.conf_int[x], 4)), np.round(self.posterior_median[x], 4), self.fit_params[x]
             print " "
 
+        self.get_post_info()
+        self.get_model(self.posterior_median)
 
 
     """ Prior function for MultiNest algorithm, currently just converts unit cube to uniform prior between set units. """
-    def prior(self, cube, ndim, nparams): 
+    def prior_transform(self, cube, ndim, nparam): 
         for i in range(self.ndim):
 
             if self.priors[i] == "uniform":
@@ -300,61 +253,36 @@ class Fit:
 
 
     """ Returns the log-probability for a given model sfh and parameter vector x. """
-    def get_lnprob(self, x, ndim, nparam, mode="lnprob", verbose=False):
+    def get_lnprob(self, x, ndim, nparam):
 
-        self.nan_flag = False
+        self.get_model(x)
 
-        # if any of the parameters is outside of its fit limits, this returns a huge negative value for lnprob.
-        if not isinstance(x, dict):
-            for i in range(self.ndim):
-                if not self.fit_limits[i][0] <= x[i] <= self.fit_limits[i][1]:
-                    self.nan_flag = True
+        # If the age of any model component is greater than the age of the Universe, return a huge negative value for lnprob.
+        if self.Model.sfh.maxage <= np.interp(self.model_components["zred"], z_array, age_at_z):
+            if "hypspec" in self.model_components.keys():
+                self.hyp_spec = self.model_components["hypspec"]
 
-        chisq_spec, chisq_phot = 0., 0.
-        K_phot, K_spec = 0., 0.
+            if "hypphot" in self.model_components.keys():
+                self.hyp_phot = self.model_components["hypphot"]
 
-        # otherwise generate the model and calculate lnprob.
-        if self.nan_flag is not True:
+            if self.Galaxy.spectrum_exists == True:
+                self.chisq_spec = np.sum((self.Galaxy.spectrum[:,1] - self.Model.spectrum[:,1])**2/self.Galaxy.spectrum[:,2]**2)
 
-            self.get_model(x)
+            if self.Galaxy.photometry_exists == True:
+                self.chisq_phot = np.sum((self.Galaxy.photometry[:,1] - self.Model.photometry)**2/self.Galaxy.photometry[:,2]**2)
 
-            # If the age of the model is greater than the age of the Universe, return a huge negative value for lnprob.
-            if self.Model.sfh.maxage > np.interp(self.model_components["zred"], z_array, age_at_z):
-                self.nan_flag = True
-
-            if "intsig" in self.model_components.keys():
-                intsig = self.model_components["intsig"]
-
-            else:
-                intsig = 0.
-
-            if self.Galaxy.spectrum_exists == True and self.nan_flag == False:
-                K_spec += -0.5*np.sum(np.log(2*np.pi*(self.Galaxy.spectrum[:,2]**2 + (self.median_sigma*intsig)**2)))
-                chisq_spec += np.sum((self.Galaxy.spectrum[:,1] - self.Model.spectrum[:,1])**2/(self.Galaxy.spectrum[:,2]**2 + (self.median_sigma*intsig)**2))
-
-            if self.Galaxy.photometry_exists == True and self.nan_flag == False:
-                K_phot += -0.5*np.sum(np.log(2*np.pi*self.Galaxy.photometry[:,2]**2))
-                chisq_phot += np.sum(((self.Galaxy.photometry[:,1] - self.Model.photometry)/self.Galaxy.photometry[:,2])**2)
-
+            """
             if self.Galaxy.no_of_spectra > 1:
                 for i in range(self.Galaxy.no_of_spectra - 1):
                     K_spec += -0.5*np.sum(np.log(2*np.pi*self.Galaxy.extra_spectra[i][:,2]**2))
-                    chisq_spec += np.sum((self.Galaxy.extra_spectra[i][:,1] - self.extra_models[i].spectrum[:,1])**2/(self.Galaxy.extra_spectra[i][:,2]**2))
+                    chisq_spec = np.sum((self.Galaxy.extra_spectra[i][:,1] - self.extra_models[i].spectrum[:,1])**2/(self.Galaxy.extra_spectra[i][:,2]**2))
+            """
+            lnprob = self.K_phot + self.K_spec + 0.5*self.N_spec*np.log(self.hyp_spec) + 0.5*self.N_phot*np.log(self.hyp_phot) - 0.5*self.hyp_phot*self.chisq_phot - 0.5*self.hyp_spec*self.chisq_spec 
 
-        if self.nan_flag is True:
-            chisq_spec, chisq_phot = 9.99*10**99, 9.99*10**99
+        else:
+            lnprob = -9.99*10**99
 
-        if mode == "lnprob" or mode == "lnprob_neg":
-            lnprob =  K_phot + K_spec - 0.5*chisq_phot - 0.5*chisq_spec
-
-            if mode == "lnprob":
-                return lnprob
-
-            if mode == "lnprob_neg":
-                return -lnprob
-
-        elif mode == "chisq":
-            return chisq_phot + chisq_spec
+        return lnprob
 
 
 
@@ -362,25 +290,28 @@ class Fit:
     def get_model(self, param):
 
         self.model_components = self.get_model_components(param)
-
-        #if np.random.rand() < 0.001:
-        #    print self.model_components
-
+        
         if self.Galaxy.no_of_spectra > 1:
+
+            del self.model_components["veldisp"]
+            del self.model_components["polynomial"]
 
             self.model_components["veldisp"] = self.model_components["veldisp1"]
             self.model_components["polynomial"] = self.model_components["polynomial1"]
-
+        
         if self.Model is None:
-            if self.Galaxy.spectrum_exists == True:
+            if self.Galaxy.spectrum_exists == True and self.Galaxy.photometry_exists == True:
                 self.Model = model_galaxy.Model_Galaxy(self.model_components, self.Galaxy.field, output_specwavs=self.Galaxy.spectrum[:,0])
 
-            else:
+            elif self.Galaxy.spectrum_exists == False:
                 self.Model = model_galaxy.Model_Galaxy(self.model_components, self.Galaxy.field)
+
+            elif self.Galaxy.photometry_exists == False:
+                self.Model = model_galaxy.Model_Galaxy(self.model_components, output_specwavs=self.Galaxy.spectrum[:,0])
 
         else:
             self.Model.update(self.model_components)
-
+        """
         if self.Galaxy.no_of_spectra > 1:
 
             for i in range(self.Galaxy.no_of_spectra-1):
@@ -397,10 +328,10 @@ class Fit:
                 
                 else:
                     self.extra_models[i].update(self.model_components)
+        """
 
 
-
-    # Turns a vector of parameters  into a model_components dict, if input is already a dict simply returns it
+    # Turns a vector of parameters into a model_components dict, if input is already a dict simply returns it
     def get_model_components(self, param):
 
         # If param is a model_components dictionary get right on with calculating the chi squared value
@@ -428,54 +359,81 @@ class Fit:
 
 
 
-    ### All of the below functions are for making pretty plots, they're not involved in the fitting process
+    def load_posterior(self):
+        if "samples" not in self.posterior.keys():
+            self.posterior["samples"] = np.loadtxt(setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat")[:,:-1]
+
+
+    def get_post_info(self):
+        """ Calculates a whole bunch of useful posterior quantities from the MultiNest output. """
+
+        if "sfh" not in self.posterior.keys():
+
+            self.load_posterior()
+
+            nsamples = self.posterior["samples"].shape[0]
+
+            self.posterior["sfh"] = np.zeros((nsamples, self.Model.sfh.ages.shape[0]))
+            self.posterior["sfr"] = np.zeros(nsamples)
+            self.posterior["tmw"] = np.zeros(nsamples)
+            self.posterior["mstar"] = np.zeros(nsamples)
+
+            if self.Galaxy.photometry_exists == True:
+                self.posterior["photometry"] = np.zeros((self.Model.photometry.shape[0], nsamples))
+
+            if self.Galaxy.spectrum_exists == True:
+                self.posterior["spectrum"] = np.zeros((self.Model.spectrum.shape[0], nsamples))
+                self.posterior["polynomial"] = np.zeros((self.Model.spectrum.shape[0], nsamples)) + 1.
+
+
+            if self.Galaxy.no_of_spectra > 1:
+                self.posterior["extra_spectra"] = []
+                self.posterior["extra_polynomials"] = []
+
+                for i in range(self.Galaxy.no_of_spectra-1):
+                    self.posterior["extra_spectra"].append(np.zeros((self.extra_models[i].spectrum.shape[0], nsamples)))
+                    self.posterior["extra_polynomials"].append(np.zeros((self.extra_models[i].spectrum.shape[0], nsamples)))
+
+
+            self.posterior["spectrum_full"] = np.zeros((self.Model.spectrum_full.shape[0], nsamples))
+
+            for i in range(nsamples):
+                self.get_model(self.posterior["samples"][i,:])
+
+                self.posterior["sfh"][i,:] = self.Model.sfh.sfr 
+                self.posterior["sfr"][i] = self.posterior["sfh"][i,0]
+                self.posterior["tmw"][i] = np.interp(self.model_components["zred"], z_array, age_at_z) - (10**-9)*np.sum(self.Model.sfh.sfr*self.Model.sfh.ages*self.Model.sfh.age_widths)/np.sum(self.Model.sfh.sfr*self.Model.sfh.age_widths)
+                self.posterior["mstar"][i] = self.Model.living_mstar
+
+                if self.Galaxy.field is not None:
+                    self.posterior["photometry"][:,i] = self.Model.photometry
+
+                self.posterior["spectrum_full"][:,i] = self.Model.spectrum_full
+
+                if self.Model.output_specwavs is not None:
+                    if self.Model.polynomial is None:
+                        self.posterior["spectrum"][:,i] = self.Model.spectrum[:,1]
+
+                    else:
+                        self.posterior["spectrum"][:,i] = self.Model.spectrum[:,1]/self.Model.polynomial
+                        self.posterior["polynomial"][:,i] = self.Model.polynomial
+
+                if self.Galaxy.no_of_spectra > 1:
+                    for j in range(self.Galaxy.no_of_spectra-1):
+                        if self.extra_models[j].polynomial is None:
+                            self.posterior["extra_spectra"][j][:,i] = self.extra_models[j].spectrum[:,1]
+
+                        else:
+                            self.posterior["extra_spectra"][j][:,i] = self.extra_models[j].spectrum[:,1]/self.extra_models[j].polynomial
+                            self.posterior["extra_polynomials"][j][:,i] = self.extra_models[j].polynomial
 
 
 
-    def get_post_sfh(self):
+    def plot_fit(self):
 
-        self.posterior = np.loadtxt(setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat")[:,:-1]
+        self.get_post_info()
 
-        nsamples = self.posterior.shape[0]
-
-        sfh_arr = np.zeros((nsamples, self.Model.sfh.ages.shape[0]))
-        self.sfr_post = np.zeros(nsamples)
-        self.mwa_post = np.zeros(nsamples)
-        self.mstar_liv_post = np.zeros(nsamples)
-
-        for i in range(nsamples):
-            self.get_model(self.posterior[int(np.random.rand()*self.posterior.shape[0]),:])
-
-            sfh_arr[i,:] = self.Model.sfh.sfr 
-            self.sfr_post[i] = sfh_arr[i,0]
-            self.mwa_post[i] = (10**-9)*np.sum(self.Model.sfh.sfr*self.Model.sfh.ages*self.Model.sfh.age_widths)/np.sum(self.Model.sfh.sfr*self.Model.sfh.age_widths)
-            self.mstar_liv_post[i] = self.Model.living_mstar
-
-        self.mwa_post = np.interp(self.model_components["zred"], z_array, age_at_z) - self.mwa_post
-
-        self.sfh_med = np.median(sfh_arr, axis=0)
-        self.sfh_16 = np.percentile(sfh_arr, 16, axis=0)
-        self.sfh_84 = np.percentile(sfh_arr, 84, axis=0)
-
-        self.sfr_percentiles = (np.percentile(self.sfr_post, 16), np.percentile(self.sfr_post, 50), np.percentile(self.sfr_post, 84))
-        self.mwa_percentiles = (np.percentile(self.mwa_post, 16), np.percentile(self.mwa_post, 50), np.percentile(self.mwa_post, 84))
-        self.mstar_liv_percentiles = (np.percentile(self.mstar_liv_post, 16), np.percentile(self.mstar_liv_post, 50), np.percentile(self.mstar_liv_post, 84))
-
-        self.get_model(param=self.best_fitvals)
-
-        self.sfr_maxprob = self.Model.sfh.sfr[0]
-        self.mwa_maxprob = (10**-9)*np.sum(self.Model.sfh.sfr*self.Model.sfh.ages*self.Model.sfh.age_widths)/np.sum(self.Model.sfh.sfr*self.Model.sfh.age_widths)
-        self.mstar_liv_maxprob = self.Model.living_mstar
-
-        self.get_model(param=self.best_fitvals)
-
-
-
-    def plot_fit(self, mode="save"):
-
-        if self.best_fitvals is None:
-            sys.exit("BAGPIPES: Cannot plot the fit unless fitting has taken place!")
-
+        # Set up plot with the correct number of axes.
         naxes = self.Galaxy.no_of_spectra
 
         if self.Galaxy.photometry_exists == True:
@@ -489,37 +447,58 @@ class Fit:
         ax1 = axes[0]
         ax2 = axes[-1]
 
-        ax2.set_xlabel("$\mathrm{log_{10}}\\Big(\lambda / \mathrm{\AA}\\Big)$", size=16)
 
-        if self.fit_instructions["zred"] != 0.:
-            fig.text(0.08, 0.68, "$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ cm^{-2}\ \AA^{-1})}$", size=16, rotation=90)
+        # Set axis labels
+        if naxes == 1:
+            ax1.set_xlabel("$\lambda\ \\Big(\mathrm{\AA}\\Big)$", size=16)
 
         else:
-            fig.text(0.08, 0.68, "$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ \AA^{-1})}$", size=16, rotation=90)
+            for i in range(naxes-1):
+                axes[i].set_xlabel("$\lambda\ \\Big(\mathrm{\AA}\\Big)$", size=16)
+            ax2.set_xlabel("$\mathrm{log_{10}}\\Big(\lambda / \mathrm{\AA}\\Big)$", size=16)
 
-        # Plot spectral data
+        if self.fit_instructions["zred"] != 0.:
+            ylabel = "$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ cm^{-2}\ \AA^{-1})}$"
+
+        else:
+            ylabel = "$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ \AA^{-1})}$"
+
+        if naxes > 1:
+            fig.text(0.08, 0.55, ylabel, size=16, rotation=90)
+
+        else:
+            ax1.set_ylabel(ylabel, size=16, rotation=90)
+
+
+        # Plot first spectrum
         if self.Galaxy.spectrum_exists == True:
             ax1.set_xlim(self.Galaxy.spectrum[0,0], self.Galaxy.spectrum[-1,0])
-            polynomial = np.ones(self.Galaxy.spectrum[:,0].shape[0])
 
-            if "polynomial" in self.model_components.keys():
-                polynomial = self.get_polynomial("polynomial", self.Galaxy.spectrum[:,0])
+            if "polynomial" in self.model_components.keys() or "polynomial1" in self.model_components.keys():
+                polynomial = np.median(self.posterior["polynomial"], axis=1)
 
-            elif "polynomial1" in self.model_components.keys():
-                polynomial = self.get_polynomial("polynomial1", self.Galaxy.spectrum[:,0])
+            else:
+                polynomial = np.ones(self.Galaxy.spectrum[:,0].shape[0])
 
             ax1.plot(self.Galaxy.spectrum[:, 0], self.Galaxy.spectrum[:, 1]/polynomial, color="dodgerblue", zorder=1)
             #ax1.fill_between(self.Galaxy.spectrum[:, 0], self.Galaxy.spectrum[:, 1]/polynomial - self.Galaxy.spectrum[:, 2], self.Galaxy.spectrum[:, 1]/polynomial + self.Galaxy.spectrum[:, 2], color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
 
+
         # Plot any extra spectra
         if self.Galaxy.no_of_spectra > 1:
             for i in range(self.Galaxy.no_of_spectra-1):
+                ax1.set_xlim(self.Galaxy.extra_spectra[i][0,0], self.Galaxy.extra_spectra[i][-1,0])
                 polynomial = np.ones(self.Galaxy.extra_spectra[i][:, 0].shape[0])
 
-                if "polynomial" + str(i+2) in self.model_components.keys():
-                    polynomial = self.get_polynomial("polynomial" + str(i+2), self.Galaxy.extra_spectra[i][:, 1])
+            if "polynomial" + str(i+2) in self.model_components.keys() or "polynomial1" in self.model_components.keys():
+                polynomial = np.median(self.posterior["extra_polynomials"][i+2], axis=1)
+
+            else:
+                polynomial = np.ones(self.Galaxy.spectrum[:,0].shape[0])
 
                 axes[i+1].plot(self.Galaxy.extra_spectra[i][:, 0], self.Galaxy.extra_spectra[i][:, 1]/polynomial, color="dodgerblue", zorder=1)
+                #axes[i+1].fill_between(self.Galaxy.spectrum[:, 0], self.Galaxy.extra_spectra[i][:, 1]/polynomial - self.Galaxy.extra_spectra[i][:, 2], self.Galaxy.extra_spectra[i][:, 1]/polynomial + self.Galaxy.extra_spectra[i][:, 2], color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
+
 
         # Plot photometric data
         if self.Galaxy.photometry_exists == True:
@@ -529,6 +508,7 @@ class Fit:
             for axis in axes:
                 axis.errorbar(np.log10(self.Galaxy.photometry[:,0]), self.Galaxy.photometry[:,1], yerr=self.Galaxy.photometry[:,2], lw=1.0, linestyle=" ", capsize=3, capthick=1, zorder=3, color="black")
                 axis.scatter(np.log10(self.Galaxy.photometry[:,0]), self.Galaxy.photometry[:,1], color="blue", s=75, zorder=4, linewidth=1, facecolor="blue", edgecolor="black", label="Observed Photometry")
+
 
         # Add masked regions to plots
         if os.path.exists(setup.install_dir + "/object_masks/" + self.Galaxy.ID + "_mask") and self.Galaxy.spectrum_exists:
@@ -542,110 +522,52 @@ class Fit:
                     for i in range(mask.shape[0]):
                         axes[j].axvspan(mask[i,0], mask[i,1], color="gray", alpha=0.8, zorder=4)
         
-        # Generate model posterior
-        self.posterior = np.loadtxt(setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat")[:,:-1]
 
-        nsamples = self.posterior.shape[0]
-        
-        if self.Galaxy.photometry_exists == True:
-            post_phot = np.zeros((self.Model.photometry.shape[0], nsamples))
-
-        if self.Galaxy.spectrum_exists == True:
-            post_spec = np.zeros((self.Model.spectrum.shape[0], nsamples))
-
-        if self.Galaxy.no_of_spectra > 1:
-            extra_post_spec = []
-            for i in range(self.Galaxy.no_of_spectra-1):
-                extra_post_spec.append(np.zeros((self.extra_models[i].spectrum.shape[0], nsamples)))
-
-        post_spec_full = np.zeros((self.Model.spectrum_full.shape[0], nsamples))
-
-        for i in range(nsamples):
-            self.get_model(self.posterior[int(np.random.rand()*self.posterior.shape[0]),:])
-
-            if self.Galaxy.field is not None:
-                post_phot[:,i] = self.Model.photometry
-
-            post_spec_full[:,i] = self.Model.spectrum_full
-
-            if self.Model.output_specwavs is not None:
-                if self.Model.polynomial is None:
-                    post_spec[:,i] = self.Model.spectrum[:,1]
-
-                else:
-                    post_spec[:,i] = self.Model.spectrum[:,1]/self.Model.polynomial
-
-            if self.Galaxy.no_of_spectra > 1:
-                for j in range(self.Galaxy.no_of_spectra-1):
-                    if self.extra_models[j].polynomial is None:
-                        extra_post_spec[j][:,i] = self.extra_models[j].spectrum[:,1]
-
-                    else:
-                        extra_post_spec[j][:,i] = self.extra_models[j].spectrum[:,1]/self.extra_models[j].polynomial
-        
         # Plot model posterior
-        if self.Galaxy.photometry_exists == True:
-            ax2.fill_between(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["zred"])), np.percentile(post_spec_full, 16, axis=1), np.percentile(post_spec_full, 84, axis=1), color="navajowhite", zorder=1, linewidth=0)
-            ax2.plot(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["zred"])), np.percentile(post_spec_full, 16, axis=1), color="navajowhite", zorder=1)
-            ax2.plot(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["zred"])), np.percentile(post_spec_full, 84, axis=1), color="navajowhite", zorder=1)
-            ax2.set_ylim(0., np.max([ax2.get_ylim()[1], 1.1*np.max(np.percentile(post_spec_full, 84, axis=1))]))
+        self.get_post_info()
 
+        if self.Galaxy.photometry_exists == True:
+            ax2.fill_between(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["zred"])), np.percentile(self.posterior["spectrum_full"], 16, axis=1), np.percentile(self.posterior["spectrum_full"], 84, axis=1), color="navajowhite", zorder=1, linewidth=0)
+            ax2.plot(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["zred"])), np.percentile(self.posterior["spectrum_full"], 16, axis=1), color="navajowhite", zorder=1)
+            ax2.plot(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["zred"])), np.percentile(self.posterior["spectrum_full"], 84, axis=1), color="navajowhite", zorder=1)
+            ax2.set_ylim(0., np.max([ax2.get_ylim()[1], 1.1*np.max(np.percentile(self.posterior["spectrum_full"], 84, axis=1))]))
 
             for j in range(self.Model.photometry.shape[0]):
-                ax2.scatter(np.log10(np.zeros(nsamples) + self.Model.phot_wavs[j]), post_phot[j,:], color="darkorange", zorder=2, alpha=0.05, s=150, rasterized=True)
+                phot_1sig = self.posterior["photometry"][j,(self.posterior["photometry"][j,:] > np.percentile(self.posterior["photometry"][j,:], 16)) & (self.posterior["photometry"][j,:] < np.percentile(self.posterior["photometry"][j,:], 84))]
+                ax2.scatter(np.log10(np.zeros(phot_1sig.shape[0]) + self.Model.phot_wavs[j]), phot_1sig, color="darkorange", zorder=2, alpha=0.05, s=150, rasterized=True)
                 
         if self.Galaxy.spectrum_exists == True:
-            ax1.fill_between(self.Model.spectrum[:,0], np.percentile(post_spec, 16, axis=1), np.percentile(post_spec, 84, axis=1), color="sandybrown", zorder=2, alpha=0.75, linewidth=0)
-            ax1.plot(self.Model.spectrum[:,0], np.percentile(post_spec, 50, axis=1), color="sandybrown", zorder=2)
+            ax1.fill_between(self.Model.spectrum[:,0], np.percentile(self.posterior["spectrum"], 16, axis=1), np.percentile(self.posterior["spectrum"], 84, axis=1), color="sandybrown", zorder=2, alpha=0.75, linewidth=0)
+            ax1.plot(self.Model.spectrum[:,0], np.percentile(self.posterior["spectrum"], 50, axis=1), color="sandybrown", zorder=2)
 
             if self.Galaxy.no_of_spectra > 1:
                 for j in range(self.Galaxy.no_of_spectra-1):
-                    axes[j+1].fill_between(self.extra_models[j].spectrum[:,0], np.percentile(extra_post_spec[j], 16, axis=1), np.percentile(extra_post_spec[j], 84, axis=1), color="sandybrown", zorder=2, alpha=0.5, linewidth=0)
-                    axes[j+1].plot(self.extra_models[j].spectrum[:,0], np.percentile(extra_post_spec[j], 16, axis=1), color="sandybrown", zorder=2, alpha=0.5)
-                    axes[j+1].plot(self.extra_models[j].spectrum[:,0], np.percentile(extra_post_spec[j], 84, axis=1), color="sandybrown", zorder=2, alpha=0.5)
-
-        self.get_model(param=self.best_fitvals)
-        
+                    axes[j+1].fill_between(self.extra_models[j].spectrum[:,0], np.percentile(self.posterior["extra_spectra"], 16, axis=1), np.percentile(self.posterior["extra_spectra"], 84, axis=1), color="sandybrown", zorder=2, alpha=0.5, linewidth=0)
+                    axes[j+1].plot(self.extra_models[j].spectrum[:,0], np.percentile(self.posterior["extra_spectra"], 16, axis=1), color="sandybrown", zorder=2, alpha=0.5)
+                    axes[j+1].plot(self.extra_models[j].spectrum[:,0], np.percentile(self.posterior["extra_spectra"], 84, axis=1), color="sandybrown", zorder=2, alpha=0.5)    
 
         #axes[0].annotate("ID: " + str(self.Galaxy.ID), xy=(0.1*ax1.get_xlim()[1] + 0.9*ax1.get_xlim()[0], 0.95*ax1.get_ylim()[1] + 0.05*ax1.get_ylim()[0]), size=12, zorder=5)      
-   
-        if mode == "show":
-            plt.show()
 
         fig.savefig(setup.install_dir + "/plots/" + self.run + "/" + self.Galaxy.ID + "_fit.pdf", bbox_inches="tight")
         plt.close(fig)
 
 
 
-    def plot_poly(self, mode="save"):
+    def plot_poly(self):
 
-        if mode == "live":
-            self.posterior = np.loadtxt(setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-phys_live.points")[:,:-2]
-
-        else:
-            self.posterior = np.loadtxt(setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat")[:,:-1]
+        self.get_post_info()
 
         plt.figure()
 
-        nsamples = 200
-
-        if self.posterior.shape[0] < nsamples:
-            nsamples = self.posterior.shape[0]
-
-        for i in range(nsamples):
-            self.get_model(self.posterior[int(np.random.rand()*self.posterior.shape[0]),:])
-            plt.plot(self.Model.spectrum[:,0], np.ones(self.Model.spectrum.shape[0], dtype=float)/self.Model.polynomial, color="gray", alpha=0.05)
+        for i in range(self.posterior["polynomial"].shape[0]):
+            plt.plot(self.Model.spectrum[:,0], np.ones(self.Model.spectrum.shape[0], dtype=float)/self.posterior["polynomial"][:,i], color="gray", alpha=0.05)
 
         plt.savefig(setup.install_dir + "/plots/" + self.run + "/" + self.Galaxy.ID + "_polynomial.pdf")
         plt.close()
 
 
 
-    def plot_corner(self, print_param_values=False):
-
-        if not os.path.exists(setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-.txt"):
-            print "BAGPIPES: Corner plot not made because previous run output file not found."
-            return
+    def plot_corner(self, param_names_tolog=[]):
 
         param_cols_toplot = []
         param_names_toplot = []
@@ -658,21 +580,19 @@ class Fit:
             if self.fit_params[i][:10] != "polynomial":
                 param_cols_toplot.append(i)
                 param_names_toplot.append(self.fit_params[i])
-                param_truths_toplot.append(self.best_fitvals[i])
+                param_truths_toplot.append(self.posterior_median[i])
                 
                 plot_range.append(self.fit_limits[i])
-
-                if self.priors[i] == "log_10" or self.priors[i] == "log_e":
+                
+                if self.fit_params[i] in param_names_tolog:
                     #param_names_toplot[-1] = "log_" + param_names_toplot[-1]
                     #param_truths_toplot[-1] = np.log10(param_truths_toplot[-1])
                     params_tolog.append(len(param_cols_toplot)-1)
-                    plot_range[i] = (np.log10(plot_range[i][0]), np.log10(plot_range[i][1]))
-                
-        self.posterior = np.loadtxt(setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat", usecols=param_cols_toplot)
+                    plot_range[-1] = (np.log10(plot_range[-1][0]), np.log10(plot_range[-1][1]))
 
         # If a parameter has a logarithmic prior, plot the log of that parameter in the corner plot
         for i in range(len(params_tolog)):
-            self.posterior[:,params_tolog[i]] = np.log10(self.posterior[:,params_tolog[i]])
+            self.posterior["samples"][:,params_tolog[i]] = np.log10(self.posterior["samples"][:,params_tolog[i]])
 
         reference_param_names = ["dblplaw:tau", "dblplaw:alpha", "dblplaw:beta", "dblplaw:metallicity", "dblplaw:mass", "dust:Av"]
         latex_param_names = ["$\\tau\ (\mathrm{Gyr})$", "$\mathrm{log_{10}}(\\alpha)$", "$\mathrm{log_{10}}(\\beta)$", "$Z\ (Z_\odot )$", "$\mathrm{log_{10}}\\big(\\frac{M_\mathrm{formed}}{M_\odot}\\big)$", "$A_V$"]
@@ -683,15 +603,15 @@ class Fit:
 
         ranges = [(0., 0.5), (4., np.interp(self.model_components["zred"], z_array, age_at_z)), (-2, 3), (0.2, 0.8), (10.15, 10.65), (0.5, 3)]
 
-        fig = corner.corner(self.posterior, labels=param_names_toplot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_kwargs={"fontsize": 12}, smooth="1.5", smooth1d="0.5")#, range=ranges)#truths=param_truths_toplot, 
+        fig = corner.corner(self.posterior["samples"][:,param_cols_toplot], labels=param_names_toplot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_kwargs={"fontsize": 10}, smooth="1.5", smooth1d="0.5")#, range=ranges)#truths=param_truths_toplot, 
         
-        sfh_ax = fig.add_axes([0.65, 0.605, 0.32, 0.15], zorder=10)
+        sfh_ax = fig.add_axes([0.65, 0.59, 0.32, 0.15], zorder=10)
         sfr_ax = fig.add_axes([0.82, 0.82, 0.15, 0.15], zorder=10)
-        mwa_ax = fig.add_axes([0.65, 0.82, 0.15, 0.15], zorder=10)
+        tmw_ax = fig.add_axes([0.65, 0.82, 0.15, 0.15], zorder=10)
 
         # Generate posterior SFR quantities
-        self.get_post_sfh()
-
+        self.get_post_info()
+        
         # Generate and populate sfh arrays which allow the SFH to be plotted with straight lines across bins of SFH
         sfh_x = np.zeros(2*self.Model.sfh.ages.shape[0])
         sfh_y = np.zeros(2*self.Model.sfh.sfr.shape[0])
@@ -702,11 +622,11 @@ class Fit:
 
             sfh_x[2*j] = self.Model.sfh.age_lhs[j]
 
-            sfh_y[2*j] = self.sfh_med[j]
-            sfh_y[2*j + 1] = self.sfh_med[j]
+            sfh_y[2*j] = np.median(self.posterior["sfh"][:,j])
+            sfh_y[2*j + 1] = np.median(self.posterior["sfh"][:,j])
 
-            sfh_y_low[2*j] = self.sfh_16[j]
-            sfh_y_low[2*j + 1] = self.sfh_16[j]
+            sfh_y_low[2*j] = np.percentile(self.posterior["sfh"][:,j], 16)
+            sfh_y_low[2*j + 1] = np.percentile(self.posterior["sfh"][:,j], 16)
 
             if sfh_y_low[2*j] < 0:
                 sfh_y_low[2*j] = 0.
@@ -714,11 +634,12 @@ class Fit:
             if sfh_y_low[2*j+1] < 0:
                 sfh_y_low[2*j+1] = 0.
 
-            sfh_y_high[2*j] = self.sfh_84[j]
-            sfh_y_high[2*j + 1] = self.sfh_84[j]
+            sfh_y_high[2*j] = np.percentile(self.posterior["sfh"][:,j], 84)
+            sfh_y_high[2*j + 1] = np.percentile(self.posterior["sfh"][:,j], 84)
 
             if j == self.Model.sfh.sfr.shape[0]-1:
                 sfh_x[-1] = self.Model.sfh.age_lhs[-1] + 2*(self.Model.sfh.ages[-1] - self.Model.sfh.age_lhs[-1])
+
             else:
                 sfh_x[2*j + 1] = self.Model.sfh.age_lhs[j+1]
 
@@ -736,39 +657,36 @@ class Fit:
         sfh_ax2.set_xlabel("$\mathrm{Redshift}$")
 
         # Plot the current star formation rate posterior
-        sfr_ax.hist(self.sfr_post, bins=15, color="white", normed=True, histtype="step", edgecolor="black")
+        sfr_ax.hist(self.posterior["sfr"], bins=15, color="white", normed=True, histtype="step", edgecolor="black")
         sfr_ax.set_xlabel("$\mathrm{SFR\ (M_\odot\ yr^{-1}}$)")
-        sfr_ax.set_xlim(0., np.mean(self.sfr_post) + 3*np.std(self.sfr_post))#np.mean(self.sfr_post) - 3*np.std(self.sfr_post)
+        sfr_ax.set_xlim(np.max([0., np.mean(self.posterior["sfr"]) - 3*np.std(self.posterior["sfr"])]), np.mean(self.posterior["sfr"]) + 3*np.std(self.posterior["sfr"]))
         sfr_ax.set_yticklabels([])
 
         # Plot the mass weighted age posterior
-        mwa_ax.hist(self.mwa_post, bins=15, color="white", normed=True, histtype="step", edgecolor="black")
-        mwa_ax.set_xlabel("$t(z_\mathrm{form})\ (\mathrm{Gyr}$)")
-        mwa_ax.set_xlim(np.mean(self.mwa_post) - 3*np.std(self.mwa_post), np.mean(self.mwa_post) + 3*np.std(self.mwa_post))
-        mwa_ax.set_yticklabels([])
+        tmw_ax.hist(self.posterior["tmw"], bins=15, color="white", normed=True, histtype="step", edgecolor="black")
+        tmw_ax.set_xlabel("$t(z_\mathrm{form})\ (\mathrm{Gyr}$)")
+        tmw_ax.set_xlim(np.mean(self.posterior["tmw"]) - 3*np.std(self.posterior["tmw"]), np.mean(self.posterior["tmw"]) + 3*np.std(self.posterior["tmw"]))
+        tmw_ax.set_yticklabels([])
 
-        sfr_ax.axvline(self.sfr_percentiles[0], linestyle="--", color="black")
-        sfr_ax.axvline(self.sfr_percentiles[1], linestyle="--", color="black")
-        sfr_ax.axvline(self.sfr_percentiles[2], linestyle="--", color="black")
+        sfr_ax.axvline(np.percentile(self.posterior["sfr"], 16), linestyle="--", color="black")
+        sfr_ax.axvline(np.percentile(self.posterior["sfr"], 50), linestyle="--", color="black")
+        sfr_ax.axvline(np.percentile(self.posterior["sfr"], 84), linestyle="--", color="black")
         #sfr_ax.axvline(self.sfr_maxprob, color="#4682b4")
 
         sfh_ax.set_ylabel("$\mathrm{SFR}\ (M_\odot\ yr^{-1})$")
         sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ (Gyr)}$")
         sfh_ax.set_ylim(0, 1.1*np.max(sfh_y_high))
 
-        mwa_ax.axvline(self.mwa_percentiles[0], linestyle="--", color="black")
-        mwa_ax.axvline(self.mwa_percentiles[1], linestyle="--", color="black")
-        mwa_ax.axvline(self.mwa_percentiles[2], linestyle="--", color="black")
+        tmw_ax.axvline(np.percentile(self.posterior["tmw"], 16), linestyle="--", color="black")
+        tmw_ax.axvline(np.percentile(self.posterior["tmw"], 50), linestyle="--", color="black")
+        tmw_ax.axvline(np.percentile(self.posterior["tmw"], 84), linestyle="--", color="black")
         #mwa_ax.axvline(self.mwa_maxprob, color="#4682b4")
 
 
-        fig.text(0.725, 0.978, "$t(z_\mathrm{form})\ (Gyr)\ =\ " + str(np.round(self.mwa_percentiles[1], 2)) + "^{+" + str(np.round(self.mwa_percentiles[2] - self.mwa_percentiles[1], 2)) + "}_{-" + str(np.round(self.mwa_percentiles[1] - self.mwa_percentiles[0], 2)) + "}$", size=12, horizontalalignment = "center")
-        fig.text(0.895, 0.978, "$\mathrm{SFR}\ (M_\odot\ yr^{-1})\ =\ " + str(np.round(self.sfr_percentiles[1], 2)) + "^{+" + str(np.round(self.sfr_percentiles[2] - self.sfr_percentiles[1], 2)) + "}_{-" + str(np.round(self.sfr_percentiles[1] - self.sfr_percentiles[0], 2)) + "}$", size=12, horizontalalignment = "center")
+        fig.text(0.725, 0.978, "$t(z_\mathrm{form})\ =\ " + str(np.round(np.percentile(self.posterior["tmw"], 50), 2)) + "^{+" + str(np.round(np.percentile(self.posterior["tmw"], 84) - np.percentile(self.posterior["tmw"], 50), 2)) + "}_{-" + str(np.round(np.percentile(self.posterior["tmw"], 50) - np.percentile(self.posterior["tmw"], 16), 2)) + "}$", horizontalalignment = "center")
+        fig.text(0.895, 0.978, "$\mathrm{SFR}\ =\ " + str(np.round(np.percentile(self.posterior["sfr"], 50), 2)) + "^{+" + str(np.round(np.percentile(self.posterior["sfr"], 84) - np.percentile(self.posterior["sfr"], 50), 2)) + "}_{-" + str(np.round(np.percentile(self.posterior["sfr"], 50) - np.percentile(self.posterior["sfr"], 16), 2)) + "}$", horizontalalignment = "center")
 
-
-        # Add parameter values to plots
-        self.get_model(param=self.best_fitvals)
-
+        """
         if print_param_values == True:
             fig.text(0.78, 0.55, "Parameter", size=10, zorder=10, horizontalalignment="center", weight="bold")
             fig.text(0.87, 0.55, "Posterior", size=10, zorder=10, weight="bold", horizontalalignment="center")
@@ -794,7 +712,7 @@ class Fit:
                 lowlim = np.round(self.posterior_median[i]  - self.conf_int[i][0], ndecimal)
                 highlim = np.round(self.conf_int[i][1] - self.posterior_median[i] , ndecimal)
                 parval = str(np.round(self.posterior_median[i], ndecimal))
-                maxp_value = np.round(self.best_fitvals[i], ndecimal)
+                maxp_value = np.round(self.posterior_median[i], ndecimal)
 
                 if self.fit_params[i][:10] != "polynomial":
                     fig.text(0.78, (0.53 - 0.0175*line), self.fit_params[i], horizontalalignment = "center", size=10, zorder=10)
@@ -821,22 +739,13 @@ class Fit:
             fig.text(0.44, 0.9725, "$\chi_\\nu^2\mathrm{ = " + str(np.round(self.min_chisq_reduced, 3)) + "\ frac\ spec=\ " + str(np.round(chisq_spec/self.min_chisq_reduced/self.ndof, 4)) + "\ frac\ phot=\ " + str(np.round(chisq_phot/self.min_chisq_reduced/self.ndof, 4)) + "}$", size=14, zorder=10, horizontalalignment = "center")      
             
             fig.text(0.44, 0.92, "ID: " + str(self.Galaxy.ID), size=18, zorder=10, horizontalalignment = "center")      
-
+        """
         fig.savefig(setup.install_dir + "/plots/" + self.run + "/" + self.Galaxy.ID + "_corner.pdf")
 
         plt.close(fig)
 
 
 
-    def get_polynomial(self, polyname, x_vals):
-
-        polycoefs = []
-        while str(len(polycoefs)) in self.model_components[polyname].keys():
-            polycoefs.append(self.model_components[polyname][str(len(polycoefs))])
-
-        points = (x_vals - x_vals[0])/(x_vals[-1] - x_vals[0])
-
-        return cheb(points, polycoefs)
 
 
 

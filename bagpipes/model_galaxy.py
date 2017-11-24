@@ -37,20 +37,33 @@ allcloudycontgrids = {}
 
 
 class Model_Galaxy:
+	""" Build a model galaxy spectrum.
 
-	def __init__(self, model_comp, field=None, out_units="ergscma", output_specwavs=None):
+	Parameters
+	----------
 
-		# model_components: The dictionary containing information on the model to be generated
-		self.model_comp = model_comp
+	model_components : dict
+		A dictionary containing information about the model you wish to generate. 
 
-		# field: Tells the code which set of filters to generate photometry for
+	field : str (optional)
+		The name of the field: a collection of filter files through which photometric fluxes will be calculated.
+
+	output_specwavs : array (optional)
+		An array of wavelengths at which spectral fluxes should be returned.
+
+	out_units : str (optional)
+		The units the output spectrum and photometry will be returned in, either "ergscma" for ergs per second per centimetre squared per angstrom, or "mujy" for microjanskys
+	
+	"""
+
+	def __init__(self, model_components, field=None, output_specwavs=None, out_units="ergscma"):
+
+		self.model_comp = model_components
+
 		self.field = field
 
-		""" out_units: Tells the code which units the output spectrum and photometry should be in, either ergs/second/cm^2/Angstrom 
-		(ergscma) or microjanskys (mujy) """
 		self.out_units = out_units
 
-		# output_specwavs: The wavelength sampling of the output spectrum.
 		self.output_specwavs = output_specwavs
 
 		# original_modelgrid_wavs: The wavelength sampling the model grids will have when they are loaded from file.
@@ -74,8 +87,8 @@ class Model_Galaxy:
 		# zmet_vals: An array of metallicity values at which model grids are available for the chosen set of SPS models.
 		self.zmet_vals = np.copy(setup.zmet_vals[setup.model_type])
 
-		# polynomial: If a polynomial correction to the spectrum is requested, this is where it will be stored
 		self.polynomial = None
+		# Polynomial correction which has been applied to the spectrum. 
 
 		# hc_k: combination of physical constants used for calculating dust emission
 		self.hc_k = (6.626*10**-34)*(3*10**8)/(1.38*10**-23)
@@ -198,7 +211,6 @@ class Model_Galaxy:
 			self.get_phot_wavs()
 
 		self.update(self.model_comp)
-
 
 
 	""" Loads filter files for the specified field and calculates effective wavelength values which are added to self.photometry """
@@ -344,10 +356,12 @@ class Model_Galaxy:
 
 
 
-	""" Generates model spectrum and photometry for parameters specified in model_comp. """
-	def update(self, model_comp):
+	def update(self, model_components):
+		""" 
+		Updates the model with new attributes passed in the model_components dictionary. 
+		"""
 
-		self.model_comp = model_comp
+		self.model_comp = model_components
 
 		# sfh: A star formation history object generated using model_components
 		self.sfh = star_formation_history.Star_Formation_History(self.model_comp)
@@ -390,7 +404,7 @@ class Model_Galaxy:
 		for comp in self.model_comp.keys():
 
 			# Recognise only dictionaries which have names listed in self.component_types as being SFH components
-			if (comp in self.component_types or comp[:-1] in self.component_types) and isinstance(model_comp[comp], dict):
+			if (comp in self.component_types or comp[:-1] in self.component_types) and isinstance(self.model_comp[comp], dict):
 
 				# sfr_dt: Array containing the multiplicative factors to be applied to each SSP in the grid to build the CSP.
 				sfr_dt = self.sfh.weight_widths[comp]
@@ -414,6 +428,9 @@ class Model_Galaxy:
 
 				# Calculate how many lines of the grids are affected by birth clouds and what fraction of the final line is affected
 				# Otherwise check nothing which required t_bc to be specified has been specified and crash the code if so
+				if "a_bc" in self.model_comp.keys() and "t_bc" not in self.model_comp.keys():
+					self.model_comp["t_bc"] = self.model_comp["a_bc"]
+
 				if "t_bc" in self.model_comp.keys():
 					nlines = setup.chosen_age_lhs[setup.chosen_age_lhs < self.model_comp["t_bc"]*10**9].shape[0]
 					frac_bc = (self.model_comp["t_bc"]*10**9 - setup.chosen_age_lhs[nlines-1])/setup.chosen_age_widths[nlines-1]
@@ -460,7 +477,7 @@ class Model_Galaxy:
 						interpolated_cloudy_lines *= 10**(-(self.model_comp["dust"]["eta"] - 1)*self.model_comp["dust"]["Av"]*self.k_lambda_lines[self.model_comp["dust"]["type"]]**n/2.5)
 
 				# Obtain CSP by performing a weighed sum over the SSPs and add it to the composite spectrum
-				composite_spectrum = np.sum(np.expand_dims(sfr_dt, axis=1)*interpolated_stellar_grid, axis=0)
+				composite_spectrum += np.sum(np.expand_dims(sfr_dt, axis=1)*interpolated_stellar_grid, axis=0)
 				
 				if "nebular" in self.model_comp.keys():
 					if composite_lines is None:
@@ -551,6 +568,7 @@ class Model_Galaxy:
 
 			# photometry: The flux values for the model spectrum observed through the filters specified in field
 			self.photometry = np.squeeze(np.sum(np.expand_dims(composite_spectrum*self.wav_widths, axis=1)*self.filt_array, axis=0)/np.sum(self.filt_array*np.expand_dims(self.wav_widths, axis=1), axis=0))
+			""" Output photometry array, contains a column of flux values, by default in erg/s/cm^2/A or erg/s/A at redshift zero. """
 
 		# Generate the output spectrum if requested
 		if self.output_specwavs is not None:
@@ -569,7 +587,8 @@ class Model_Galaxy:
 				# Resample onto the requested wavelength grid
 				if x_kernel_pix.shape[0] > 1:
 					self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs[(x_kernel_pix.shape[0]-1)/2:-(x_kernel_pix.shape[0]-1)/2]*(1+self.model_comp["zred"]), composite_spectrum_veldisp, left=0, right=0)]).T
-				
+					""" Output spectrum array, contains a column of wavelengths in Angstroms and a column of flux values, by default in erg/s/cm^2/A or erg/s/A at redshift zero. """
+
 				else:
 					self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs*(1+self.model_comp["zred"]), composite_spectrum_veldisp, left=0, right=0)]).T
 
@@ -593,6 +612,7 @@ class Model_Galaxy:
 
 		if "nebular" in self.model_comp.keys():
 			self.line_fluxes = dict(zip(self.cloudylinelabels, composite_lines))
+			""" Dictionary of output emission line fluxes in erg/s/cm^2 or erg/s at redshift zero. """
 
 		# Return output spectrum and photometry in microjanskys instead of erg/s/cm^2/A if requested.
 		if self.out_units == "mujy":
@@ -605,9 +625,10 @@ class Model_Galaxy:
 
 
 
-	""" Creates a plot of the model spectrum and photometry """
-	def plot(self, fancy=False):
+	def plot(self):
+		""" Creates a plot of the model attributes which were requested by the user. """
 
+		fancy = False
 		naxes = 1
 
 		if self.field is not None and self.output_specwavs is not None:
@@ -626,10 +647,19 @@ class Model_Galaxy:
 		plt.subplots_adjust(hspace=0.1)
 
 		if self.model_comp["zred"] != 0:
-			fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1} cm^{-2}\ \AA^{-1})}$", size=18, rotation=90)
+			if naxes == 2:
+				fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ cm^{-2}\ \AA^{-1})}$", size=18, rotation=90)
+
+			else:
+				ax1.set_ylabel("$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ cm^{-2}\ \AA^{-1})}$", size=18)
 
 		else:
-			fig.text(0.06, 0.58, "$\mathrm{L_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ \AA^{-1})}$", size=18, rotation=90)
+			if naxes == 2:
+				fig.text(0.06, 0.58, "$\mathrm{L_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ \AA^{-1})}$", size=18, rotation=90)
+
+			else:
+				ax1.set_ylabel("$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ \AA^{-1})}$", size=18)
+
 
 		if self.field is not None:
 			ax2.scatter(self.phot_wavs, self.photometry, color="darkorange", zorder=3, s=150)
@@ -681,7 +711,7 @@ class Model_Galaxy:
 			allspec_ax.get_xaxis().set_tick_params(which='minor', size=0)
 			allspec_ax.get_yaxis().set_tick_params(which='minor', size=0)
 
-		plt.savefig("example_pipes_model.pdf", bbox_inches="tight")
+		#plt.savefig("examplespec.jpg", bbox_inches="tight")
 
 		plt.show()
 		plt.close(fig)
