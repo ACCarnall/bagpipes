@@ -130,6 +130,8 @@ class Galaxy:
         Plots the data which has been loaded.
         """
 
+        normalisation_factor = 10**18
+
         naxes = self.no_of_spectra
 
         if self.photometry_exists == True:
@@ -143,17 +145,21 @@ class Galaxy:
         ax1 = axes[0]
         ax2 = axes[-1]
 
-        ax2.set_xlabel("$\mathrm{Wavelength\ (\AA)}$", size=18)
+        ax2.set_xlabel("$\mathrm{log_{10}}\\Big(\lambda / \mathrm{\AA}\\Big)$", size=18)
 
-        fig.text(0.08, 0.58, "$\mathrm{f_{\lambda}}$ $\mathrm{(erg/s/cm^2/\AA)}$", size=18, rotation=90)
+        if naxes == 2:
+            fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18, rotation=90)
 
+        else:
+            ax1.set_ylabel("$\mathrm{f_{\lambda}}\ \mathrm{/\ 10^{-18}\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18)
+                
         # Plot spectral data
         if self.spectrum_exists == True:
             ax1.set_xlim(self.spectrum[0,0], self.spectrum[-1,0])
-            ax1.set_ylim(0., 1.05*np.max(self.spectrum[:,1]))
+            ax1.set_ylim(0., 1.05*normalisation_factor*np.max(self.spectrum[:,1]))
 
-            ax1.plot(self.spectrum[:, 0], self.spectrum[:, 1], color="dodgerblue", zorder=1)
-            ax1.fill_between(self.spectrum[:, 0], self.spectrum[:, 1] - self.spectrum[:, 2], self.spectrum[:, 1] + self.spectrum[:, 2], color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
+            ax1.plot(self.spectrum[:, 0], normalisation_factor*self.spectrum[:, 1], color="dodgerblue", zorder=1)
+            ax1.fill_between(self.spectrum[:, 0], normalisation_factor*(self.spectrum[:, 1] - self.spectrum[:, 2]), normalisation_factor*(self.spectrum[:, 1] + self.spectrum[:, 2]), color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
 
         # Plot any extra spectra
         if self.no_of_spectra > 1:
@@ -162,12 +168,14 @@ class Galaxy:
 
         # Plot photometric data
         if self.photometry_exists == True:
-            ax2.set_xscale("log")
-            ax2.set_ylim(0., 1.1*np.max(self.photometry[:,1]))
+            #ax2.set_xscale("log")
+            #ax2.set_ylim(0., 1.1*np.max(self.photometry[:,1]))
+            ax2.set_ylim(0., 1.1*normalisation_factor*np.max(self.photometry[:,1]))
+            ax2.set_xlim((np.log10(self.photometry[0,0])-0.025), (np.log10(self.photometry[-1,0])+0.025))
 
             for axis in axes:
-                axis.errorbar(self.photometry[:,0], self.photometry[:,1], yerr=self.photometry[:,2], lw=1.0, linestyle=" ", capsize=3, capthick=1, zorder=2, color="black")
-                axis.scatter(self.photometry[:,0], self.photometry[:,1], color="blue", s=75, zorder=3, linewidth=1, facecolor="blue", edgecolor="black", label="Observed Photometry")
+                axis.errorbar(np.log10(self.photometry[:,0]), normalisation_factor*self.photometry[:,1], yerr=normalisation_factor*self.photometry[:,2], lw=1.0, linestyle=" ", capsize=3, capthick=1, zorder=2, color="black")
+                axis.scatter(np.log10(self.photometry[:,0]), normalisation_factor*self.photometry[:,1], color="blue", s=75, zorder=3, linewidth=1, facecolor="blue", edgecolor="black", label="Observed Photometry")
 
 
         # Add masked regions to plots
@@ -182,6 +190,7 @@ class Galaxy:
                     for i in range(mask.shape[0]):
                         axes[j].axvspan(mask[i,0], mask[i,1], color="gray", alpha=0.8, zorder=3)
             
+        plt.savefig("data_plot.pdf", bbox_inches="tight")
         plt.show()
         plt.close(fig)
 

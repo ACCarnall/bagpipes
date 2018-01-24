@@ -35,9 +35,9 @@ class Star_Formation_History:
         self.age_widths = setup.chosen_age_widths
 
         # component_types: List of all possible types of star formation history (SFH) components
-        self.component_types = ["burst", "constant", "exponential", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
+        self.component_types = ["burst", "constant", "exponential", "cexp", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
 
-        self.special_component_types = ["lognormal", "dblplaw", "lognormalgauss", "custom"]
+        self.special_component_types = ["lognormal", "dblplaw", "lognormalgauss", "custom", "cexp"]
 
         # model_components: dictionary containing all information about the model being generated    
         self.model_components = model_components
@@ -63,7 +63,7 @@ class Star_Formation_History:
         # obtain the maximum age (time before observation) for which the ssfr is non-zero in Gyr (for plotting purposes)
         self.maxage = 0.
 
-        if "lognormal" in self.model_components.keys() or "dblplaw" in self.model_components.keys() or "lognormalgauss" in self.model_components.keys() or "custom" in self.model_components.keys():
+        if "lognormal" in self.model_components.keys() or "dblplaw" in self.model_components.keys() or "lognormalgauss" in self.model_components.keys() or "custom" in self.model_components.keys() or "cexp" in self.model_components.keys():
             self.maxage = np.interp(self.model_components["zred"], z_array, age_at_z)
 
         #Hacky prior on dblplaw:tau
@@ -120,7 +120,7 @@ class Star_Formation_History:
 
 
 
-    """ returns an array of sfr(t) values for an exponential component normalised to one Solar mass of star formation by the present time. """
+    """ returns an array of sfr(t) values for an exponential component. """
     def exponential(self, par_dict):
         
         age = par_dict["age"]*10**9
@@ -152,7 +152,40 @@ class Star_Formation_History:
 
 
 
-    """ returns an array of sfr(t) values for a constant component normalised to one Solar mass of star formation by the present time. """
+    """ returns an array of sfr(t) values for an cexp component. """
+    def cexp(self, par_dict):
+        
+        T0 = par_dict["T0"]*10**9
+        tau = par_dict["tau"]*10**9
+        
+        age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
+
+        age_lhs_universe = age_at_zred - self.age_lhs
+        ages_universe = age_at_zred - self.ages[age_lhs_universe > 0.]
+
+        width_red_factor = (age_at_zred - self.age_lhs[age_lhs_universe > 0.][-1])/(self.age_lhs[age_lhs_universe[age_lhs_universe > 0.].shape[0]] - self.age_lhs[age_lhs_universe > 0.][-1])
+
+        ages_universe[-1] = age_lhs_universe[age_lhs_universe > 0.][-1]/2.
+
+        widths_cexp = np.copy(self.age_widths)
+
+        widths_cexp[-1] *= width_red_factor
+       
+        weights_cexp = np.zeros(widths_cexp.shape[0])
+
+        weights_cexp[:ages_universe.shape[0]] = 1.
+        weights_cexp[:ages_universe.shape[0]][ages_universe > T0] *= np.exp(-(ages_universe[ages_universe > T0] - T0)/tau)
+
+        weight_widths = weights_cexp*widths_cexp
+
+        weight_widths /= np.sum(weight_widths)
+        weight_widths *= 10**par_dict["mass"]
+
+        return weight_widths
+
+
+
+    """  """
     def constant(self, par_dict):
         
         if par_dict["age"] == "hubble time":
@@ -197,7 +230,7 @@ class Star_Formation_History:
 
 
 
-    """ returns an array of sfr(t) values for a delayed component normalised to one Solar mass of star formation by the present time. """
+    """ returns an array of sfr(t) values for a delayed component. """
     def delayed(self, par_dict):
 
         age_ind = self.ages[self.ages < par_dict["age"]*10**9].shape[0]
@@ -222,7 +255,7 @@ class Star_Formation_History:
 
 
 
-    """ returns an array of sfr(t) values for a lognormal component normalised to one Solar mass of star formation by the present time. """
+    """ returns an array of sfr(t) values for a lognormal component. """
     def lognormal(self, par_dict):
         
         age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
@@ -264,7 +297,7 @@ class Star_Formation_History:
 
 
 
-    """ returns an array of sfr(t) values for a lognormal component normalised to one Solar mass of star formation by the present time. """
+    """ returns an array of sfr(t) values for a lognormal component with a gaussian stuck on the end. """
     def lognormalgauss(self, par_dict):
         
         age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
@@ -314,7 +347,7 @@ class Star_Formation_History:
 
 
 
-    """ returns an array of sfr(t) values for a double power law component normalised to one Solar mass of star formation by the present time. """
+    """ returns an array of sfr(t) values for a double power law component. """
     def dblplaw(self, par_dict):
 
         alpha = par_dict["alpha"]
@@ -346,6 +379,7 @@ class Star_Formation_History:
         return weight_widths
 
 
+
     def custom(self, par_dict):
 
         age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
@@ -355,7 +389,7 @@ class Star_Formation_History:
             sfr = np.loadtxt(par_dict["history"], usecols=(1,))
 
         else:
-            ages = par_dict["history"][:,0]
+            ages = par_dict["history"][:,0]*10**9
             sfr = par_dict["history"][:,1]
 
         weights_custom = np.interp(self.ages, ages, sfr, right=0.)
@@ -367,6 +401,8 @@ class Star_Formation_History:
 
     """ Creates a plot of sfr(t) normalised to one Solar mass of star formation by the present time. """
     def plot(self):
+
+        age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
 
         sfh_x = np.zeros(2*self.ages.shape[0])
         sfh_y = np.zeros(2*self.sfr.shape[0])
@@ -383,11 +419,13 @@ class Star_Formation_History:
         sfh_x[-2:] = 1.5*10**10
 
         plt.figure(figsize=(12, 4))
-        plt.plot(sfh_x*10**-9, sfh_y, color="black")
+        plt.plot((age_at_zred - sfh_x)*10**-9, sfh_y, color="black")
         plt.ylabel("$\mathrm{SFR\ (M_\odot\ yr^{-1}})$")
-        plt.xlabel("$\mathrm{Time\ before\ observation\ (Gyr)}$")
+        plt.xlabel("$\mathrm{Age\ of\ Universe\ (Gyr)}$")
+
+        #plt.xlabel("$\mathrm{Time\ before\ observation\ (Gyr)}$")
         plt.ylim(0, 1.1*np.max(self.sfr))
-        plt.xlim(0, 1.05*self.maxage)
+        plt.xlim(age_at_zred*10**-9, 0.)
         #plt.savefig("examplesfh.jpg", bbox_inches="tight")
         plt.show()
         

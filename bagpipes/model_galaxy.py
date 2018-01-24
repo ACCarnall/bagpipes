@@ -78,11 +78,14 @@ class Model_Galaxy:
 		# cloudylinewavs: Wavelength values for the lines added to the model from the cloudy grids
 		self.cloudylinewavs = None
 
+		# UVJ_filterlist: The list of filters for calculating rest frame UVJ magnitudes
+		self.UVJ_filterlist = None
+
 		# cloudylinelabels: an array of line labels from cloudy, used to construct line strength dictionary
 		self.cloudylinelabels = np.genfromtxt(setup.install_dir + "/lookup_tables/pipes_cloudy_lines.dat", dtype="str", delimiter="\t")
 
 		# component_types: List of all possible types of star formation history (SFH) components
-		self.component_types = ["burst", "constant", "exponential", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
+		self.component_types = ["burst", "constant", "exponential", "cexp", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
 
 		# zmet_vals: An array of metallicity values at which model grids are available for the chosen set of SPS models.
 		self.zmet_vals = np.copy(setup.zmet_vals[setup.model_type])
@@ -139,11 +142,11 @@ class Model_Galaxy:
 
 		if output_specwavs is None:
 			self.max_wavs = [min_phot_wav/(1.+setup.max_zred), 1.01*max_phot_wav, 10**8]
-			self.R = [10., 100., 10.]
+			self.R = [10., 100., 10.]#[10., 100., 10.]
 
 		elif self.field is None:
 			self.max_wavs = [output_specwavs[0]/(1.+setup.max_zred), output_specwavs[-1], 10**8]
-			self.R = [10., 600., 10.]
+			self.R = [10., 600., 10.]#[10., 600., 10.]
 
 		else:
 			if output_specwavs[0] > min_phot_wav and output_specwavs[-1] < max_phot_wav:
@@ -161,10 +164,12 @@ class Model_Galaxy:
 		# Generate the wavelength grid the models will be resampled onto. This runs from 1 to 10**8 Angstroms with variable sampling
 		for i in range(len(self.R)):
 			if i == len(self.R)-1 or self.R[i] > self.R[i+1]:
+				#print self.R[i], x[-1]
 				while x[-1] < self.max_wavs[i]:
 					x.append(x[-1]*(1.+0.5/self.R[i]))
 
 			else:
+				#print self.R[i], x[-1]
 				while x[-1]*(1.+0.5/self.R[i]) < self.max_wavs[i]:
 					x.append(x[-1]*(1.+0.5/self.R[i]))
 
@@ -623,12 +628,41 @@ class Model_Galaxy:
 				self.photometry /= (10**-29)*(2.9979*10**18/self.phot_wavs/self.phot_wavs)
 
 
+	def get_restframe_UVJ(self):
+
+		if self.UVJ_filterlist is None:
+
+			# filterlist: a list of the filter file names for UVJ.
+			self.UVJ_filterlist = np.loadtxt(setup.install_dir + "/filters/UVJ_filtlist.txt", dtype="str")
+
+			# filt_array_restframe: An array to contain the rest frame sampled filter profiles used to generate the model photometry
+			self.UVJ_filt_array = np.zeros((self.chosen_modelgrid_wavs.shape[0], 3))
+
+			for i in xrange(len(self.UVJ_filterlist)):
+				filter_raw = np.loadtxt(setup.install_dir + "/filters/" + self.UVJ_filterlist[i], usecols=(0, 1))
+
+				self.UVJ_filt_array[:,i] = np.interp(self.chosen_modelgrid_wavs, filter_raw[:,0], filter_raw[:,1], left=0, right=0)
+			
+			ABzpt_spec = np.array([self.chosen_modelgrid_wavs, (3.*10**18*3631.*10**-23)/(self.chosen_modelgrid_wavs**2)]).T
+
+			self.ABzpt = np.sum(np.expand_dims(ABzpt_spec[:,1]*self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)/np.sum(np.expand_dims(self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)
+
+		UVJ = (np.squeeze(np.sum(np.expand_dims(self.spectrum_full*self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)/np.sum(self.UVJ_filt_array*np.expand_dims(self.wav_widths, axis=1), axis=0)))
+
+		UVJ = -2.5*np.log10((np.squeeze(np.sum(np.expand_dims(self.spectrum_full*self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)/np.sum(self.UVJ_filt_array*np.expand_dims(self.wav_widths, axis=1), axis=0)))/self.ABzpt)
+
+		return UVJ
 
 
-	def plot(self):
+	def plot(self, fancy=False, save=False):
 		""" Creates a plot of the model attributes which were requested by the user. """
 
-		fancy = False
+		if fancy==True:
+			self.spectrum[:,1] *= 10**-40
+			self.spectrum_full *= 10**-40
+			self.photometry *= 10**-40
+
+		#fancy = False
 		naxes = 1
 
 		if self.field is not None and self.output_specwavs is not None:
@@ -642,23 +676,23 @@ class Model_Galaxy:
 		ax1 = axes[0]
 		ax2 = axes[-1]
 
-		ax2.set_xlabel("$\mathrm{Wavelength\ (\AA)}$", size=18)
+		ax2.set_xlabel("$\mathrm{Wavelength\ /\ \AA}$", size=18)
 
 		plt.subplots_adjust(hspace=0.1)
 
 		if self.model_comp["zred"] != 0:
 			if naxes == 2:
-				fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ cm^{-2}\ \AA^{-1})}$", size=18, rotation=90)
+				fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18, rotation=90)
 
 			else:
-				ax1.set_ylabel("$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ cm^{-2}\ \AA^{-1})}$", size=18)
+				ax1.set_ylabel("$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18)
 
 		else:
 			if naxes == 2:
-				fig.text(0.06, 0.58, "$\mathrm{L_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ \AA^{-1})}$", size=18, rotation=90)
+				fig.text(0.06, 0.58, "$\mathrm{L_{\lambda}}\ \mathrm{/\ 10^{40}\ erg\ s^{-1}\ \AA^{-1}}$", size=18, rotation=90)
 
 			else:
-				ax1.set_ylabel("$\mathrm{f_{\lambda}}$ $\mathrm{(erg\ s^{-1}\ \AA^{-1})}$", size=18)
+				ax1.set_ylabel("$\mathrm{f_{\lambda}}\ \mathrm{/\ 10^{40}\ erg\ s^{-1}\ \AA^{-1}}$", size=18)
 
 
 		if self.field is not None:
@@ -678,7 +712,7 @@ class Model_Galaxy:
 			#ax1.set_yticks([0.5, 1.0, 1.5])
 
 		if fancy == True:
-			sfh_ax = fig.add_axes([0.54, 0.27, 0.35, 0.19], zorder=10)
+			sfh_ax = fig.add_axes([0.54, 0.29, 0.35, 0.17], zorder=10)
 
 			sfh_x = np.zeros(2*self.sfh.ages.shape[0])
 			sfh_y = np.zeros(2*self.sfh.sfr.shape[0])
@@ -697,21 +731,23 @@ class Model_Galaxy:
 			sfh_ax.plot(cosmo.age(self.model_comp["zred"]).value - sfh_x*10**-9, sfh_y, color="black")
 			sfh_ax.set_xlim(cosmo.age(self.model_comp["zred"]).value, 0.)
 			sfh_ax.set_ylim(0., 1.1*np.max(sfh_y))
-			sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ (Gyr)}$")
-			sfh_ax.set_ylabel("$\mathrm{SFR\ (M_\odot\ yr^{-1})}$")
+			sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ /\ Gyr}$")
+			sfh_ax.set_ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
 
-			allspec_ax = fig.add_axes([0.54, 0.54, 0.35, 0.19], zorder=10)
+			allspec_ax = fig.add_axes([0.54, 0.57, 0.35, 0.17], zorder=10)
 			allspec_ax.plot(self.chosen_modelgrid_wavs*(1.+self.model_comp["zred"]), self.chosen_modelgrid_wavs*self.spectrum_full, color="black", zorder=1)
 			allspec_ax.set_xlim(700., 10**7)
-			allspec_ax.set_ylim(5.*10**40, 2.*np.max(self.chosen_modelgrid_wavs*self.spectrum_full))
+			allspec_ax.set_ylim(5., 2.*np.max(self.chosen_modelgrid_wavs*self.spectrum_full))
 			allspec_ax.set_xscale("log")
 			allspec_ax.set_yscale("log")
-			allspec_ax.set_ylabel("$\mathrm{\lambda L_{\lambda}}$ $\mathrm{(erg\ s^{-1})}$")
+			allspec_ax.set_ylabel("$\mathrm{\lambda L_{\lambda}}\ \mathrm{/\ 10^{40}\ erg\ s^{-1}}$")
+			fig.text(0.54+0.135, 0.53, "$\mathrm{Wavelength\ /\ \AA}$")
 
 			allspec_ax.get_xaxis().set_tick_params(which='minor', size=0)
 			allspec_ax.get_yaxis().set_tick_params(which='minor', size=0)
 
-		#plt.savefig("examplespec.jpg", bbox_inches="tight")
+		if save == True:
+			plt.savefig("examplespec.pdf", bbox_inches="tight")
 
 		plt.show()
 		plt.close(fig)
