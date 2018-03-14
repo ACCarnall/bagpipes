@@ -116,10 +116,10 @@ class Model_Galaxy:
 		self.k_lambda = {}
 		self.k_lambda_lines = {}
 
-		# This bit of code sets up the calculation of model fluxes in photometric bands if a field is specified
+		# This bit of code sets up the calculation of model fluxes in photometric bands if a filtlist is specified
 		if self.filtlist is not None:
 
-			# filterlist: a list of the filter file names associated with the specified field
+			# filterlist: a list of the filter file names associated with the specified filtlist
 			self.filterlist = np.loadtxt(setup.working_dir + "/pipes/filters/" + self.filtlist + ".filtlist", dtype="str")
 
 			# filter_raw_dict: a dict containing the raw filter files
@@ -204,7 +204,7 @@ class Model_Galaxy:
 		for i in range(IGM_redshifts.shape[0]):
 			self.D_IGM_grid[i,:] = interp(self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)], IGM_wavs_global, D_IGM_grid_global[i,:])
 
-		# If field is not None, finish off necessary calculations for photometry calculation
+		# If filtlist is not None, finish off necessary calculations for photometry calculation
 		if self.filtlist is not None:
 			# filt_array_restframe: An array to contain the rest frame sampled filter profiles used to generate the model photometry
 			self.filt_array_restframe = np.zeros((self.chosen_modelgrid_wavs.shape[0], len(self.filterlist)))
@@ -234,7 +234,7 @@ class Model_Galaxy:
 		self.update(self.model_comp)
 
 
-	""" Loads filter files for the specified field and calculates effective wavelength values which are added to self.photometry """
+	""" Loads filter files for the specified filtlist and calculates effective wavelength values which are added to self.photometry """
 	def get_phot_wavs(self):
 
 		self.phot_wavs = np.zeros(len(self.filterlist))
@@ -583,7 +583,7 @@ class Model_Galaxy:
 			for i in xrange(len(self.filterlist)):
 				self.filt_array[:,i] = interp(self.chosen_modelgrid_wavs*(1.+self.model_comp["redshift"]), self.chosen_modelgrid_wavs, self.filt_array_restframe[:,i], left=0, right=0)
 
-			# photometry: The flux values for the model spectrum observed through the filters specified in field
+			# photometry: The flux values for the model spectrum observed through the filters specified in filtlist
 			self.photometry = np.squeeze(np.sum(np.expand_dims(composite_spectrum*self.wav_widths, axis=1)*self.filt_array, axis=0)/np.sum(self.filt_array*np.expand_dims(self.wav_widths, axis=1), axis=0))
 			""" Output photometry array, contains a column of flux values, by default in erg/s/cm^2/A or erg/s/A at redshift zero. """
 
