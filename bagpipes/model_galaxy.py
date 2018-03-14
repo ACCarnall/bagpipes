@@ -91,6 +91,18 @@ class Model_Galaxy:
 		# component_types: List of all possible types of star formation history (SFH) components
 		self.component_types = ["burst", "constant", "exponential", "cexp", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
 
+		# sfh_components: List of the SFH components for this model
+		self.sfh_components = []
+
+		# Recognise only dictionaries which have names listed in self.component_types as being SFH components, add them to sfh_components list
+		for comp in self.model_comp.keys():
+			if (comp in self.component_types or comp[:-1] in self.component_types) and isinstance(self.model_comp[comp], dict):
+				sfh_components.append(comp)
+
+		# Check the model has at least one SFH component.
+		if len(sfh_components) == 0:
+			sys.exit("Bagpipes: Error, Model_Galaxy was not passed any recognised star formation history components in model_components dict.")
+
 		# zmet_vals: An array of metallicity values at which model grids are available for the chosen set of SPS models.
 		self.zmet_vals = np.copy(setup.zmet_vals[setup.model_type])
 
@@ -375,7 +387,8 @@ class Model_Galaxy:
 		# sfh: A star formation history object generated using model_components
 		self.sfh = star_formation_history.Star_Formation_History(self.model_comp)
 
-		self.living_mstar = 0.
+		self.living_stellar_mass = {}
+		self.living_stellar_mass["total"] = 0.
 
 		# composite_spectrum: will contain the spectrum obtained from adding contributions from all of the SFH components together
 		composite_spectrum = np.zeros(self.chosen_modelgrid_wavs.shape[0])
@@ -409,97 +422,92 @@ class Model_Galaxy:
 				n = 1.
 
 
-		# Loop over all star formation history components in model_comp
-		for comp in self.model_comp.keys():
+		# Loop over all star formation history components of the model
+		for comp in self.sfh_components:
 
-			# Recognise only dictionaries which have names listed in self.component_types as being SFH components
-			if (comp in self.component_types or comp[:-1] in self.component_types) and isinstance(self.model_comp[comp], dict):
+			# sfr_dt: Array containing the multiplicative factors to be applied to each SSP in the grid to build the CSP.
+			sfr_dt = self.sfh.weight_widths[comp]
 
-				# sfr_dt: Array containing the multiplicative factors to be applied to each SSP in the grid to build the CSP.
-				sfr_dt = self.sfh.weight_widths[comp]
+			# Figure out which are the stellar grids in Zmet closest to the chosen Zmet and what fraction of each grid should be taken
+			high_zmet_ind = self.zmet_vals[self.zmet_vals < 0.02*self.model_comp[comp]["metallicity"]].shape[0]
+			low_zmet_ind = high_zmet_ind - 1
+			high_zmet_factor = (self.model_comp[comp]["metallicity"]*0.02 - self.zmet_vals[low_zmet_ind])/(self.zmet_vals[high_zmet_ind] - self.zmet_vals[low_zmet_ind])
+			low_zmet_factor = 1 - high_zmet_factor
 
-				# Figure out which are the stellar grids in Zmet closest to the chosen Zmet and what fraction of each grid should be taken
-				high_zmet_ind = self.zmet_vals[self.zmet_vals < 0.02*self.model_comp[comp]["metallicity"]].shape[0]
-				low_zmet_ind = high_zmet_ind - 1
-				high_zmet_factor = (self.model_comp[comp]["metallicity"]*0.02 - self.zmet_vals[low_zmet_ind])/(self.zmet_vals[high_zmet_ind] - self.zmet_vals[low_zmet_ind])
-				low_zmet_factor = 1 - high_zmet_factor
+			#Calculate living stellar mass contribution from this SFH component
+			comp_living_mass = np.sum(sfr_dt*(low_zmet_factor*setup.chosen_mstar_liv[:,low_zmet_ind] + high_zmet_factor*setup.chosen_mstar_liv[:,high_zmet_ind]))
+			self.living_stellar_mass["total"] += comp_living_mass
+			self.living_stellar_mass[comp] = np.copy(comp_living_mass)
 
-				#Calculate living stellar mass contribution from this SFH component
-				self.living_mstar += np.sum(sfr_dt*(low_zmet_factor*setup.chosen_mstar_liv[:,low_zmet_ind] + high_zmet_factor*setup.chosen_mstar_liv[:,high_zmet_ind]))
+			# If the required stellar grids are not already in modelgrids then load them up
+			for zmet_ind in (high_zmet_ind, low_zmet_ind):
+				if str(zmet_ind) not in self.modelgrids.keys():
+					self.load_model_grid(zmet_ind)
 
-				# If the required stellar grids are not already in modelgrids then load them up
+			interpolated_stellar_grid = high_zmet_factor*self.modelgrids[str(high_zmet_ind)] + low_zmet_factor*self.modelgrids[str(low_zmet_ind)]
+
+			# Calculate how many lines of the grids are affected by birth clouds and what fraction of the final line is affected
+			# Otherwise check nothing which required t_bc to be specified has been specified and crash the code if so
+			if "t_bc" in self.model_comp.keys():
+				nlines = setup.chosen_age_lhs[setup.chosen_age_lhs < self.model_comp["t_bc"]*10**9].shape[0]
+				frac_bc = (self.model_comp["t_bc"]*10**9 - setup.chosen_age_lhs[nlines-1])/setup.chosen_age_widths[nlines-1]
+
+			else:
+				if "nebular" in self.model_comp.keys() or "dust" in self.model_comp.keys() and "eta" in self.model_comp["dust"].keys():
+					sys.exit("Bagpipes: t_bc must be specified if nebular emission or more dust for young ages are specified.")
+
+
+			# This section loads the nebular grids and adds them to the stellar grid if nebular emission has been requested
+			if "nebular" in self.model_comp.keys():
+
+				# First load any necessary nebular/cloudy models which have not yet been loaded
 				for zmet_ind in (high_zmet_ind, low_zmet_ind):
-					if str(zmet_ind) not in self.modelgrids.keys():
-						self.load_model_grid(zmet_ind)
+					for logU_val in (high_logU_val, low_logU_val):
+						if str(zmet_ind) + str(logU_val) not in self.cloudygrids.keys():
+							self.load_cloudy_grid(zmet_ind, logU_val)
 
-				#interpolated_stellar_grid = high_zmet_factor*grid_high_zmet + low_zmet_factor*grid_low_zmet
-				interpolated_stellar_grid = high_zmet_factor*self.modelgrids[str(high_zmet_ind)] + low_zmet_factor*self.modelgrids[str(low_zmet_ind)]
+				# Interpolate the nebular/cloudy grids in Zmet and logU
+				interpolated_cloudy_grid = high_zmet_factor*(high_logU_factor*self.cloudygrids[str(high_zmet_ind) + str(high_logU_val)] + low_logU_factor*self.cloudygrids[str(high_zmet_ind) + str(low_logU_val)]) + low_zmet_factor*(high_logU_factor*self.cloudygrids[str(low_zmet_ind) + str(high_logU_val)] + low_logU_factor*self.cloudygrids[str(low_zmet_ind) + str(low_logU_val)])
+				interpolated_cloudy_line_grid = high_zmet_factor*(high_logU_factor*allcloudylinegrids[str(high_zmet_ind) + str(high_logU_val)] + low_logU_factor*allcloudylinegrids[str(high_zmet_ind) + str(low_logU_val)]) + low_zmet_factor*(high_logU_factor*allcloudylinegrids[str(low_zmet_ind) + str(high_logU_val)] + low_logU_factor*allcloudylinegrids[str(low_zmet_ind) + str(low_logU_val)])
 
-				# Calculate how many lines of the grids are affected by birth clouds and what fraction of the final line is affected
-				# Otherwise check nothing which required t_bc to be specified has been specified and crash the code if so
-				if "a_bc" in self.model_comp.keys() and "t_bc" not in self.model_comp.keys():
-					self.model_comp["t_bc"] = self.model_comp["a_bc"]
+				# Add nebular grid to stellar grid
+				interpolated_stellar_grid[:nlines-1, :] += interpolated_cloudy_grid[:nlines-1, :]
+				interpolated_stellar_grid[nlines-1, :] += interpolated_cloudy_grid[nlines-1, :]*frac_bc
 
-				if "t_bc" in self.model_comp.keys():
-					nlines = setup.chosen_age_lhs[setup.chosen_age_lhs < self.model_comp["t_bc"]*10**9].shape[0]
-					frac_bc = (self.model_comp["t_bc"]*10**9 - setup.chosen_age_lhs[nlines-1])/setup.chosen_age_widths[nlines-1]
+				interpolated_cloudy_line_grid[nlines-1, :] *= frac_bc
 
-				else:
-					if "nebular" in self.model_comp.keys() or "dust" in self.model_comp.keys() and "eta" in self.model_comp["dust"].keys():
-						sys.exit("BAGPIPES: t_bc must be specified if nebular emission or more dust for young ages are specified.")
+				interpolated_cloudy_lines = np.sum(np.expand_dims(sfr_dt[:nlines], axis=1)*interpolated_cloudy_line_grid[:nlines, :], axis=0)
 
 
-				# This section loads the nebular grids and adds them to the stellar grid if nebular emission has been requested
+			# If extra dust on the youngest stellar component has been requested, this section adds it in before the grid is converted from SSPs into a CSP
+			if "dust" in self.model_comp.keys() and "eta" in self.model_comp["dust"].keys():
+
+				T_dust = 10**(-(self.model_comp["dust"]["eta"] - 1)*self.model_comp["dust"]["Av"]*self.k_lambda[self.model_comp["dust"]["type"]]**n/2.5)
+
+				stellar_grid_no_dust = np.copy(interpolated_stellar_grid[:nlines,:])
+				interpolated_stellar_grid[:nlines-1, :] *= T_dust
+				interpolated_stellar_grid[nlines-1, :] *= T_dust*frac_bc + (1. - frac_bc)
+
+				total_dust_flux += np.trapz(np.sum(stellar_grid_no_dust - interpolated_stellar_grid[:nlines,:], axis=0), x=self.chosen_modelgrid_wavs)
+
 				if "nebular" in self.model_comp.keys():
+					interpolated_cloudy_lines *= 10**(-(self.model_comp["dust"]["eta"] - 1)*self.model_comp["dust"]["Av"]*self.k_lambda_lines[self.model_comp["dust"]["type"]]**n/2.5)
 
-					# First load any necessary nebular/cloudy models which have not yet been loaded
-					for zmet_ind in (high_zmet_ind, low_zmet_ind):
-						for logU_val in (high_logU_val, low_logU_val):
-							if str(zmet_ind) + str(logU_val) not in self.cloudygrids.keys():
-								self.load_cloudy_grid(zmet_ind, logU_val)
-
-					# Interpolate the nebular/cloudy grids in Zmet and logU
-					interpolated_cloudy_grid = high_zmet_factor*(high_logU_factor*self.cloudygrids[str(high_zmet_ind) + str(high_logU_val)] + low_logU_factor*self.cloudygrids[str(high_zmet_ind) + str(low_logU_val)]) + low_zmet_factor*(high_logU_factor*self.cloudygrids[str(low_zmet_ind) + str(high_logU_val)] + low_logU_factor*self.cloudygrids[str(low_zmet_ind) + str(low_logU_val)])
-					interpolated_cloudy_line_grid = high_zmet_factor*(high_logU_factor*allcloudylinegrids[str(high_zmet_ind) + str(high_logU_val)] + low_logU_factor*allcloudylinegrids[str(high_zmet_ind) + str(low_logU_val)]) + low_zmet_factor*(high_logU_factor*allcloudylinegrids[str(low_zmet_ind) + str(high_logU_val)] + low_logU_factor*allcloudylinegrids[str(low_zmet_ind) + str(low_logU_val)])
-
-					# Add nebular grid to stellar grid
-					interpolated_stellar_grid[:nlines-1, :] += interpolated_cloudy_grid[:nlines-1, :]
-					interpolated_stellar_grid[nlines-1, :] += interpolated_cloudy_grid[nlines-1, :]*frac_bc
-
-					interpolated_cloudy_line_grid[nlines-1, :] *= frac_bc
-
-					interpolated_cloudy_lines = np.sum(np.expand_dims(sfr_dt[:nlines], axis=1)*interpolated_cloudy_line_grid[:nlines, :], axis=0)
-
-
-				# If extra dust on the youngest stellar component has been requested, this section adds it in before the grid is converted from SSPs into a CSP
-				if "dust" in self.model_comp.keys() and "eta" in self.model_comp["dust"].keys():
-
-					T_dust = 10**(-(self.model_comp["dust"]["eta"] - 1)*self.model_comp["dust"]["Av"]*self.k_lambda[self.model_comp["dust"]["type"]]**n/2.5)
-
-					stellar_grid_no_dust = np.copy(interpolated_stellar_grid[:nlines,:])
-					interpolated_stellar_grid[:nlines-1, :] *= T_dust
-					interpolated_stellar_grid[nlines-1, :] *= T_dust*frac_bc + (1. - frac_bc)
-
-					total_dust_flux += np.trapz(np.sum(stellar_grid_no_dust - interpolated_stellar_grid[:nlines,:], axis=0), x=self.chosen_modelgrid_wavs)
-
-					if "nebular" in self.model_comp.keys():
-						interpolated_cloudy_lines *= 10**(-(self.model_comp["dust"]["eta"] - 1)*self.model_comp["dust"]["Av"]*self.k_lambda_lines[self.model_comp["dust"]["type"]]**n/2.5)
-
-				# Obtain CSP by performing a weighed sum over the SSPs and add it to the composite spectrum
-				composite_spectrum += np.sum(np.expand_dims(sfr_dt, axis=1)*interpolated_stellar_grid, axis=0)
+			# Obtain CSP by performing a weighed sum over the SSPs and add it to the composite spectrum
+			composite_spectrum += np.sum(np.expand_dims(sfr_dt, axis=1)*interpolated_stellar_grid, axis=0)
+			
+			if "nebular" in self.model_comp.keys():
+				if composite_lines is None:
+					composite_lines = np.zeros(self.cloudylinewavs.shape[0])
 				
+				composite_lines += interpolated_cloudy_lines
+
+			# The Hydrogen ionizing continuum is removed here by default
+			if self.keep_ionizing_continuum is not True:
+				composite_spectrum[self.chosen_modelgrid_wavs < 911.8] = 0.
+
 				if "nebular" in self.model_comp.keys():
-					if composite_lines is None:
-						composite_lines = np.zeros(self.cloudylinewavs.shape[0])
-					
-					composite_lines += interpolated_cloudy_lines
-
-				# The Hydrogen ionizing continuum is removed here by default
-				if self.keep_ionizing_continuum is not True:
-					composite_spectrum[self.chosen_modelgrid_wavs < 911.8] = 0.
-
-					if "nebular" in self.model_comp.keys():
-						composite_lines[self.cloudylinewavs < 911.8] = 0.
+					composite_lines[self.cloudylinewavs < 911.8] = 0.
 
 		# Apply diffuse dust absorption correction to the composite spectrum
 		if "dust" in self.model_comp.keys():

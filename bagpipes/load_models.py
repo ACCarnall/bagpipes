@@ -11,7 +11,7 @@ model_dirs["bc03_miles"] = setup.install_dir + "/models/bc03_miles/"
 
 def bc03_miles():
     """ Function for loading up the BC03 MILES model library. """
-    zmet_fnames = np.loadtxt(setup.install_dir + "/models/bc03_miles_fnames.txt", dtype="str")
+    zmet_fnames = np.loadtxt(setup.install_dir + "/models/bc03_miles/bc03_miles_fnames.txt", dtype="str")
     zmet_vals = np.array([0.0001, 0.0004, 0.004, 0.008, 0.02, 0.05, 0.1])
     len_wavs =  13216
     modelwavs = np.squeeze(np.genfromtxt(model_dirs["bc03_miles"] + zmet_fnames[0], skip_header = 6, skip_footer=233, usecols=np.arange(1, len_wavs+1), dtype="float"))

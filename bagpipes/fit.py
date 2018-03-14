@@ -400,8 +400,13 @@ class Fit:
             self.posterior["sfh"] = np.zeros((nsamples, self.Model.sfh.ages.shape[0]))
             self.posterior["sfr"] = np.zeros(nsamples)
             self.posterior["tmw"] = np.zeros(nsamples)
-            self.posterior["mstar"] = np.zeros(nsamples)
             self.posterior["UVJ"] = np.zeros((3, nsamples))
+
+            self.posterior["living_stellar_mass"] = {}
+            self.posterior["living_stellar_mass"]["total"] = np.zeros(nsamples)
+
+            for comp in self.Model.sfh_components:
+                self.posterior["living_stellar_mass"][comp] = np.zeros(nsamples)
 
             if self.Galaxy.photometry_exists == True:
                 self.posterior["photometry"] = np.zeros((self.Model.photometry.shape[0], nsamples))
@@ -426,7 +431,10 @@ class Fit:
                 self.posterior["sfh"][i,:] = self.Model.sfh.sfr 
                 self.posterior["sfr"][i] = self.posterior["sfh"][i,0]
                 self.posterior["tmw"][i] = np.interp(self.model_components["redshift"], z_array, age_at_z) - (10**-9)*np.sum(self.Model.sfh.sfr*self.Model.sfh.ages*self.Model.sfh.age_widths)/np.sum(self.Model.sfh.sfr*self.Model.sfh.age_widths)
-                self.posterior["mstar"][i] = np.log10(self.Model.living_mstar)
+                self.posterior["living_stellar_mass"]["total"][i] = self.Model.living_stellar_mass["total"]
+
+                for comp in self.Model.sfh_components:
+                    self.posterior["living_stellar_mass"][comp][i] = self.Model.living_stellar_mass[comp]
 
                 if self.Model.filtlist is not None:
                     self.posterior["UVJ"][:,i] = self.Model.get_restframe_UVJ()
