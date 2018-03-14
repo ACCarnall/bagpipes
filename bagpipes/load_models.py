@@ -3,14 +3,14 @@ import setup
 
 model_dirs = {}
 model_dirs["bc03_miles"] = setup.install_dir + "/models/bc03_miles/"
-model_dirs["bc03_basel"] = setup.install_dir + "/models/bc03_basel/"
-model_dirs["bpass_bin_100"] = setup.install_dir + "/models/bpass_bin_100/"
-model_dirs["bpass_bin_300"] = setup.install_dir + "/models/bpass_bin_300/"
-model_dirs["mar05"] = setup.install_dir + "/models/mar05/"
-
+#model_dirs["bc03_basel"] = setup.install_dir + "/models/bc03_basel/"
+#model_dirs["bpass_bin_100"] = setup.install_dir + "/models/bpass_bin_100/"
+#model_dirs["bpass_bin_300"] = setup.install_dir + "/models/bpass_bin_300/"
+#model_dirs["mar05"] = setup.install_dir + "/models/mar05/"
 
 
 def bc03_miles():
+    """ Function for loading up the BC03 MILES model library. """
     zmet_fnames = np.loadtxt(setup.install_dir + "/models/bc03_miles_fnames.txt", dtype="str")
     zmet_vals = np.array([0.0001, 0.0004, 0.004, 0.008, 0.02, 0.05, 0.1])
     len_wavs =  13216

@@ -19,17 +19,7 @@ rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica'], "size": 14})
 rc('text', usetex=True)
 
 
-"""
-zred = 0.5
-sfhist_mufasa = np.loadtxt("/Users/adam/mufasa/model_cats/star_formation_histories_" + str(zred) + ".txt")
-#ID = "749"
-sfh_mufasa = sfhist_mufasa[1:]#sfh_mufasa = np.squeeze(sfhist_mufasa[sfhist_mufasa[:,0] == float(ID),1:])
-age_universe = cosmo.age(zred).value
-ages_universe = age_universe - np.arange(0., age_universe + 0.1, 0.1) - 0.05
-"""
-
-
-def compare_fits(fit2, fit1, params_tolog=[], truths=None, comp_run="."):
+def compare_fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
 
 	colour1 = "darkorange"
 	colour1_2 = "navajowhite"
@@ -51,7 +41,7 @@ def compare_fits(fit2, fit1, params_tolog=[], truths=None, comp_run="."):
 	ndim = len(params)
 
 	for i in range(ndim):
-		if params[i] in params_tolog:
+		if params[i] in param_names_tolog:
 
 			fit1.posterior["samples"][:,param_indices1[i]] = np.log10(fit1.posterior["samples"][:,param_indices1[i]])
 			fit2.posterior["samples"][:,param_indices2[i]] = np.log10(fit2.posterior["samples"][:,param_indices2[i]])
@@ -114,56 +104,58 @@ def compare_fits(fit2, fit1, params_tolog=[], truths=None, comp_run="."):
 
 
 		
-		sfh_ax = fig.add_axes([0.65, 0.59, 0.32, 0.15], zorder=10)
-		sfr_ax = fig.add_axes([0.82, 0.82, 0.15, 0.15], zorder=10)
-		tmw_ax = fig.add_axes([0.65, 0.82, 0.15, 0.15], zorder=10)
+	sfh_ax = fig.add_axes([0.65, 0.59, 0.32, 0.15], zorder=10)
+	sfr_ax = fig.add_axes([0.82, 0.82, 0.15, 0.15], zorder=10)
+	tmw_ax = fig.add_axes([0.65, 0.82, 0.15, 0.15], zorder=10)
 
-		
-		sfh_x1, sfh_y1, sfh_y_low1, sfh_y_high1 = get_sfh_info(fit1)
-		sfh_x2, sfh_y2, sfh_y_low2, sfh_y_high2 = get_sfh_info(fit2)
+	
+	sfh_x1, sfh_y1, sfh_y_low1, sfh_y_high1 = get_sfh_info(fit1)
+	sfh_x2, sfh_y2, sfh_y_low2, sfh_y_high2 = get_sfh_info(fit2)
 
-		# Plot the SFH
-		sfh_ax.fill_between(np.interp(fit1.model_components["zred"], z_array, age_at_z) - sfh_x1*10**-9, sfh_y_low1, sfh_y_high1, color=colour1_2, alpha=alpha1, lw=2, edgecolor=colour2)
-		sfh_ax.plot(np.interp(fit1.model_components["zred"], z_array, age_at_z) - sfh_x1*10**-9, sfh_y1, color=colour1, zorder=10)
-		sfh_ax.set_xlim(np.interp(fit1.model_components["zred"], z_array, age_at_z), 0)
+	# Plot the SFH
+	sfh_ax.fill_between(np.interp(fit1.model_components["redshift"], z_array, age_at_z) - sfh_x1*10**-9, sfh_y_low1, sfh_y_high1, color=colour1_2, alpha=alpha1, lw=2, edgecolor=colour2)
+	sfh_ax.plot(np.interp(fit1.model_components["redshift"], z_array, age_at_z) - sfh_x1*10**-9, sfh_y1, color=colour1, zorder=10)
+	sfh_ax.set_xlim(np.interp(fit1.model_components["redshift"], z_array, age_at_z), 0)
 
-		#sfh_ax.plot(ages_universe, gaussian_filter(sfh_mufasa, 2), color="black", lw=2)
+	#sfh_ax.plot(ages_universe, gaussian_filter(sfh_mufasa, 2), color="black", lw=2)
 
-		sfh_ax.fill_between(np.interp(fit2.model_components["zred"], z_array, age_at_z) - sfh_x2*10**-9, sfh_y_low2, sfh_y_high2, color=colour2_2, alpha=alpha2, lw=2, edgecolor=colour2)
-		sfh_ax.plot(np.interp(fit2.model_components["zred"], z_array, age_at_z) - sfh_x2*10**-9, sfh_y2, color=colour2, zorder=10)
+	sfh_ax.fill_between(np.interp(fit2.model_components["redshift"], z_array, age_at_z) - sfh_x2*10**-9, sfh_y_low2, sfh_y_high2, color=colour2_2, alpha=alpha2, lw=2, edgecolor=colour2)
+	sfh_ax.plot(np.interp(fit2.model_components["redshift"], z_array, age_at_z) - sfh_x2*10**-9, sfh_y2, color=colour2, zorder=10)
 
 
-		sfh_ax2 = sfh_ax.twiny()
-		sfh_ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], z_array, age_at_z))
-		sfh_ax2.set_xticklabels(["$0$", "$0.5$", "$1$", "$2$", "$4$", "$10$"])
-		sfh_ax2.set_xlim(sfh_ax.get_xlim())
-		sfh_ax2.set_xlabel("$\mathrm{Redshift}$", size=14)
+	sfh_ax2 = sfh_ax.twiny()
+	sfh_ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], z_array, age_at_z))
+	sfh_ax2.set_xticklabels(["$0$", "$0.5$", "$1$", "$2$", "$4$", "$10$"])
+	sfh_ax2.set_xlim(sfh_ax.get_xlim())
+	sfh_ax2.set_xlabel("$\mathrm{Redshift}$", size=14)
 
-		# Plot the current star formation rate posterior
-		sfr_ax.hist(fit1.posterior["sfr"], bins=20, color=colour1_2, normed=True, histtype="stepfilled", edgecolor=colour1, alpha=alpha1, lw=2, range=(np.min([np.min(fit1.posterior["sfr"]), np.min(fit2.posterior["sfr"])]), np.max([np.max(fit1.posterior["sfr"]), np.max(fit2.posterior["sfr"])])))
-		sfr_ax.hist(fit2.posterior["sfr"], bins=20, color=colour2_2, normed=True, histtype="stepfilled", edgecolor=colour2, alpha=alpha2, lw=2, range=(np.min([np.min(fit1.posterior["sfr"]), np.min(fit2.posterior["sfr"])]), np.max([np.max(fit1.posterior["sfr"]), np.max(fit2.posterior["sfr"])])))
+	# Plot the current star formation rate posterior
+	sfr_ax.hist(fit1.posterior["sfr"], bins=20, color=colour1_2, normed=True, histtype="stepfilled", edgecolor=colour1, alpha=alpha1, lw=2, range=(np.min([np.min(fit1.posterior["sfr"]), np.min(fit2.posterior["sfr"])]), np.max([np.max(fit1.posterior["sfr"]), np.max(fit2.posterior["sfr"])])))
+	sfr_ax.hist(fit2.posterior["sfr"], bins=20, color=colour2_2, normed=True, histtype="stepfilled", edgecolor=colour2, alpha=alpha2, lw=2, range=(np.min([np.min(fit1.posterior["sfr"]), np.min(fit2.posterior["sfr"])]), np.max([np.max(fit1.posterior["sfr"]), np.max(fit2.posterior["sfr"])])))
 
-		sfr_ax.set_xlabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
-		sfr_ax.set_xlim(np.min([np.min(fit1.posterior["sfr"]), np.min(fit2.posterior["sfr"])]), np.max([np.max(fit1.posterior["sfr"]), np.max(fit2.posterior["sfr"])]))
-		sfr_ax.set_yticklabels([])
+	sfr_ax.set_xlabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
+	sfr_ax.set_xlim(np.min([np.min(fit1.posterior["sfr"]), np.min(fit2.posterior["sfr"])]), np.max([np.max(fit1.posterior["sfr"]), np.max(fit2.posterior["sfr"])]))
+	sfr_ax.set_yticklabels([])
 
-		# Plot the mass weighted age posterior
-		tmw_ax.hist(fit1.posterior["tmw"], bins=20, color=colour1_2, normed=True, histtype="stepfilled", edgecolor=colour1, alpha=alpha1, lw=2, range=(np.min([np.min(fit1.posterior["tmw"]), np.min(fit2.posterior["tmw"])]), np.max([np.max(fit1.posterior["tmw"]), np.max(fit2.posterior["tmw"])])))
-		tmw_ax.hist(fit2.posterior["tmw"], bins=20, color=colour2_2, normed=True, histtype="stepfilled", edgecolor=colour2, alpha=alpha2, lw=2, range=(np.min([np.min(fit1.posterior["tmw"]), np.min(fit2.posterior["tmw"])]), np.max([np.max(fit1.posterior["tmw"]), np.max(fit2.posterior["tmw"])])))
+	# Plot the mass weighted age posterior
+	tmw_ax.hist(fit1.posterior["tmw"], bins=20, color=colour1_2, normed=True, histtype="stepfilled", edgecolor=colour1, alpha=alpha1, lw=2, range=(np.min([np.min(fit1.posterior["tmw"]), np.min(fit2.posterior["tmw"])]), np.max([np.max(fit1.posterior["tmw"]), np.max(fit2.posterior["tmw"])])), label="VANDELS")
+	tmw_ax.hist(fit2.posterior["tmw"], bins=20, color=colour2_2, normed=True, histtype="stepfilled", edgecolor=colour2, alpha=alpha2, lw=2, range=(np.min([np.min(fit1.posterior["tmw"]), np.min(fit2.posterior["tmw"])]), np.max([np.max(fit1.posterior["tmw"]), np.max(fit2.posterior["tmw"])])), label="Wild")
 
-		tmw_ax.set_xlabel("$t(z_\mathrm{form})\ /\ \mathrm{Gyr}$")
-		tmw_ax.set_xlim(np.min([np.min(fit1.posterior["tmw"]), np.min(fit2.posterior["tmw"])]), np.max([np.max(fit1.posterior["tmw"]), np.max(fit2.posterior["tmw"])]))
-		tmw_ax.set_yticklabels([])
+	tmw_ax.legend(frameon=False, markerfirst=False, fontsize=14, loc=7, ncol=1, bbox_to_anchor=(-0.2, 0.8))
 
-		sfh_ax.set_ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$", size=14)
-		sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ (Gyr)}$", size=14)
-		sfh_ax.set_ylim(0, 1.1*np.max([np.max(sfh_y_high1), np.max(sfh_y_high2)]))
-		
+	tmw_ax.set_xlabel("$t(z_\mathrm{form})\ /\ \mathrm{Gyr}$")
+	tmw_ax.set_xlim(np.min([np.min(fit1.posterior["tmw"]), np.min(fit2.posterior["tmw"])]), np.max([np.max(fit1.posterior["tmw"]), np.max(fit2.posterior["tmw"])]))
+	tmw_ax.set_yticklabels([])
 
-        if not os.path.exists(setup.install_dir + "/plots/" + comp_run):
-            os.mkdir(setup.install_dir + "/plots/" + comp_run)
+	sfh_ax.set_ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$", size=14)
+	sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ (Gyr)}$", size=14)
+	sfh_ax.set_ylim(0, 1.1*np.max([np.max(sfh_y_high1), np.max(sfh_y_high2)]))
+	
 
-	fig.savefig(setup.install_dir + "/plots/" + comp_run + "/" + fit1.Galaxy.ID + "_corner_experimental_comp.pdf")#, bbox_inches="tight")
+	if not os.path.exists(setup.install_dir + "/plots/" + comp_run):
+		os.mkdir(setup.install_dir + "/plots/" + comp_run)
+
+	fig.savefig(setup.install_dir + "/plots/" + comp_run + "/" + fit1.Galaxy.ID + "_comp_corner.pdf")#, bbox_inches="tight")
 
 
 

@@ -1,7 +1,0 @@
-bc2003_hr_xmiless_m22_kroup_ssp.ised_ASCII
-bc2003_hr_xmiless_m32_kroup_ssp.ised_ASCII
-bc2003_hr_xmiless_m42_kroup_ssp.ised_ASCII
-bc2003_hr_xmiless_m52_kroup_ssp.ised_ASCII
-bc2003_hr_xmiless_m62_kroup_ssp.ised_ASCII
-bc2003_hr_xmiless_m72_kroup_ssp.ised_ASCII
-bc2003_hr_xmiless_m82_kroup_ssp.ised_ASCII

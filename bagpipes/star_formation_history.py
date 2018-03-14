@@ -27,6 +27,15 @@ def lognorm_equations(p, consts):
 
 
 class Star_Formation_History:
+    """ Generate a star formation history. This class is not intended to be used directly, it should be accessed through Model_Galaxy.
+
+    Parameters
+    ----------
+
+    model_components : dict
+        A dictionary containing information about the star formation history you wish to generate. 
+
+    """
 
     def __init__(self, model_components):
 
@@ -64,7 +73,7 @@ class Star_Formation_History:
         self.maxage = 0.
 
         if "lognormal" in self.model_components.keys() or "dblplaw" in self.model_components.keys() or "lognormalgauss" in self.model_components.keys() or "custom" in self.model_components.keys() or "cexp" in self.model_components.keys():
-            self.maxage = np.interp(self.model_components["zred"], z_array, age_at_z)
+            self.maxage = np.interp(self.model_components["redshift"], z_array, age_at_z)
 
         #Hacky prior on dblplaw:tau
         if "dblplaw" in self.model_components.keys():
@@ -75,7 +84,7 @@ class Star_Formation_History:
             if component in self.component_types or component[:-1] in self.component_types:
                 if component not in self.special_component_types and component[:-1] not in self.special_component_types:
                     if model_components[component]["age"] == "hubble time":
-                        self.maxage = np.interp(self.model_components["zred"], z_array, age_at_z)
+                        self.maxage = np.interp(self.model_components["redshift"], z_array, age_at_z)
                                         
                     if model_components[component]["age"] > self.maxage:
                         self.maxage = model_components[component]["age"]
@@ -94,7 +103,7 @@ class Star_Formation_History:
             const_par_dict = {}
             const_par_dict["age"] = par_dict["age"]
             const_par_dict["age_min"] = par_dict["age"] - par_dict["width"]
-            const_par_dict["mass"] = par_dict["mass"]
+            const_par_dict["massformed"] = par_dict["massformed"]
 
             weight_widths = self.constant(const_par_dict)
             return weight_widths
@@ -114,7 +123,7 @@ class Star_Formation_History:
 
             weight_widths = weights_burst*widths_burst
             weight_widths /= np.sum(weight_widths)
-            weight_widths *= 10**par_dict["mass"]
+            weight_widths *= 10**par_dict["massformed"]
 
             return weight_widths
 
@@ -146,19 +155,19 @@ class Star_Formation_History:
 
         weight_widths = weights_exponential*widths_exponential
         weight_widths /= np.sum(weight_widths)
-        weight_widths *= 10**par_dict["mass"]
+        weight_widths *= 10**par_dict["massformed"]
 
         return weight_widths
 
 
 
-    """ returns an array of sfr(t) values for an cexp component. """
+    """ returns an array of sfr(t) values for a cexp component: constant from beginning of Universe until T0, after which exp decline. """
     def cexp(self, par_dict):
         
         T0 = par_dict["T0"]*10**9
         tau = par_dict["tau"]*10**9
         
-        age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
+        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
 
         age_lhs_universe = age_at_zred - self.age_lhs
         ages_universe = age_at_zred - self.ages[age_lhs_universe > 0.]
@@ -179,17 +188,17 @@ class Star_Formation_History:
         weight_widths = weights_cexp*widths_cexp
 
         weight_widths /= np.sum(weight_widths)
-        weight_widths *= 10**par_dict["mass"]
+        weight_widths *= 10**par_dict["massformed"]
 
         return weight_widths
 
 
 
-    """  """
+    """ returns an array of sfr(t) values for a constant component. """
     def constant(self, par_dict):
         
         if par_dict["age"] == "hubble time":
-            par_dict["age"] = np.interp(self.model_components["zred"], z_array, age_at_z)
+            par_dict["age"] = np.interp(self.model_components["redshift"], z_array, age_at_z)
 
         if par_dict["age_min"] > par_dict["age"]:
             sys.exit("Minimum constant age exceeded maximum.")
@@ -224,7 +233,7 @@ class Star_Formation_History:
 
         weight_widths = widths_constant
         weight_widths /= np.sum(weight_widths)
-        weight_widths *= 10**par_dict["mass"]
+        weight_widths *= 10**par_dict["massformed"]
         
         return weight_widths
 
@@ -249,7 +258,7 @@ class Star_Formation_History:
 
         weight_widths = weights_delayed*widths_delayed
         weight_widths /= np.sum(weight_widths)
-        weight_widths *= 10**par_dict["mass"]
+        weight_widths *= 10**par_dict["massformed"]
         
         return weight_widths
 
@@ -258,7 +267,7 @@ class Star_Formation_History:
     """ returns an array of sfr(t) values for a lognormal component. """
     def lognormal(self, par_dict):
         
-        age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
+        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
 
         if "tmax" in par_dict.keys() and "fwhm" in par_dict.keys():
             tmax, fwhm = par_dict["tmax"]*10**9, par_dict["fwhm"]*10**9
@@ -291,7 +300,7 @@ class Star_Formation_History:
         weight_widths = weights_lognormal*widths_lognormal
 
         weight_widths /= np.sum(weight_widths)
-        weight_widths *= 10**par_dict["mass"]
+        weight_widths *= 10**par_dict["massformed"]
 
         return weight_widths
 
@@ -300,7 +309,7 @@ class Star_Formation_History:
     """ returns an array of sfr(t) values for a lognormal component with a gaussian stuck on the end. """
     def lognormalgauss(self, par_dict):
         
-        age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
+        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
 
         if "tmax" in par_dict.keys() and "fwhm" in par_dict.keys():
             tmax, fwhm = par_dict["tmax"]*10**9, par_dict["fwhm"]*10**9
@@ -341,7 +350,7 @@ class Star_Formation_History:
         weight_widths = weights_lognormal*widths_lognormal
 
         weight_widths /= np.sum(weight_widths)
-        weight_widths *= 10**par_dict["mass"]
+        weight_widths *= 10**par_dict["massformed"]
 
         return weight_widths + weight_widths_gausscomp
 
@@ -354,7 +363,7 @@ class Star_Formation_History:
         beta = par_dict["beta"]
         tau = par_dict["tau"]*10**9
         
-        age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
+        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
 
         age_lhs_universe = age_at_zred - self.age_lhs
         ages_universe = age_at_zred - self.ages[age_lhs_universe > 0.]
@@ -374,7 +383,7 @@ class Star_Formation_History:
         weight_widths = weights_dblplaw*widths_dblplaw
 
         weight_widths /= np.sum(weight_widths)
-        weight_widths *= 10**par_dict["mass"]
+        weight_widths *= 10**par_dict["massformed"]
 
         return weight_widths
 
@@ -382,7 +391,7 @@ class Star_Formation_History:
 
     def custom(self, par_dict):
 
-        age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
+        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
 
         if isinstance(par_dict["history"], str):
             ages = np.loadtxt(par_dict["history"], usecols=(0,))
@@ -399,10 +408,10 @@ class Star_Formation_History:
         return weight_widths
 
 
-    """ Creates a plot of sfr(t) normalised to one Solar mass of star formation by the present time. """
+    """ Creates a plot of sfr(t) for this star formation history. """
     def plot(self):
 
-        age_at_zred = np.interp(self.model_components["zred"], z_array, age_at_z)*10**9
+        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
 
         sfh_x = np.zeros(2*self.ages.shape[0])
         sfh_y = np.zeros(2*self.sfr.shape[0])

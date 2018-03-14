@@ -25,13 +25,13 @@ class Galaxy:
         string denoting the ID of the object to be loaded. This will be passed to data_load_function.
 
     data_load_function : function
-        Function which takes ID, field as its two arguments and returns the model spectrum and photometry. Spectrum should come first and 
+        Function which takes ID, filtlist as its two arguments and returns the model spectrum and photometry. Spectrum should come first and 
         be an array with a column of wavelengths in Angstroms, a column of fluxes in erg/s/cm^2/A and a column of flux errors in the same 
         units. Photometry should come second and be an array with a column of fluxes in microjanskys and a column of flux errors in the 
         same units.
 
-    field : str
-        The name of the field, must be specified if photometry is to be loaded.
+    filtlist : str
+        The name of the filtlist, must be specified if photometry is to be loaded.
 
     spectrum_exists : bool
         If you do not have a spectrum for this object, set this to False. In this case, data_load_function should only return photometry.
@@ -42,13 +42,13 @@ class Galaxy:
     
     """
 
-    def __init__(self, ID, data_load_function, field=None, spectrum_exists=True, photometry_exists=True):
+    def __init__(self, ID, data_load_function, filtlist=None, spectrum_exists=True, photometry_exists=True):
 
         out_units="ergscma"
         no_of_spectra=1
 
         self.ID = ID
-        self.field = field
+        self.filtlist = filtlist
         self.out_units = out_units
         self.spectrum_exists = spectrum_exists
         self.photometry_exists = photometry_exists
@@ -59,25 +59,25 @@ class Galaxy:
 
         elif spectrum_exists == True and photometry_exists == False:
             if self.no_of_spectra == 1:
-                self.spectrum = data_load_function(self.ID, self.field)
+                self.spectrum = data_load_function(self.ID, self.filtlist)
 
             else:
-                data = data_load_function(self.ID, self.field)
+                data = data_load_function(self.ID, self.filtlist)
                 self.spectrum = data[0]
                 self.extra_spectra = []
                 for i in range(len(data)-1):
                     self.extra_spectra.append(data[i+1])
 
         elif spectrum_exists == False and photometry_exists == True:
-            photometry_nowavs = data_load_function(self.ID, self.field)
+            photometry_nowavs = data_load_function(self.ID, self.filtlist)
             self.no_of_spectra = 0
 
         else:
             if self.no_of_spectra == 1:
-                self.spectrum, photometry_nowavs = data_load_function(self.ID, self.field)
+                self.spectrum, photometry_nowavs = data_load_function(self.ID, self.filtlist)
 
             else:
-                data = data_load_function(self.ID, self.field)
+                data = data_load_function(self.ID, self.filtlist)
                 self.spectrum = data[0]
                 self.extra_spectra = []
                 photometry_nowavs = data[-1]
@@ -160,6 +160,10 @@ class Galaxy:
 
             ax1.plot(self.spectrum[:, 0], normalisation_factor*self.spectrum[:, 1], color="dodgerblue", zorder=1)
             ax1.fill_between(self.spectrum[:, 0], normalisation_factor*(self.spectrum[:, 1] - self.spectrum[:, 2]), normalisation_factor*(self.spectrum[:, 1] + self.spectrum[:, 2]), color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
+            #######
+            #ax2.plot(np.log10(self.spectrum[:, 0]), normalisation_factor*self.spectrum[:, 1], color="dodgerblue", zorder=1)
+            #ax2.fill_between(np.log10(self.spectrum[:, 0]), normalisation_factor*(self.spectrum[:, 1] - self.spectrum[:, 2]), normalisation_factor*(self.spectrum[:, 1] + self.spectrum[:, 2]), color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
+            #######
 
         # Plot any extra spectra
         if self.no_of_spectra > 1:
@@ -168,19 +172,25 @@ class Galaxy:
 
         # Plot photometric data
         if self.photometry_exists == True:
-            #ax2.set_xscale("log")
-            #ax2.set_ylim(0., 1.1*np.max(self.photometry[:,1]))
-            ax2.set_ylim(0., 1.1*normalisation_factor*np.max(self.photometry[:,1]))
-            ax2.set_xlim((np.log10(self.photometry[0,0])-0.025), (np.log10(self.photometry[-1,0])+0.025))
 
-            for axis in axes:
-                axis.errorbar(np.log10(self.photometry[:,0]), normalisation_factor*self.photometry[:,1], yerr=normalisation_factor*self.photometry[:,2], lw=1.0, linestyle=" ", capsize=3, capthick=1, zorder=2, color="black")
-                axis.scatter(np.log10(self.photometry[:,0]), normalisation_factor*self.photometry[:,1], color="blue", s=75, zorder=3, linewidth=1, facecolor="blue", edgecolor="black", label="Observed Photometry")
+            ######
+            #ax2.set_ylim(0., 1.1*normalisation_factor*np.max([np.max(self.photometry[:,1]), np.max(self.spectrum[:,1])]))
+            ax2.set_ylim(0., 1.1*normalisation_factor*np.max(self.photometry[:,1]))
+            ######
+
+            ax2.set_xlim((np.log10(self.photometry[0,0])-0.025), (np.log10(self.photometry[-1,0])+0.025))
+            ax2.errorbar(np.log10(self.photometry[:,0]), normalisation_factor*self.photometry[:,1], yerr=normalisation_factor*self.photometry[:,2], lw=1.0, linestyle=" ", capsize=3, capthick=1, zorder=2, color="black")
+            ax2.scatter(np.log10(self.photometry[:,0]), normalisation_factor*self.photometry[:,1], color="blue", s=75, zorder=3, linewidth=1, facecolor="blue", edgecolor="black", label="Observed Photometry")
+
+            for i in range(naxes):
+                axis = axes[i]
+                axis.errorbar(self.photometry[:,0], normalisation_factor*self.photometry[:,1], yerr=normalisation_factor*self.photometry[:,2], lw=1.0, linestyle=" ", capsize=3, capthick=1, zorder=2, color="black")
+                axis.scatter(self.photometry[:,0], normalisation_factor*self.photometry[:,1], color="blue", s=75, zorder=3, linewidth=1, facecolor="blue", edgecolor="black", label="Observed Photometry")
 
 
         # Add masked regions to plots
-        if os.path.exists(setup.install_dir + "/object_masks/" + self.ID + "_mask") and self.spectrum_exists:
-            mask = np.loadtxt(setup.install_dir + "/object_masks/" + self.ID + "_mask")
+        if os.path.exists(setup.working_dir + "/pipes/masks/" + self.ID + "_mask") and self.spectrum_exists:
+            mask = np.loadtxt(setup.working_dir + "/pipes/masks/" + self.ID + "_mask")
 
             for j in range(self.no_of_spectra):
                 if len(mask.shape) == 1:
@@ -190,17 +200,19 @@ class Galaxy:
                     for i in range(mask.shape[0]):
                         axes[j].axvspan(mask[i,0], mask[i,1], color="gray", alpha=0.8, zorder=3)
             
-        plt.savefig("data_plot.pdf", bbox_inches="tight")
+        plt.savefig("/Users/adam/using_bagpipes/JWST_targets/plots/" + self.ID + "_3dhst_spec.pdf", bbox_inches="tight")
+
         plt.show()
         plt.close(fig)
 
 
 
-    """ Loads filter files for the specified field and calculates effective wavelength values which are added to self.photometry """
+
+    """ Loads filter files for the specified filtlist and calculates effective wavelength values which are added to self.photometry """
     def get_eff_wavs(self):
-        filtlist = np.loadtxt(setup.install_dir + "/filters/" + self.field + "_filtlist.txt", dtype="str")
+        filtlist = np.loadtxt(setup.working_dir + "/pipes/filters/" + self.filtlist + ".filtlist", dtype="str")
         for i in range(len(self.photometry)):
-            filt = np.loadtxt(setup.install_dir + "/filters/" + filtlist[i])
+            filt = np.loadtxt(setup.working_dir + "/pipes/filters/" + filtlist[i])
             dlambda = setup.make_bins(filt[:,0])[1]
             self.photometry[i, 0] = np.round(np.sqrt(np.sum(dlambda*filt[:,1])/np.sum(dlambda*filt[:,1]/filt[:,0]/filt[:,0])), 1)
 

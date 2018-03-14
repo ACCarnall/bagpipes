@@ -1,6 +1,0 @@
-Model Galaxy
-====================================
-
-
-.. autoclass:: bagpipes.Model_Galaxy
-	:members:

@@ -1,35 +1,41 @@
+""" Contains code for general Bagpipes setting up and configuration. """
+
 import numpy as np
 import os
 
+# Set up path variables for use elsewhere in the code. 
 install_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+working_dir = os.getcwd()
 
 import load_models
 
-def make_bins(wavelengths, make_rhs="False"):
-    bin_widths = np.zeros(wavelengths.shape[0])
+
+def make_bins(midpoints, make_rhs="False"):
+    """ A function to take an array of bin midpoints and return an array of bin left hand side positions and widths. """
+
+    bin_widths = np.zeros(midpoints.shape[0])
 
     if make_rhs == "True":
-        bin_lhs = np.zeros(wavelengths.shape[0]+1)
-        bin_lhs[0] = wavelengths[0] - (wavelengths[1]-wavelengths[0])/2
-        bin_widths[-1] = (wavelengths[-1] - wavelengths[-2])
-        bin_lhs[-1] = wavelengths[-1] + (wavelengths[-1]-wavelengths[-2])/2
-        bin_lhs[1:-1] = (wavelengths[1:] + wavelengths[:-1])/2
+        bin_lhs = np.zeros(midpoints.shape[0]+1)
+        bin_lhs[0] = midpoints[0] - (midpoints[1]-midpoints[0])/2
+        bin_widths[-1] = (midpoints[-1] - midpoints[-2])
+        bin_lhs[-1] = midpoints[-1] + (midpoints[-1]-midpoints[-2])/2
+        bin_lhs[1:-1] = (midpoints[1:] + midpoints[:-1])/2
         bin_widths[:-1] = bin_lhs[1:-1]-bin_lhs[:-2]
 
     else:
-        bin_lhs = np.zeros(wavelengths.shape[0])
-        bin_lhs[0] = wavelengths[0] - (wavelengths[1]-wavelengths[0])/2
-        bin_widths[-1] = (wavelengths[-1] - wavelengths[-2])
-        bin_lhs[1:] = (wavelengths[1:] + wavelengths[:-1])/2
+        bin_lhs = np.zeros(midpoints.shape[0])
+        bin_lhs[0] = midpoints[0] - (midpoints[1]-midpoints[0])/2
+        bin_widths[-1] = (midpoints[-1] - midpoints[-2])
+        bin_lhs[1:] = (midpoints[1:] + midpoints[:-1])/2
         bin_widths[:-1] = bin_lhs[1:]-bin_lhs[:-1]
 
     return bin_lhs, bin_widths
 
 
-#set up necessary variables for loading and manipulating spectral models:
-
 
 def set_model_type(models):
+    """ set up necessary variables for loading and manipulating spectral models. Can be used to change between model types. """
 
     zmet_fnames[models], zmet_vals[models], len_wavs[models], gridwavs[models], ages[models], mstar_liv[models] = getattr(load_models, models)()
 
@@ -61,6 +67,27 @@ def set_model_type(models):
 
 
 
+# Make local Bagpipes directory structure.
+if not os.path.exists(working_dir + "/pipes"):
+    os.mkdir(working_dir + "/pipes")
+
+if not os.path.exists(working_dir + "/pipes/plots"):
+    os.mkdir(working_dir + "/pipes/plots")
+
+if not os.path.exists(working_dir + "/pipes/pmn_chains"):
+    os.mkdir(working_dir + "/pipes/pmn_chains")
+
+if not os.path.exists(working_dir + "/pipes/object_masks"):
+    os.mkdir(working_dir + "/pipes/object_masks")
+
+if not os.path.exists(working_dir + "/pipes/filters"):
+    os.mkdir(working_dir + "/pipes/filters")
+
+if not os.path.exists(working_dir + "/pipes/cats"):
+    os.mkdir(working_dir + "/pipes/cats")
+
+
+# Generate dictionaries containing information about spectral models and populate them using the set_model_type function.
 gridwavs = {}
 ages = {}
 age_lhs = {}
@@ -76,9 +103,8 @@ max_zred = 10.
 
 logU_grid = np.arange(-4., -0.99, 0.5)
 
-#Controls the grid of ages that models are sampled onto. Sampling more coarsely in age dramatically speeds up the code.
 
-log_width = 0.05
+log_width = 0.05 # Controls the grid of ages that models are sampled onto. Sampling more coarsely in age dramatically speeds up the code.
 
 len_ages = int((10.21 - 6)/log_width) + 1
 

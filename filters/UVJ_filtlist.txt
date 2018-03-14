@@ -1,3 +1,0 @@
-UVJ/Generic-Bessell.U.dat
-UVJ/Generic-Bessell.V.dat
-UVJ/Keck-NIRC2.J.dat

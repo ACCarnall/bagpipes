@@ -45,24 +45,28 @@ class Model_Galaxy:
 	model_components : dict
 		A dictionary containing information about the model you wish to generate. 
 
-	field : str (optional)
-		The name of the field: a collection of filter files through which photometric fluxes will be calculated.
+	filtlist : str (optional)
+		The name of the filtlist: a collection of filter files through which photometric fluxes will be calculated.
 
 	output_specwavs : array (optional)
 		An array of wavelengths at which spectral fluxes should be returned.
 
-	out_units : str (optional)
-		The units the output spectrum and photometry will be returned in, either "ergscma" for ergs per second per centimetre squared per angstrom, or "mujy" for microjanskys
+	out_units_spec : str (optional)
+		The units the output spectrum and photometry will be returned in. Default is "ergscma" for ergs per second per centimetre squared per angstrom, can be set to "mujy" for microjanskys.
+	
+	out_units_phot : str (optional)
+		The units the output spectrum and photometry will be returned in. Default is "mujy" for microjanskys, can be set to "ergscma" for ergs per second per centimetre squared per angstrom.
 	
 	"""
 
-	def __init__(self, model_components, field=None, output_specwavs=None, out_units="ergscma"):
+	def __init__(self, model_components, filtlist=None, output_specwavs=None, out_units_spec="ergscma", out_units_phot="ergscma"):
 
 		self.model_comp = model_components
 
-		self.field = field
+		self.filtlist = filtlist
 
-		self.out_units = out_units
+		self.out_units_spec = out_units_spec
+		self.out_units_phot = out_units_phot
 
 		self.output_specwavs = output_specwavs
 
@@ -101,15 +105,15 @@ class Model_Galaxy:
 		self.k_lambda_lines = {}
 
 		# This bit of code sets up the calculation of model fluxes in photometric bands if a field is specified
-		if self.field is not None:
+		if self.filtlist is not None:
 
 			# filterlist: a list of the filter file names associated with the specified field
-			self.filterlist = np.loadtxt(setup.install_dir + "/filters/" + self.field + "_filtlist.txt", dtype="str")
+			self.filterlist = np.loadtxt(setup.working_dir + "/pipes/filters/" + self.filtlist + ".filtlist", dtype="str")
 
 			# filter_raw_dict: a dict containing the raw filter files
 			filter_raw_dict = {}
 			for filtername in self.filterlist:
-				filter_raw_dict[filtername] = np.loadtxt(setup.install_dir + "/filters/" + filtername, usecols=(0, 1))
+				filter_raw_dict[filtername] = np.loadtxt(setup.working_dir + "/pipes/filters/" + filtername, usecols=(0, 1))
 
 				#Get rid of trailing zeros at either end of the filter files
 				while filter_raw_dict[filtername][0,1] == 0.:
@@ -144,7 +148,7 @@ class Model_Galaxy:
 			self.max_wavs = [min_phot_wav/(1.+setup.max_zred), 1.01*max_phot_wav, 10**8]
 			self.R = [10., 100., 10.]#[10., 100., 10.]
 
-		elif self.field is None:
+		elif self.filtlist is None:
 			self.max_wavs = [output_specwavs[0]/(1.+setup.max_zred), output_specwavs[-1], 10**8]
 			self.R = [10., 600., 10.]#[10., 600., 10.]
 
@@ -189,7 +193,7 @@ class Model_Galaxy:
 			self.D_IGM_grid[i,:] = interp(self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)], IGM_wavs_global, D_IGM_grid_global[i,:])
 
 		# If field is not None, finish off necessary calculations for photometry calculation
-		if self.field is not None:
+		if self.filtlist is not None:
 			# filt_array_restframe: An array to contain the rest frame sampled filter profiles used to generate the model photometry
 			self.filt_array_restframe = np.zeros((self.chosen_modelgrid_wavs.shape[0], len(self.filterlist)))
 
@@ -223,7 +227,7 @@ class Model_Galaxy:
 
 		self.phot_wavs = np.zeros(len(self.filterlist))
 		for i in xrange(len(self.filterlist)):
-			filt = np.loadtxt(setup.install_dir + "/filters/" + self.filterlist[i])
+			filt = np.loadtxt(setup.working_dir + "/pipes/filters/" + self.filterlist[i])
 			dlambda = setup.make_bins(filt[:,0])[1]
 			self.phot_wavs[i] = np.round(np.sqrt(np.sum(dlambda*filt[:,1])/np.sum(dlambda*filt[:,1]/filt[:,0]/filt[:,0])), 1)
 
@@ -414,14 +418,14 @@ class Model_Galaxy:
 				# sfr_dt: Array containing the multiplicative factors to be applied to each SSP in the grid to build the CSP.
 				sfr_dt = self.sfh.weight_widths[comp]
 
-				# Figure out which are the stellar grids in Zmet closest to the chosen Zmet and what fraction of each grid should be taken				high_zmet_ind = self.zmet_vals[self.zmet_vals < 0.02*self.model_comp[comp]["metallicity"]].shape[0]
+				# Figure out which are the stellar grids in Zmet closest to the chosen Zmet and what fraction of each grid should be taken
 				high_zmet_ind = self.zmet_vals[self.zmet_vals < 0.02*self.model_comp[comp]["metallicity"]].shape[0]
 				low_zmet_ind = high_zmet_ind - 1
 				high_zmet_factor = (self.model_comp[comp]["metallicity"]*0.02 - self.zmet_vals[low_zmet_ind])/(self.zmet_vals[high_zmet_ind] - self.zmet_vals[low_zmet_ind])
 				low_zmet_factor = 1 - high_zmet_factor
 
 				#Calculate living stellar mass contribution from this SFH component
-				self.living_mstar += np.log10(np.sum(sfr_dt*(low_zmet_factor*setup.chosen_mstar_liv[:,low_zmet_ind] + high_zmet_factor*setup.chosen_mstar_liv[:,high_zmet_ind])))
+				self.living_mstar += np.sum(sfr_dt*(low_zmet_factor*setup.chosen_mstar_liv[:,low_zmet_ind] + high_zmet_factor*setup.chosen_mstar_liv[:,high_zmet_ind]))
 
 				# If the required stellar grids are not already in modelgrids then load them up
 				for zmet_ind in (high_zmet_ind, low_zmet_ind):
@@ -509,9 +513,9 @@ class Model_Galaxy:
 
 
 		# Apply intergalactic medium absorption to the model spectrum
-		if self.model_comp["zred"] > 0.:
-			zred_ind = IGM_redshifts[IGM_redshifts < self.model_comp["zred"]].shape[0]
-			high_zred_factor = (IGM_redshifts[zred_ind] - self.model_comp["zred"])/(IGM_redshifts[zred_ind] - IGM_redshifts[zred_ind-1])
+		if self.model_comp["redshift"] > 0.:
+			zred_ind = IGM_redshifts[IGM_redshifts < self.model_comp["redshift"]].shape[0]
+			high_zred_factor = (IGM_redshifts[zred_ind] - self.model_comp["redshift"])/(IGM_redshifts[zred_ind] - IGM_redshifts[zred_ind-1])
 			low_zred_factor = 1. - high_zred_factor
 
 			# Interpolate IGM transmission from pre-loaded grid
@@ -551,12 +555,12 @@ class Model_Galaxy:
 			composite_spectrum += dust_emission
 			
 		# Redshift the model spectrum and put it into erg/s/cm2/A unless z = 0, in which case final units are erg/s/A
-		if self.model_comp["zred"] != 0.:
-			composite_spectrum /= (4*np.pi*(interp(self.model_comp["zred"], z_array, ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
-			composite_spectrum /= (1+self.model_comp["zred"]) #reduce flux by a factor of 1/(1+z) to account for redshifting
+		if self.model_comp["redshift"] != 0.:
+			composite_spectrum /= (4*np.pi*(interp(self.model_comp["redshift"], z_array, ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
+			composite_spectrum /= (1+self.model_comp["redshift"]) #reduce flux by a factor of 1/(1+z) to account for redshifting
 
 			if "nebular" in self.model_comp.keys():
-				composite_lines /= (4*np.pi*(interp(self.model_comp["zred"], z_array, ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
+				composite_lines /= (4*np.pi*(interp(self.model_comp["redshift"], z_array, ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
 
 		composite_spectrum *= 3.826*10**33 #convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
 
@@ -566,10 +570,10 @@ class Model_Galaxy:
 		# spectrum_full: a copy of the full spectrum to be used in plots
 		self.spectrum_full = composite_spectrum
 
-		if self.field is not None:
+		if self.filtlist is not None:
 			# Resample the filter profiles onto the redshifted model wavelength grid
 			for i in xrange(len(self.filterlist)):
-				self.filt_array[:,i] = interp(self.chosen_modelgrid_wavs*(1.+self.model_comp["zred"]), self.chosen_modelgrid_wavs, self.filt_array_restframe[:,i], left=0, right=0)
+				self.filt_array[:,i] = interp(self.chosen_modelgrid_wavs*(1.+self.model_comp["redshift"]), self.chosen_modelgrid_wavs, self.filt_array_restframe[:,i], left=0, right=0)
 
 			# photometry: The flux values for the model spectrum observed through the filters specified in field
 			self.photometry = np.squeeze(np.sum(np.expand_dims(composite_spectrum*self.wav_widths, axis=1)*self.filt_array, axis=0)/np.sum(self.filt_array*np.expand_dims(self.wav_widths, axis=1), axis=0))
@@ -581,7 +585,7 @@ class Model_Galaxy:
 			# Apply velocity dispersion to the output spectrum if requested
 			if "veldisp" in self.model_comp.keys():
 
-				specslice = composite_spectrum[(self.chosen_modelgrid_wavs > self.output_specwavs[0]/(1+self.model_comp["zred"])) & (self.chosen_modelgrid_wavs < self.output_specwavs[-1]/(1+self.model_comp["zred"]))]
+				specslice = composite_spectrum[(self.chosen_modelgrid_wavs > self.output_specwavs[0]/(1+self.model_comp["redshift"])) & (self.chosen_modelgrid_wavs < self.output_specwavs[-1]/(1+self.model_comp["redshift"]))]
 
 				vres = 3*10**5/np.max(self.R)/2.
 				sigma_pix = self.model_comp["veldisp"]/vres
@@ -591,15 +595,15 @@ class Model_Galaxy:
 
 				# Resample onto the requested wavelength grid
 				if x_kernel_pix.shape[0] > 1:
-					self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs[(x_kernel_pix.shape[0]-1)/2:-(x_kernel_pix.shape[0]-1)/2]*(1+self.model_comp["zred"]), composite_spectrum_veldisp, left=0, right=0)]).T
+					self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs[(x_kernel_pix.shape[0]-1)/2:-(x_kernel_pix.shape[0]-1)/2]*(1+self.model_comp["redshift"]), composite_spectrum_veldisp, left=0, right=0)]).T
 					""" Output spectrum array, contains a column of wavelengths in Angstroms and a column of flux values, by default in erg/s/cm^2/A or erg/s/A at redshift zero. """
 
 				else:
-					self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs*(1+self.model_comp["zred"]), composite_spectrum_veldisp, left=0, right=0)]).T
+					self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs*(1+self.model_comp["redshift"]), composite_spectrum_veldisp, left=0, right=0)]).T
 
 			# Otherwise just resample onto the requested wavelength grid
 			else:
-				self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs*(1+self.model_comp["zred"]), composite_spectrum, left=0, right=0)]).T
+				self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs*(1+self.model_comp["redshift"]), composite_spectrum, left=0, right=0)]).T
 
 		# Apply spectral polynomial if requested
 		if "polynomial" in self.model_comp.keys():
@@ -620,12 +624,11 @@ class Model_Galaxy:
 			""" Dictionary of output emission line fluxes in erg/s/cm^2 or erg/s at redshift zero. """
 
 		# Return output spectrum and photometry in microjanskys instead of erg/s/cm^2/A if requested.
-		if self.out_units == "mujy":
-			if self.output_specwavs is not None:
-				self.spectrum[:,1] /= (10**-29)*(2.9979*10**18/self.spectrum[:,0]/self.spectrum[:,0])
+		if self.out_units_spec == "mujy" and self.output_specwavs is not None:
+			self.spectrum[:,1] /= (10**-29)*(2.9979*10**18/self.spectrum[:,0]/self.spectrum[:,0])
 
-			if self.field is not None:
-				self.photometry /= (10**-29)*(2.9979*10**18/self.phot_wavs/self.phot_wavs)
+		if self.out_units_phot == "mujy" and self.filtlist is not None:
+			self.photometry /= (10**-29)*(2.9979*10**18/self.phot_wavs/self.phot_wavs)
 
 
 	def get_restframe_UVJ(self):
@@ -633,7 +636,7 @@ class Model_Galaxy:
 		if self.UVJ_filterlist is None:
 
 			# filterlist: a list of the filter file names for UVJ.
-			self.UVJ_filterlist = np.loadtxt(setup.install_dir + "/filters/UVJ_filtlist.txt", dtype="str")
+			self.UVJ_filterlist = np.loadtxt(setup.install_dir + "/filters/UVJ.filtlist", dtype="str")
 
 			# filt_array_restframe: An array to contain the rest frame sampled filter profiles used to generate the model photometry
 			self.UVJ_filt_array = np.zeros((self.chosen_modelgrid_wavs.shape[0], 3))
@@ -665,7 +668,7 @@ class Model_Galaxy:
 		#fancy = False
 		naxes = 1
 
-		if self.field is not None and self.output_specwavs is not None:
+		if self.filtlist is not None and self.output_specwavs is not None:
 			naxes = 2
 
 		fig, axes = plt.subplots(naxes, figsize=(12, 4.*naxes))
@@ -680,7 +683,7 @@ class Model_Galaxy:
 
 		plt.subplots_adjust(hspace=0.1)
 
-		if self.model_comp["zred"] != 0:
+		if self.model_comp["redshift"] != 0:
 			if naxes == 2:
 				fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18, rotation=90)
 
@@ -695,11 +698,11 @@ class Model_Galaxy:
 				ax1.set_ylabel("$\mathrm{f_{\lambda}}\ \mathrm{/\ 10^{40}\ erg\ s^{-1}\ \AA^{-1}}$", size=18)
 
 
-		if self.field is not None:
+		if self.filtlist is not None:
 			ax2.scatter(self.phot_wavs, self.photometry, color="darkorange", zorder=3, s=150)
-			ax2.plot(self.chosen_modelgrid_wavs*(1.+self.model_comp["zred"]), self.spectrum_full, color="navajowhite", zorder=1)
+			ax2.plot(self.chosen_modelgrid_wavs*(1.+self.model_comp["redshift"]), self.spectrum_full, color="navajowhite", zorder=1)
 			ax2.set_xlim(10**(np.log10(self.phot_wavs[0])-0.025), 10**(np.log10(self.phot_wavs[-1])+0.025))
-			ax2.set_ylim(0, 1.05*np.max(self.spectrum_full[(self.chosen_modelgrid_wavs*(1+self.model_comp["zred"]) > ax2.get_xlim()[0]) & (self.chosen_modelgrid_wavs*(1+self.model_comp["zred"]) < ax2.get_xlim()[1])]))
+			ax2.set_ylim(0, 1.05*np.max(self.spectrum_full[(self.chosen_modelgrid_wavs*(1+self.model_comp["redshift"]) > ax2.get_xlim()[0]) & (self.chosen_modelgrid_wavs*(1+self.model_comp["redshift"]) < ax2.get_xlim()[1])]))
 			ax2.set_xscale("log")
 			ax2.set_xticks([5000., 10000., 20000., 50000.,])
 			ax2.get_xaxis().set_tick_params(which='minor', size=0)
@@ -728,14 +731,14 @@ class Model_Galaxy:
 
 			sfh_x[-2:] = 1.5*10**10
 
-			sfh_ax.plot(cosmo.age(self.model_comp["zred"]).value - sfh_x*10**-9, sfh_y, color="black")
-			sfh_ax.set_xlim(cosmo.age(self.model_comp["zred"]).value, 0.)
+			sfh_ax.plot(cosmo.age(self.model_comp["redshift"]).value - sfh_x*10**-9, sfh_y, color="black")
+			sfh_ax.set_xlim(cosmo.age(self.model_comp["redshift"]).value, 0.)
 			sfh_ax.set_ylim(0., 1.1*np.max(sfh_y))
 			sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ /\ Gyr}$")
 			sfh_ax.set_ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
 
 			allspec_ax = fig.add_axes([0.54, 0.57, 0.35, 0.17], zorder=10)
-			allspec_ax.plot(self.chosen_modelgrid_wavs*(1.+self.model_comp["zred"]), self.chosen_modelgrid_wavs*self.spectrum_full, color="black", zorder=1)
+			allspec_ax.plot(self.chosen_modelgrid_wavs*(1.+self.model_comp["redshift"]), self.chosen_modelgrid_wavs*self.spectrum_full, color="black", zorder=1)
 			allspec_ax.set_xlim(700., 10**7)
 			allspec_ax.set_ylim(5., 2.*np.max(self.chosen_modelgrid_wavs*self.spectrum_full))
 			allspec_ax.set_xscale("log")

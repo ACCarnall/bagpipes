@@ -8,7 +8,7 @@ try:
     import pymultinest as pmn
 
 except:
-    print "BAGPIPES: Pymultinest not installed, fitting will not be available."
+    print "Bagpipes: Pymultinest not installed, fitting will not be available."
 
 from matplotlib import gridspec
 from scipy.optimize import minimize
@@ -30,14 +30,31 @@ from matplotlib import rc
 rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica'], "size": 14})
 rc('text', usetex=True)
 
+#import warnings
+#warnings.filterwarnings("ignore")
+#print "Bagpipes: Warning, Python warnings are being ignored."
 
 class Fit:
 
+    """ Fit a model to the data contained in a Galaxy object.
+
+    Parameters
+    ----------
+
+    Galaxy : Bagpipes Galaxy object
+        A Galaxy object containing the photomeric and/or spectroscopic data you wish to fit.
+
+    fit_instructions : dict
+        A dictionary containing the details of the model to be fitted to the data.
+
+    run : string (optional)
+        The subfolder into which outputs will be saved, useful e.g. for fitting more than one model configuration to the same data.
+
+    """
+
     def __init__(self, Galaxy, fit_instructions, run="."):
 
-        self.times = []
-
-        print "BAGPIPES: Using model set:", setup.model_type
+        print "Bagpipes: Using model set:", setup.model_type
 
         # Model: contains a model galaxy 
         self.Model = None
@@ -80,17 +97,12 @@ class Fit:
 
         #Set up directories to contain the outputs, if they don't already exist
         if self.run is not ".":
-            if not os.path.exists(setup.install_dir + "/pmn_chains"):
-                os.mkdir(setup.install_dir + "/pmn_chains")
 
-            if not os.path.exists(setup.install_dir + "/pmn_chains/" + self.run):
-                os.mkdir(setup.install_dir + "/pmn_chains/" + self.run)
+            if not os.path.exists(setup.working_dir + "/pipes/pmn_chains/" + self.run):
+                os.mkdir(setup.working_dir + "/pipes/pmn_chains/" + self.run)
 
-            if not os.path.exists(setup.install_dir + "/plots"):
-                os.mkdir(setup.install_dir + "/plots")
-
-            if not os.path.exists(setup.install_dir + "/plots/" + self.run):
-                os.mkdir(setup.install_dir + "/plots/" + self.run)
+            if not os.path.exists(setup.working_dir + "/pipes/plots/" + self.run):
+                os.mkdir(setup.working_dir + "/pipes/plots/" + self.run)
 
         # Set up a bunch of variables which will be used when calculating the lnprob values.
         self.K_phot, self.K_spec = 0., 0.
@@ -151,7 +163,7 @@ class Fit:
                     self.priors.append(self.fit_instructions[fit_param.split(":")[0] + "prior"])
 
                 else:
-                    print "BAGPIPES: Warning, no prior specified on " + fit_param + ", adopting a uniform prior."
+                    print "Bagpipes: Warning, no prior specified on " + fit_param + ", adopting a uniform prior."
                     self.priors.append("uniform")
 
             elif len(fit_param.split(":")) == 2:
@@ -159,7 +171,7 @@ class Fit:
                     self.priors.append(self.fit_instructions[fit_param.split(":")[0]][fit_param.split(":")[1] + "prior"])
 
                 else:
-                    print "BAGPIPES: Warning, no prior specified on " + fit_param + ", adopting a uniform prior."
+                    print "Bagpipes: Warning, no prior specified on " + fit_param + ", adopting a uniform prior."
                     self.priors.append("uniform")
 
         """
@@ -177,9 +189,9 @@ class Fit:
     def fit(self, verbose=False, sampling_efficiency="model", n_live=400, const_efficiency_mode=False):
         """ Fit the specified model to the input galaxy data. """
 
-        pmn.run(self.get_lnprob, self.prior_transform, self.ndim, const_efficiency_mode = const_efficiency_mode, importance_nested_sampling = False, verbose = verbose, sampling_efficiency = sampling_efficiency, n_live_points = n_live, outputfiles_basename=setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
+        pmn.run(self.get_lnprob, self.prior_transform, self.ndim, const_efficiency_mode = const_efficiency_mode, importance_nested_sampling = False, verbose = verbose, sampling_efficiency = sampling_efficiency, n_live_points = n_live, outputfiles_basename=setup.working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
 
-        a = pmn.Analyzer(n_params = self.ndim, outputfiles_basename=setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
+        a = pmn.Analyzer(n_params = self.ndim, outputfiles_basename=setup.working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
 
         s = a.get_stats()
 
@@ -213,7 +225,7 @@ class Fit:
 
         if verbose == True:
             print " "
-            print "BAGPIPES: Confidence interval:"
+            print "Bagpipes: Confidence interval:"
             for x in range(self.ndim):
                 print str(np.round(self.conf_int[x], 4)), np.round(self.posterior_median[x], 4), self.fit_params[x]
             print " "
@@ -270,7 +282,7 @@ class Fit:
         self.get_model(x)
 
         # If the age of any model component is greater than the age of the Universe, return a huge negative value for lnprob.
-        if self.Model.sfh.maxage <= np.interp(self.model_components["zred"], z_array, age_at_z):
+        if self.Model.sfh.maxage <= np.interp(self.model_components["redshift"], z_array, age_at_z):
             if "hypspec" in self.model_components.keys():
                 self.hyp_spec = self.model_components["hypspec"]
 
@@ -315,14 +327,11 @@ class Fit:
             self.model_components["polynomial"] = self.model_components["polynomial1"]
         
         if self.Model is None:
-            if self.Galaxy.spectrum_exists == True and self.Galaxy.photometry_exists == True:
-                self.Model = model_galaxy.Model_Galaxy(self.model_components, self.Galaxy.field, output_specwavs=self.Galaxy.spectrum[:,0])
+            if self.Galaxy.spectrum_exists == True:
+                self.Model = model_galaxy.Model_Galaxy(self.model_components, self.Galaxy.filtlist, output_specwavs=self.Galaxy.spectrum[:,0])
 
-            elif self.Galaxy.spectrum_exists == False:
-                self.Model = model_galaxy.Model_Galaxy(self.model_components, self.Galaxy.field)
-
-            elif self.Galaxy.photometry_exists == False:
-                self.Model = model_galaxy.Model_Galaxy(self.model_components, output_specwavs=self.Galaxy.spectrum[:,0])
+            else:
+                self.Model = model_galaxy.Model_Galaxy(self.model_components, self.Galaxy.filtlist)
 
         else:
             self.Model.update(self.model_components)
@@ -376,7 +385,7 @@ class Fit:
 
     def load_posterior(self):
         if "samples" not in self.posterior.keys():
-            self.posterior["samples"] = np.loadtxt(setup.install_dir + "/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat")[:,:-1]
+            self.posterior["samples"] = np.loadtxt(setup.working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat")[:,:-1]
 
 
     def get_post_info(self):
@@ -416,13 +425,13 @@ class Fit:
 
                 self.posterior["sfh"][i,:] = self.Model.sfh.sfr 
                 self.posterior["sfr"][i] = self.posterior["sfh"][i,0]
-                self.posterior["tmw"][i] = np.interp(self.model_components["zred"], z_array, age_at_z) - (10**-9)*np.sum(self.Model.sfh.sfr*self.Model.sfh.ages*self.Model.sfh.age_widths)/np.sum(self.Model.sfh.sfr*self.Model.sfh.age_widths)
-                self.posterior["mstar"][i] = self.Model.living_mstar
+                self.posterior["tmw"][i] = np.interp(self.model_components["redshift"], z_array, age_at_z) - (10**-9)*np.sum(self.Model.sfh.sfr*self.Model.sfh.ages*self.Model.sfh.age_widths)/np.sum(self.Model.sfh.sfr*self.Model.sfh.age_widths)
+                self.posterior["mstar"][i] = np.log10(self.Model.living_mstar)
 
-                if self.Model.field is not None:
+                if self.Model.filtlist is not None:
                     self.posterior["UVJ"][:,i] = self.Model.get_restframe_UVJ()
 
-                if self.Model.field is not None:
+                if self.Model.filtlist is not None:
                     self.posterior["photometry"][:,i] = self.Model.photometry
 
                 self.posterior["spectrum_full"][:,i] = self.Model.spectrum_full
@@ -468,7 +477,6 @@ class Fit:
         ax1 = axes[0]
         ax2 = axes[-1]
 
-
         # Set axis labels
         if naxes == 1:
             ax1.set_xlabel("$\lambda\ \\Big(\mathrm{\AA}\\Big)$", size=18)
@@ -479,7 +487,7 @@ class Fit:
                 axes[i].set_xlabel("$\lambda\ \\Big(\mathrm{\AA}\\Big)$", size=18)
             ax2.set_xlabel("$\mathrm{log_{10}}\\Big(\lambda / \mathrm{\AA}\\Big)$", size=18)
 
-        if self.fit_instructions["zred"] != 0.:
+        if self.fit_instructions["redshift"] != 0.:
             ylabel = "$\mathrm{f_{\lambda}}\ \mathrm{/\ 10^{-18}\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$"
 
         else:
@@ -495,7 +503,6 @@ class Fit:
         # Plot first spectrum
         if self.Galaxy.spectrum_exists == True:
             ax1.set_xlim(self.Galaxy.spectrum[0,0], self.Galaxy.spectrum[-1,0])
-            #ax1.set_ylim(0., 7.)
 
             if "polynomial" in self.model_components.keys() or "polynomial1" in self.model_components.keys():
                 polynomial = np.median(self.posterior["polynomial"], axis=1)
@@ -506,8 +513,9 @@ class Fit:
             #ax1.plot(self.Galaxy.spectrum[:, 0], normalisation_factor*self.Galaxy.spectrum[:, 1], color="red", zorder=10)
 
             ax1.plot(self.Galaxy.spectrum[:, 0], normalisation_factor*self.Galaxy.spectrum[:, 1]/polynomial, color="dodgerblue", zorder=1)
-            #ax1.fill_between(self.Galaxy.spectrum[:, 0], self.Galaxy.spectrum[:, 1]/polynomial - self.Galaxy.spectrum[:, 2], self.Galaxy.spectrum[:, 1]/polynomial + self.Galaxy.spectrum[:, 2], color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
+            ax1.fill_between(self.Galaxy.spectrum[:, 0], normalisation_factor*(self.Galaxy.spectrum[:, 1]/polynomial - self.Galaxy.spectrum[:, 2]), normalisation_factor*(self.Galaxy.spectrum[:, 1]/polynomial + self.Galaxy.spectrum[:, 2]), color="dodgerblue", zorder=1, alpha=0.75, linewidth=0)
 
+            ax1.set_ylim(0, 1.1*normalisation_factor*np.max(self.Galaxy.spectrum[:, 1]/polynomial))
 
         # Plot any extra spectra
         if self.Galaxy.no_of_spectra > 1:
@@ -527,7 +535,7 @@ class Fit:
 
         # Plot photometric data
         if self.Galaxy.photometry_exists == True:
-            ax2.set_ylim(0., 1.1*np.max(self.Galaxy.photometry[:,1]))
+            ax2.set_ylim(0., 1.1*np.max(normalisation_factor*self.Galaxy.photometry[:,1]))
             ax2.set_xlim((np.log10(self.Galaxy.photometry[0,0])-0.025), (np.log10(self.Galaxy.photometry[-1,0])+0.025))
 
             for axis in axes:
@@ -536,8 +544,8 @@ class Fit:
 
 
         # Add masked regions to plots
-        if os.path.exists(setup.install_dir + "/object_masks/" + self.Galaxy.ID + "_mask") and self.Galaxy.spectrum_exists:
-            mask = np.loadtxt(setup.install_dir + "/object_masks/" + self.Galaxy.ID + "_mask")
+        if os.path.exists(setup.working_dir + "/pipes/masks/" + self.Galaxy.ID + "_mask") and self.Galaxy.spectrum_exists:
+            mask = np.loadtxt(setup.working_dir + "/pipes/masks/" + self.Galaxy.ID + "_mask")
 
             for j in range(self.Galaxy.no_of_spectra):
                 if len(mask.shape) == 1:
@@ -552,10 +560,11 @@ class Fit:
         self.get_post_info()
 
         if self.Galaxy.photometry_exists == True:
-            ax2.fill_between(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["zred"])), normalisation_factor*np.percentile(self.posterior["spectrum_full"], 16, axis=1), normalisation_factor*np.percentile(self.posterior["spectrum_full"], 84, axis=1), color="navajowhite", zorder=1, linewidth=0)
-            ax2.plot(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["zred"])), normalisation_factor*np.percentile(self.posterior["spectrum_full"], 16, axis=1), color="navajowhite", zorder=1)
-            ax2.plot(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["zred"])), normalisation_factor*np.percentile(self.posterior["spectrum_full"], 84, axis=1), color="navajowhite", zorder=1)
-            ax2.set_ylim(0., np.max([ax2.get_ylim()[1], 1.1*np.max(normalisation_factor*np.percentile(self.posterior["spectrum_full"], 84, axis=1))]))
+            ax2.fill_between(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["redshift"])), normalisation_factor*np.percentile(self.posterior["spectrum_full"], 16, axis=1), normalisation_factor*np.percentile(self.posterior["spectrum_full"], 84, axis=1), color="navajowhite", zorder=1, linewidth=0)
+            ax2.plot(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["redshift"])), normalisation_factor*np.percentile(self.posterior["spectrum_full"], 16, axis=1), color="navajowhite", zorder=1)
+            ax2.plot(np.log10(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["redshift"])), normalisation_factor*np.percentile(self.posterior["spectrum_full"], 84, axis=1), color="navajowhite", zorder=1)
+            
+            ax2.set_ylim(0., np.max([ax2.get_ylim()[1], 1.1*np.max(normalisation_factor*np.percentile(self.posterior["spectrum_full"], 84, axis=1)[(self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["redshift"]) < 10**ax2.get_xlim()[1]) & (self.Model.chosen_modelgrid_wavs*(1.+self.Model.model_comp["redshift"]) > 10**ax2.get_xlim()[0])])]))
 
             for j in range(self.Model.photometry.shape[0]):
                 phot_1sig = self.posterior["photometry"][j,(self.posterior["photometry"][j,:] > np.percentile(self.posterior["photometry"][j,:], 16)) & (self.posterior["photometry"][j,:] < np.percentile(self.posterior["photometry"][j,:], 84))]
@@ -565,6 +574,8 @@ class Fit:
             ax1.fill_between(self.Model.spectrum[:,0], normalisation_factor*np.percentile(self.posterior["spectrum"], 16, axis=1), normalisation_factor*np.percentile(self.posterior["spectrum"], 84, axis=1), color="sandybrown", zorder=2, alpha=0.75, linewidth=0)
             ax1.plot(self.Model.spectrum[:,0], normalisation_factor*np.percentile(self.posterior["spectrum"], 50, axis=1), color="sandybrown", zorder=2)
 
+            ax1.set_ylim(0, np.max([ax1.get_ylim()[1], 1.1*np.max(normalisation_factor*np.percentile(self.posterior["spectrum"], 84, axis=1))]))
+
             if self.Galaxy.no_of_spectra > 1:
                 for j in range(self.Galaxy.no_of_spectra-1):
                     axes[j+1].fill_between(self.extra_models[j].spectrum[:,0], normalisation_factor*np.percentile(self.posterior["extra_spectra"], 16, axis=1), np.percentile(self.posterior["extra_spectra"], 84, axis=1), color="sandybrown", zorder=2, alpha=0.5, linewidth=0)
@@ -573,7 +584,7 @@ class Fit:
 
         #axes[0].annotate("ID: " + str(self.Galaxy.ID), xy=(0.1*ax1.get_xlim()[1] + 0.9*ax1.get_xlim()[0], 0.95*ax1.get_ylim()[1] + 0.05*ax1.get_ylim()[0]), size=12, zorder=5)      
 
-        fig.savefig(setup.install_dir + "/plots/" + self.run + "/" + self.Galaxy.ID + "_fit.pdf", bbox_inches="tight")
+        fig.savefig(setup.working_dir + "/pipes/plots/" + self.run + "/" + self.Galaxy.ID + "_fit.pdf", bbox_inches="tight")
         plt.close(fig)
 
 
@@ -587,7 +598,7 @@ class Fit:
         for i in range(self.posterior["polynomial"].shape[1]):
             plt.plot(self.Model.spectrum[:,0], np.ones(self.Model.spectrum.shape[0], dtype=float)/self.posterior["polynomial"][:,i], color="gray", alpha=0.05)
 
-        plt.savefig(setup.install_dir + "/plots/" + self.run + "/" + self.Galaxy.ID + "_polynomial.pdf")
+        plt.savefig(setup.working_dir + "/pipes/plots/" + self.run + "/" + self.Galaxy.ID + "_polynomial.pdf")
         plt.close()
 
 
@@ -626,7 +637,7 @@ class Fit:
             if param_names_toplot[i] in reference_param_names:
                 param_names_toplot[i] = latex_param_names[reference_param_names.index(param_names_toplot[i])]
 
-        #ranges = [(0., 0.5), (4., np.interp(self.model_components["zred"], z_array, age_at_z)), (-2, 3), (0.2, 0.8), (10.15, 10.65), (0.5, 3)]
+        #ranges = [(0., 0.5), (4., np.interp(self.model_components["redshift"], z_array, age_at_z)), (-2, 3), (0.2, 0.8), (10.15, 10.65), (0.5, 3)]
 
         fig = corner.corner(self.posterior["samples"][:,param_cols_toplot], labels=param_names_toplot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_kwargs={"fontsize": 14}, smooth="1.5", smooth1d="0.5", truths=truths, range=ranges)#truths=param_truths_toplot, 
         
@@ -669,11 +680,11 @@ class Fit:
                 sfh_x[2*j + 1] = self.Model.sfh.age_lhs[j+1]
 
         # Plot the SFH
-        sfh_ax.fill_between(np.interp(self.model_components["zred"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_low, sfh_y_high, color="gray", alpha=0.75)
-        sfh_ax.plot(np.interp(self.model_components["zred"], z_array, age_at_z) - sfh_x*10**-9, sfh_y, color="black", zorder=10)
-        sfh_ax.plot(np.interp(self.model_components["zred"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_high, color="gray")
-        sfh_ax.plot(np.interp(self.model_components["zred"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_low, color="gray")
-        sfh_ax.set_xlim(np.interp(self.model_components["zred"], z_array, age_at_z), 0)
+        sfh_ax.fill_between(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_low, sfh_y_high, color="gray", alpha=0.75)
+        sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y, color="black", zorder=10)
+        sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_high, color="gray")
+        sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_low, color="gray")
+        sfh_ax.set_xlim(np.interp(self.model_components["redshift"], z_array, age_at_z), 0)
 
         sfh_ax2 = sfh_ax.twiny()
         sfh_ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], z_array, age_at_z))
@@ -710,7 +721,7 @@ class Fit:
         fig.text(0.725, 0.978, "$t(z_\mathrm{form})\ /\ \mathrm{Gyr} =\ " + str(np.round(np.percentile(self.posterior["tmw"], 50), 2)) + "^{+" + str(np.round(np.percentile(self.posterior["tmw"], 84) - np.percentile(self.posterior["tmw"], 50), 2)) + "}_{-" + str(np.round(np.percentile(self.posterior["tmw"], 50) - np.percentile(self.posterior["tmw"], 16), 2)) + "}$", horizontalalignment = "center")
         fig.text(0.895, 0.978, "$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}\ =\ " + str(np.round(np.percentile(self.posterior["sfr"], 50), 2)) + "^{+" + str(np.round(np.percentile(self.posterior["sfr"], 84) - np.percentile(self.posterior["sfr"], 50), 2)) + "}_{-" + str(np.round(np.percentile(self.posterior["sfr"], 50) - np.percentile(self.posterior["sfr"], 16), 2)) + "}$", horizontalalignment = "center")
 
-        fig.savefig(setup.install_dir + "/plots/" + self.run + "/" + self.Galaxy.ID + "_corner.pdf")
+        fig.savefig(setup.working_dir + "/pipes/plots/" + self.run + "/" + self.Galaxy.ID + "_corner.pdf")
 
         plt.close(fig)
 
