@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import sys
 import os
+import time
 
 from numpy import interp
 from numpy.polynomial.chebyshev import chebval as cheb
@@ -97,14 +98,21 @@ class Model_Galaxy:
 		# Recognise only dictionaries which have names listed in self.component_types as being SFH components, add them to sfh_components list
 		for comp in self.model_comp.keys():
 			if (comp in self.component_types or comp[:-1] in self.component_types) and isinstance(self.model_comp[comp], dict):
-				sfh_components.append(comp)
+				self.sfh_components.append(comp)
 
 		# Check the model has at least one SFH component.
-		if len(sfh_components) == 0:
+		if len(self.sfh_components) == 0:
 			sys.exit("Bagpipes: Error, Model_Galaxy was not passed any recognised star formation history components in model_components dict.")
 
 		# zmet_vals: An array of metallicity values at which model grids are available for the chosen set of SPS models.
-		self.zmet_vals = np.copy(setup.zmet_vals[setup.model_type])
+		self.zmet_vals = np.copy(setup.zmet_vals[setup.model_type])/0.02
+		self.zmet_vals_highres = np.arange(0., 10., 0.01) + 0.005
+
+		self.zmet_lims = np.zeros(self.zmet_vals.shape[0]+1)
+		for i in range(1, self.zmet_lims.shape[0]-1):
+			self.zmet_lims[i] = (self.zmet_vals[i] + self.zmet_vals[i-1])/2.
+
+		self.zmet_lims[-1] = 10.
 
 		self.polynomial = None
 		# Polynomial correction which has been applied to the spectrum. 
@@ -332,7 +340,7 @@ class Model_Galaxy:
 	""" Loads Cloudy nebular continuum and emission lines at specified metallicity and logU. """
 	def load_cloudy_grid(self, zmet_ind, logU):
 
-		grid_fname = "zmet_" + str(setup.zmet_vals[setup.model_type][zmet_ind]/0.02) + "_logU_" + str(logU)
+		grid_fname = "zmet_" + str(self.zmet_vals[zmet_ind]) + "_logU_" + str(logU)
 
 		# If the raw grids are not already in allcloudy*grids from a previous object, load the raw files into that dictionary
 		if grid_fname not in allcloudylinegrids.keys():
@@ -399,7 +407,6 @@ class Model_Galaxy:
 		# total_dust_flux: saves the total flux absorbed by dust to set the normalisation of the dust emission component (erg/s)
 		total_dust_flux = 0.
 
-
 		# Figure out which are the nebular grids in logU closest to the chosen logU and what fraction of each grid should be taken
 		if "nebular" in self.model_comp.keys():
 			high_logU_val = np.min(setup.logU_grid[setup.logU_grid >= self.model_comp["nebular"]["logU"]])
@@ -428,23 +435,44 @@ class Model_Galaxy:
 			# sfr_dt: Array containing the multiplicative factors to be applied to each SSP in the grid to build the CSP.
 			sfr_dt = self.sfh.weight_widths[comp]
 
-			# Figure out which are the stellar grids in Zmet closest to the chosen Zmet and what fraction of each grid should be taken
-			high_zmet_ind = self.zmet_vals[self.zmet_vals < 0.02*self.model_comp[comp]["metallicity"]].shape[0]
+			# Figure out which are the stellar grids in Zmet closest to the chosen Zmet and what fraction of each grid should be taken, for normal zmet weighting of stellar population and for nebular prescription
+			high_zmet_ind = self.zmet_vals[self.zmet_vals < self.model_comp[comp]["metallicity"]].shape[0]
 			low_zmet_ind = high_zmet_ind - 1
-			high_zmet_factor = (self.model_comp[comp]["metallicity"]*0.02 - self.zmet_vals[low_zmet_ind])/(self.zmet_vals[high_zmet_ind] - self.zmet_vals[low_zmet_ind])
+			high_zmet_factor = (self.model_comp[comp]["metallicity"] - self.zmet_vals[low_zmet_ind])/(self.zmet_vals[high_zmet_ind] - self.zmet_vals[low_zmet_ind])
 			low_zmet_factor = 1 - high_zmet_factor
 
+			# Calculate metallicity contributions
+			zmet_weights = np.zeros(self.zmet_vals.shape[0])
+
+			if "metallicity_dist" in self.model_comp[comp].keys() and self.model_comp[comp]["metallicity_dist"] == "exponential":
+				zmet_factors_highres = (1./self.model_comp[comp]["metallicity"])*np.exp(-self.model_comp[comp]["metallicity"]*self.zmet_vals_highres)
+
+				for i in range(zmet_weights.shape[0]):
+					zmet_weights[i] = np.sum(0.01*zmet_factors_highres[(self.zmet_vals_highres > self.zmet_lims[i]) & (self.zmet_vals_highres < self.zmet_lims[i+1])])
+
+			else:
+				zmet_weights[high_zmet_ind] = high_zmet_factor
+				zmet_weights[low_zmet_ind] = low_zmet_factor
+
+			# Check the correct model grids have been loaded
+			for i in range(zmet_weights.shape[0]):
+				if str(i) not in self.modelgrids.keys():
+					self.load_model_grid(i)
+
 			#Calculate living stellar mass contribution from this SFH component
-			comp_living_mass = np.sum(sfr_dt*(low_zmet_factor*setup.chosen_mstar_liv[:,low_zmet_ind] + high_zmet_factor*setup.chosen_mstar_liv[:,high_zmet_ind]))
+			comp_living_mass = np.sum(sfr_dt*np.sum(np.expand_dims(zmet_weights, 1)*setup.chosen_mstar_liv, axis=0))
 			self.living_stellar_mass["total"] += comp_living_mass
 			self.living_stellar_mass[comp] = np.copy(comp_living_mass)
 
-			# If the required stellar grids are not already in modelgrids then load them up
-			for zmet_ind in (high_zmet_ind, low_zmet_ind):
-				if str(zmet_ind) not in self.modelgrids.keys():
-					self.load_model_grid(zmet_ind)
+			time0 = time.time()
 
-			interpolated_stellar_grid = high_zmet_factor*self.modelgrids[str(high_zmet_ind)] + low_zmet_factor*self.modelgrids[str(low_zmet_ind)]
+			interpolated_stellar_grid = np.zeros((self.modelgrids[str(low_zmet_ind)].shape[0], self.modelgrids[str(low_zmet_ind)].shape[1]))
+
+			for i in range(zmet_weights.shape[0]):
+				if zmet_weights[i] != 0.:
+					interpolated_stellar_grid += zmet_weights[i]*self.modelgrids[str(i)]
+
+			print "comp_spec_time", time.time() - time0
 
 			# Calculate how many lines of the grids are affected by birth clouds and what fraction of the final line is affected
 			# Otherwise check nothing which required t_bc to be specified has been specified and crash the code if so
@@ -495,7 +523,7 @@ class Model_Galaxy:
 
 			# Obtain CSP by performing a weighed sum over the SSPs and add it to the composite spectrum
 			composite_spectrum += np.sum(np.expand_dims(sfr_dt, axis=1)*interpolated_stellar_grid, axis=0)
-			
+
 			if "nebular" in self.model_comp.keys():
 				if composite_lines is None:
 					composite_lines = np.zeros(self.cloudylinewavs.shape[0])
@@ -523,6 +551,7 @@ class Model_Galaxy:
 		# Apply intergalactic medium absorption to the model spectrum
 		if self.model_comp["redshift"] > 0.:
 			zred_ind = IGM_redshifts[IGM_redshifts < self.model_comp["redshift"]].shape[0]
+
 			high_zred_factor = (IGM_redshifts[zred_ind] - self.model_comp["redshift"])/(IGM_redshifts[zred_ind] - IGM_redshifts[zred_ind-1])
 			low_zred_factor = 1. - high_zred_factor
 

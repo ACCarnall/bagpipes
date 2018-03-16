@@ -60,10 +60,10 @@ def set_model_type(models):
     if full_age_sampling == False:
         global chosen_mstar_liv
 
-        chosen_mstar_liv = np.zeros((chosen_ages.shape[0], len(zmet_vals[models])))
+        chosen_mstar_liv = np.zeros((len(zmet_vals[models]), chosen_ages.shape[0]))
 
         for i in range(mstar_liv[models].shape[1]-1):
-            chosen_mstar_liv[:,i] = np.interp(chosen_ages, 10**mstar_liv[models][:,0], mstar_liv[models][:,i+1])
+            chosen_mstar_liv[i,:] = np.interp(chosen_ages, 10**mstar_liv[models][:,0], mstar_liv[models][:,i+1])
 
 
 

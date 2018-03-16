@@ -317,7 +317,7 @@ class Fit:
         """ Generates a model object for the a specified set of parameters """
 
         self.model_components = self.get_model_components(param)
-        
+
         if self.Galaxy.no_of_spectra > 1:
 
             del self.model_components["veldisp"]
@@ -386,7 +386,8 @@ class Fit:
     def load_posterior(self):
         if "samples" not in self.posterior.keys():
             self.posterior["samples"] = np.loadtxt(setup.working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat")[:,:-1]
-
+            for i in range(len(self.fit_params)):
+                self.posterior[self.fit_params[i]] = self.posterior["samples"][:,i]
 
     def get_post_info(self):
         """ Calculates a whole bunch of useful posterior quantities from the MultiNest output. """
