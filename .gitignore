@@ -1,4 +1,4 @@
-lookup_tables/Inoue2014_IGM/D_IGM_grid_Inoue14.txt
+tables/IGM_Inoue2014/*.txt
 models/*
 
 

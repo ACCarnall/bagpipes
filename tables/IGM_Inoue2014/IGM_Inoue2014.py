@@ -10,6 +10,10 @@ coefs = np.loadtxt(path + "/Lyman_series_coefs_Inoue_2014_Table2.txt")
 
 
 def get_Inoue14_trans(rest_wavs, z_observed):
+
+	if isinstance(rest_wavs, float):
+		rest_wavs = np.array([rest_wavs])
+
 	tau_LAF_LS = np.zeros((39, rest_wavs.shape[0]))
 	tau_DLA_LS = np.zeros((39, rest_wavs.shape[0]))
 	tau_LAF_LC = np.zeros(rest_wavs.shape[0])

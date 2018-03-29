@@ -66,25 +66,25 @@ def set_model_type(models):
             chosen_mstar_liv[i,:] = np.interp(chosen_ages, 10**mstar_liv[models][:,0], mstar_liv[models][:,i+1])
 
 
+def make_dirs():
+    """ Make local Bagpipes directory structure."""
+    if not os.path.exists(working_dir + "/pipes"):
+        os.mkdir(working_dir + "/pipes")
 
-# Make local Bagpipes directory structure.
-if not os.path.exists(working_dir + "/pipes"):
-    os.mkdir(working_dir + "/pipes")
+    if not os.path.exists(working_dir + "/pipes/plots"):
+        os.mkdir(working_dir + "/pipes/plots")
 
-if not os.path.exists(working_dir + "/pipes/plots"):
-    os.mkdir(working_dir + "/pipes/plots")
+    if not os.path.exists(working_dir + "/pipes/pmn_chains"):
+        os.mkdir(working_dir + "/pipes/pmn_chains")
 
-if not os.path.exists(working_dir + "/pipes/pmn_chains"):
-    os.mkdir(working_dir + "/pipes/pmn_chains")
+    if not os.path.exists(working_dir + "/pipes/object_masks"):
+        os.mkdir(working_dir + "/pipes/object_masks")
 
-if not os.path.exists(working_dir + "/pipes/object_masks"):
-    os.mkdir(working_dir + "/pipes/object_masks")
+    if not os.path.exists(working_dir + "/pipes/filters"):
+        os.mkdir(working_dir + "/pipes/filters")
 
-if not os.path.exists(working_dir + "/pipes/filters"):
-    os.mkdir(working_dir + "/pipes/filters")
-
-if not os.path.exists(working_dir + "/pipes/cats"):
-    os.mkdir(working_dir + "/pipes/cats")
+    if not os.path.exists(working_dir + "/pipes/cats"):
+        os.mkdir(working_dir + "/pipes/cats")
 
 
 # Generate dictionaries containing information about spectral models and populate them using the set_model_type function.

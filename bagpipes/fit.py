@@ -56,6 +56,8 @@ class Fit:
 
         print "Bagpipes: Using model set:", setup.model_type
 
+        setup.make_dirs()
+
         # Model: contains a model galaxy 
         self.Model = None
 
@@ -548,8 +550,8 @@ class Fit:
             ax2.set_xlim((np.log10(self.Galaxy.photometry[0,0])-0.025), (np.log10(self.Galaxy.photometry[-1,0])+0.025))
 
             for axis in axes:
-                axis.errorbar(np.log10(self.Galaxy.photometry[:,0]), normalisation_factor*self.Galaxy.photometry[:,1], yerr=normalisation_factor*self.Galaxy.photometry[:,2], lw=1.0, linestyle=" ", capsize=3, capthick=1, zorder=3, color="black")
-                axis.scatter(np.log10(self.Galaxy.photometry[:,0]), normalisation_factor*self.Galaxy.photometry[:,1], color="blue", s=75, zorder=4, linewidth=1, facecolor="blue", edgecolor="black", label="Observed Photometry")
+                axis.errorbar(np.log10(self.Galaxy.photometry[:,0][self.Galaxy.photometry[:,1] != 0.]), normalisation_factor*self.Galaxy.photometry[:,1][self.Galaxy.photometry[:,1] != 0.], yerr=normalisation_factor*self.Galaxy.photometry[:,2][self.Galaxy.photometry[:,1] != 0.], lw=1.0, linestyle=" ", capsize=3, capthick=1, zorder=3, color="black")
+                axis.scatter(np.log10(self.Galaxy.photometry[:,0][self.Galaxy.photometry[:,1] != 0.]), normalisation_factor*self.Galaxy.photometry[:,1][self.Galaxy.photometry[:,1] != 0.], color="blue", s=75, zorder=4, linewidth=1, facecolor="blue", edgecolor="black")
 
 
         # Add masked regions to plots

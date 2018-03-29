@@ -19,12 +19,12 @@ from matplotlib import rc
 rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
 rc('text', usetex=True)
 
-if not os.path.exists(setup.install_dir + "/lookup_tables/Inoue2014_IGM/D_IGM_grid_Inoue14.txt"):
-	sys.path.append(setup.install_dir + "/lookup_tables/Inoue2014_IGM")
-	import Inoue2014_IGM as igm 
+if not os.path.exists(setup.install_dir + "/tables/IGM_Inoue2014/D_IGM_grid_Inoue14.txt"):
+	sys.path.append(setup.install_dir + "/tables/IGM_Inoue2014")
+	import IGM_Inoue2014 as igm 
 	igm.make_table()
 
-D_IGM_grid_global = np.loadtxt(setup.install_dir + "/lookup_tables/Inoue2014_IGM/D_IGM_grid_Inoue14.txt")
+D_IGM_grid_global = np.loadtxt(setup.install_dir + "/tables/IGM_Inoue2014/D_IGM_grid_Inoue14.txt")
 IGM_redshifts = np.arange(0.0, 10.01, 0.01)
 IGM_wavs_global = np.arange(1.0, 1225.01, 1.0)
 
@@ -62,6 +62,9 @@ class Model_Galaxy:
 
 	def __init__(self, model_components, filtlist=None, output_specwavs=None, out_units_spec="ergscma", out_units_phot="ergscma"):
 
+		if output_specwavs is None and filtlist is None:
+			sys.exit("Bagpipes: Either a filtlist or output_specwavs must be specified")
+
 		self.model_comp = model_components
 
 		self.filtlist = filtlist
@@ -87,7 +90,7 @@ class Model_Galaxy:
 		self.UVJ_filterlist = None
 
 		# cloudylinelabels: an array of line labels from cloudy, used to construct line strength dictionary
-		self.cloudylinelabels = np.genfromtxt(setup.install_dir + "/lookup_tables/pipes_cloudy_lines.dat", dtype="str", delimiter="\t")
+		self.cloudylinelabels = np.genfromtxt(setup.install_dir + "/tables/cloudy/cloudy_lines.txt", dtype="str", delimiter="\t")
 
 		# component_types: List of all possible types of star formation history (SFH) components
 		self.component_types = ["burst", "constant", "exponential", "cexp", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
@@ -200,7 +203,7 @@ class Model_Galaxy:
 		self.chosen_modelgrid_wavs = np.array(x)
 
 		# keep_ionizing_continuum: A flag which can be set to prevent the code removing all flux below 912A.
-		if "keep_ionizing_continuum" in self.model_comp.keys() and model_comp["keep_ionizing_continuum"] == True:
+		if "keep_ionizing_continuum" in self.model_comp.keys() and self.model_comp["keep_ionizing_continuum"] == True:
 			self.keep_ionizing_continuum = True
 
 		else:
@@ -260,11 +263,11 @@ class Model_Galaxy:
 			wavs = self.chosen_modelgrid_wavs
 
 		if dust_type == "Calzetti":
-			dust_corr_calz = np.loadtxt(setup.install_dir + "/lookup_tables/Calzetti2000_pow_0.77_extrap.dat.txt")
+			dust_corr_calz = np.loadtxt(setup.install_dir + "/tables/dustCalzetti2000_pow_0.77_extrap.txt")
 			return interp(wavs, dust_corr_calz[:,0], dust_corr_calz[:,1], right=0)
 
 		elif dust_type == "Cardelli":
-			dust_corr_card = np.loadtxt(setup.install_dir + "/lookup_tables/Cardelli_1989_MW.txt")
+			dust_corr_card = np.loadtxt(setup.install_dir + "/tables/dust/Cardelli_1989_MW.txt")
 			return interp(wavs, dust_corr_card[:,0], dust_corr_card[:,1], right=0)
 
 		elif dust_type == "CF00":
@@ -437,15 +440,23 @@ class Model_Galaxy:
 
 			# Figure out which are the stellar grids in Zmet closest to the chosen Zmet and what fraction of each grid should be taken, for normal zmet weighting of stellar population and for nebular prescription
 			high_zmet_ind = self.zmet_vals[self.zmet_vals < self.model_comp[comp]["metallicity"]].shape[0]
-			low_zmet_ind = high_zmet_ind - 1
-			high_zmet_factor = (self.model_comp[comp]["metallicity"] - self.zmet_vals[low_zmet_ind])/(self.zmet_vals[high_zmet_ind] - self.zmet_vals[low_zmet_ind])
-			low_zmet_factor = 1 - high_zmet_factor
+
+			if high_zmet_ind == self.zmet_vals.shape[0]:
+				high_zmet_ind, low_zmet_ind, high_zmet_factor, low_zmet_factor = self.zmet_vals.shape[0]-1, self.zmet_vals.shape[0]-2, 1., 0.
+
+			elif high_zmet_ind == 0:
+				low_zmet_ind, high_zmet_factor, low_zmet_factor = 0, 1., 0.
+
+			else:
+				low_zmet_ind = high_zmet_ind - 1
+				high_zmet_factor = (self.model_comp[comp]["metallicity"] - self.zmet_vals[low_zmet_ind])/(self.zmet_vals[high_zmet_ind] - self.zmet_vals[low_zmet_ind])
+				low_zmet_factor = 1 - high_zmet_factor
 
 			# Calculate metallicity contributions
 			zmet_weights = np.zeros(self.zmet_vals.shape[0])
 
-			if "metallicity_dist" in self.model_comp[comp].keys() and self.model_comp[comp]["metallicity_dist"] == "exponential":
-				zmet_factors_highres = (1./self.model_comp[comp]["metallicity"])*np.exp(-self.model_comp[comp]["metallicity"]*self.zmet_vals_highres)
+			if "metallicity dist" in self.model_comp[comp].keys() and self.model_comp[comp]["metallicity dist"]:
+				zmet_factors_highres = (1./self.model_comp[comp]["metallicity"])*np.exp(-self.zmet_vals_highres/self.model_comp[comp]["metallicity"])
 
 				for i in range(zmet_weights.shape[0]):
 					zmet_weights[i] = np.sum(0.01*zmet_factors_highres[(self.zmet_vals_highres > self.zmet_lims[i]) & (self.zmet_vals_highres < self.zmet_lims[i+1])])
@@ -464,15 +475,11 @@ class Model_Galaxy:
 			self.living_stellar_mass["total"] += comp_living_mass
 			self.living_stellar_mass[comp] = np.copy(comp_living_mass)
 
-			time0 = time.time()
-
-			interpolated_stellar_grid = np.zeros((self.modelgrids[str(low_zmet_ind)].shape[0], self.modelgrids[str(low_zmet_ind)].shape[1]))
+			interpolated_stellar_grid = np.zeros((self.modelgrids[str(high_zmet_ind)].shape[0], self.modelgrids[str(high_zmet_ind)].shape[1]))
 
 			for i in range(zmet_weights.shape[0]):
 				if zmet_weights[i] != 0.:
 					interpolated_stellar_grid += zmet_weights[i]*self.modelgrids[str(i)]
-
-			print "comp_spec_time", time.time() - time0
 
 			# Calculate how many lines of the grids are affected by birth clouds and what fraction of the final line is affected
 			# Otherwise check nothing which required t_bc to be specified has been specified and crash the code if so

@@ -145,7 +145,7 @@ class Catalogue_Fit:
 						np.savetxt(setup.working_dir + "/pipes/cats/" + self.run + ".txt" + str(time0), outcat)
 
 						if self.save_phot:
-							phot_bands = Galaxy.photometry.shape[0]
+							phot_bands = galaxy.photometry.shape[0]
 							photcat = np.zeros((10, 1 + 2*phot_bands))
 							np.savetxt(setup.working_dir + "/pipes/cats/" + self.run + "_phot.txt" + str(time0), photcat)
 
@@ -167,9 +167,9 @@ class Catalogue_Fit:
 					outcat[objects_done, -9] = np.percentile(fit.posterior["sfr"], 50)
 					outcat[objects_done, -8] = np.percentile(fit.posterior["sfr"], 84)
 
-					outcat[objects_done, -7] = np.percentile(fit.posterior["mstar"], 16)
-					outcat[objects_done, -6] = np.percentile(fit.posterior["mstar"], 50)
-					outcat[objects_done, -5] = np.percentile(fit.posterior["mstar"], 84)
+					outcat[objects_done, -7] = np.percentile(fit.posterior["living_stellar_mass"]["total"], 16)
+					outcat[objects_done, -6] = np.percentile(fit.posterior["living_stellar_mass"]["total"], 50)
+					outcat[objects_done, -5] = np.percentile(fit.posterior["living_stellar_mass"]["total"], 84)
 
 					outcat[objects_done, -4] = 0.
 					outcat[objects_done, -3] = fit.global_log_evidence
@@ -183,7 +183,7 @@ class Catalogue_Fit:
 
 					if self.save_phot:
 						photcat[objects_done,0] = fit.Galaxy.ID
-						photcat[objects_done,1:1+phot_bands] = Galaxy.photometry[:,1]
+						photcat[objects_done,1:1+phot_bands] = galaxy.photometry[:,1]
 						photcat[objects_done,1+phot_bands:] = np.percentile(fit.posterior["photometry"], 50, axis=1)
 
 					""" Set up the header for the output catalogue. """
