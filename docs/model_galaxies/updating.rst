@@ -20,23 +20,23 @@ When a new **Model_Galaxy** instance is generated, all of the relevant grids of 
 	dblplaw["alpha"] = 10.
 	dblplaw["beta"] = 0.5
 	dblplaw["tau"] = 7.0
-	dblplaw["mass"] = 11.
+	dblplaw["massformed"] = 11.
 	dblplaw["metallicity"] = 1.0
 
 	burst1 = {}
 	burst1["age"] = 5.0
-	burst1["mass"] = 10.
+	burst1["massformed"] = 10.
 	burst1["metallicity"] = 0.2
 
 	burst2 = {}
 	burst2["age"] = 1.0
-	burst2["mass"] = 9.5
+	burst2["massformed"] = 9.5
 	burst2["metallicity"] = 0.5
 
 	model_comp = {}
-	model_comp["zred"] = 0.5
+	model_comp["redshift"] = 0.5
 	model_comp["veldisp"] = 300.
-	model_comp["a_bc"] = 0.01
+	model_comp["t_bc"] = 0.01
 	model_comp["nebular"] = nebular
 	model_comp["dust"] = dust
 	model_comp["dblplaw"] = dblplaw
@@ -55,5 +55,5 @@ When a new **Model_Galaxy** instance is generated, all of the relevant grids of 
 
 	model.plot()
 
-The **update** method executes in ~1ms, compared to creating the **Model_Galaxy** instance, which takes several seconds. 
+The **update** method executes in milliseconds, compared to creating the **Model_Galaxy** instance, which takes several seconds. 
 

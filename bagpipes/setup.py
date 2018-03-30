@@ -103,7 +103,6 @@ max_zred = 10.
 
 logU_grid = np.arange(-4., -0.99, 0.5)
 
-
 log_width = 0.05 # Controls the grid of ages that models are sampled onto. Sampling more coarsely in age dramatically speeds up the code.
 
 len_ages = int((10.21 - 6)/log_width) + 1

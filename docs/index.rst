@@ -2,11 +2,23 @@ BAGPIPES
 ====================================
 Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation.
 
-Bagpipes is a state of the art model galaxy generation framework and fitting tool. It is designed to generate a highly diverse range of complex model galaxy spectra, and to fit these models to arbitrary combinations of spectroscopic and photometric data using the `MultiNest <https://ccpforge.cse.rl.ac.uk/gf/project/multinest>`_ algorithm.
 
-The Bagpipes source code is available from `GitHub <https://github.com/ACCarnall/bagpipes>`_, where you will also find a suite of examples.  
+Bagpipes is a state of the art code for generating model galaxy spectra and fitting these to observations. The model generation routines are ideal for turning output from simulations into mock observations, and the fitting routines allow the physical parameters of real galaxies to be constrained from spectroscopic and/or photometric observations.
 
-Bagpipes is described in Section 3 of `ArXiv1712.99999 <https://arxiv.org/abs/1712.99999>`_, if you make use of Bagpipes in your research, please cite this work.
+
+Source Code
+-----------
+
+The Bagpipes source code is available from `GitHub <https://github.com/ACCarnall/bagpipes>`_.  
+
+
+Acknowledgements
+----------------
+
+Bagpipes is described in Section 3 of `ArXiv1712.04452 <https://arxiv.org/abs/1712.04452>`_, if you make use of Bagpipes in your research, please include a citation to this work in any publications.
+
+Bagpipes makes use of `MultiNest <https://ccpforge.cse.rl.ac.uk/gf/project/multinest>`_ and `PyMultiNest <https://johannesbuchner.github.io/PyMultiNest>`_, as well as the stellar population models of `Bruzual \& Charlot (2003) <https://arxiv.org/abs/astro-ph/0309134>`_. Please also consider acknowledging these projects if you make use of Bagpipes.
+
 
 .. toctree::
    :maxdepth: 2

@@ -1,6 +1,7 @@
 tables/IGM_Inoue2014/*.txt
 models/*
-
+tables/cloudy/cloudy_temp_files/*
+testing/*
 
 
 

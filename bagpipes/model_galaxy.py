@@ -263,7 +263,7 @@ class Model_Galaxy:
 			wavs = self.chosen_modelgrid_wavs
 
 		if dust_type == "Calzetti":
-			dust_corr_calz = np.loadtxt(setup.install_dir + "/tables/dustCalzetti2000_pow_0.77_extrap.txt")
+			dust_corr_calz = np.loadtxt(setup.install_dir + "/tables/dust/Calzetti2000_pow_0.77_extrap.txt")
 			return interp(wavs, dust_corr_calz[:,0], dust_corr_calz[:,1], right=0)
 
 		elif dust_type == "Cardelli":
@@ -445,7 +445,7 @@ class Model_Galaxy:
 				high_zmet_ind, low_zmet_ind, high_zmet_factor, low_zmet_factor = self.zmet_vals.shape[0]-1, self.zmet_vals.shape[0]-2, 1., 0.
 
 			elif high_zmet_ind == 0:
-				low_zmet_ind, high_zmet_factor, low_zmet_factor = 0, 1., 0.
+				low_zmet_ind, high_zmet_factor, low_zmet_factor = 1, 1., 0.
 
 			else:
 				low_zmet_ind = high_zmet_ind - 1
@@ -539,6 +539,7 @@ class Model_Galaxy:
 
 			# The Hydrogen ionizing continuum is removed here by default
 			if self.keep_ionizing_continuum is not True:
+				print "removing ionized continuum"
 				composite_spectrum[self.chosen_modelgrid_wavs < 911.8] = 0.
 
 				if "nebular" in self.model_comp.keys():

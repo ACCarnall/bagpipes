@@ -10,10 +10,10 @@ A simple example script to build a **model_components** dictionary for a galaxy 
 	burst = {}
 	burst["age"] = 1.0
 	burst["metallicity"] = 1.0
-	burst["mass"] = 11.0
+	burst["massformed"] = 11.0
 
 	model_components = {}
-	model_components["zred"] = 0.5
+	model_components["redshift"] = 0.5
 	model_components["burst"] = burst
 
 We can pass this model_components dictionary to the API as follows:
@@ -29,7 +29,7 @@ We can pass this model_components dictionary to the API as follows:
 We now have a Bagpipes model galaxy! The final command generates a plot which displays the mock data we have requested, in this case a spectrum from 2500 to 7500 Angstroms with sampling of 5 Angstroms (all in the observed frame). We will learn how to obtain photometric output on the `next page <fields.html>`_.
 
 
-This galaxy has no dust, no nebular emission, no velocity dispersion and the simplest possible star formation history. The rest of this page takes you through the options you can implement to build up the complexity of your model. To understand the implementation of each of the options described below you will need to consult Section 3 of `ArXiv1712.99999 <https://arxiv.org/abs/1712.99999>`_.
+This galaxy has no dust, no nebular emission, no velocity dispersion and the simplest possible star formation history. The rest of this page takes you through the options you can implement to build up the complexity of your model. To understand the implementation of each of the options described below you will need to consult Section 3 of `ArXiv1712.04452 <https://arxiv.org/abs/1712.04452>`_.
 
 
 Global options
@@ -40,9 +40,9 @@ The **model_components** dictionary is mainly populated with dictionaries descri
 .. code:: python
 
 	model_comp = {}
-	model_comp["zred"] = 0.5      # The redshift of the galaxy (required)
+	model_comp["redshift"] = 0.5  # The redshift of the galaxy (required)
 	model_comp["veldisp"] = 200.  # The velocity dispersion of the galaxy in km/s (optional)
-	model_comp["a_bc"] = 0.01     # The lifetime of stellar birth clouds in Gyr (optional)
+	model_comp["t_bc"] = 0.01     # The lifetime of stellar birth clouds in Gyr (optional)
 
 
 Dust component
@@ -55,7 +55,7 @@ Three dust attenuation models are implemented in Bagpipes, the Calzetti et al. (
 	dust = {}
 	dust["type"] = "Calzetti"  # Type of dust, other options "Cardelli", "CF00" (required).
 	dust["Av"] = 0.25          # Absolute attenuation in the V band in magnitudes (required).
-	dust["eta"] = 3.0          # Extra birth cloud attenuation, a_bc must be specified (optional).
+	dust["eta"] = 3.0          # Extra birth cloud attenuation, t_bc must be specified (optional).
 
 	dust["n"] = 0.55           # Power-law slope of attenuation law (required, "CF00" only).
 
@@ -83,7 +83,7 @@ Bagpipes builds up the star formation history of models from any number of compo
 .. code:: python
 
 	sfh_comp = {}
-	sfh_comp["mass"] = 11.         # Logarithm of total stellar mass formed in Solar masses (required)
+	sfh_comp["massformed"] = 11.   # Logarithm of total stellar mass formed in Solar masses (required)
 	sfh_comp["metallicity"] = 1.0  # Metallicity of component in old Solar units.
 
 
@@ -150,23 +150,23 @@ Below is an example script for generating a complex Bagpipes model, plotting its
 	dblplaw["alpha"] = 10.
 	dblplaw["beta"] = 0.5
 	dblplaw["tau"] = 7.0
-	dblplaw["mass"] = 11.
+	dblplaw["massformed"] = 11.
 	dblplaw["metallicity"] = 1.0
 
 	burst1 = {}
 	burst1["age"] = 5.0
-	burst1["mass"] = 10.
+	burst1["massformed"] = 10.
 	burst1["metallicity"] = 0.2
 
 	burst2 = {}
 	burst2["age"] = 1.0
-	burst2["mass"] = 9.5
+	burst2["massformed"] = 9.5
 	burst2["metallicity"] = 0.5
 
 	model_comp = {}
-	model_comp["zred"] = 0.5
+	model_comp["redshift"] = 0.5
 	model_comp["veldisp"] = 300.
-	model_comp["a_bc"] = 0.01
+	model_comp["t_bc"] = 0.01
 	model_comp["nebular"] = nebular
 	model_comp["dust"] = dust
 	model_comp["dblplaw"] = dblplaw
