@@ -1,4 +1,4 @@
-tables/IGM/*.txt
+tables/IGM/D_IGM_grid_Inoue14.txt
 backup_stellar_models/*
 tables/nebular/cloudy_temp_files/*
 testing/*
