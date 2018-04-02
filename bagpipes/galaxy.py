@@ -1,12 +1,11 @@
 import numpy as np
-from astropy.cosmology import FlatLambdaCDM
-cosmo = FlatLambdaCDM(H0 = 70, Om0 = 0.3)
 import sys
-import matplotlib.pyplot as plt
-from matplotlib import gridspec
 import os
 
-import setup
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+
+import model_manager as models 
 import model_galaxy
 
 from matplotlib import rc
@@ -189,8 +188,8 @@ class Galaxy:
 
 
         # Add masked regions to plots
-        if os.path.exists(setup.working_dir + "/pipes/masks/" + self.ID + "_mask") and self.spectrum_exists:
-            mask = np.loadtxt(setup.working_dir + "/pipes/masks/" + self.ID + "_mask")
+        if os.path.exists(models.working_dir + "/pipes/masks/" + self.ID + "_mask") and self.spectrum_exists:
+            mask = np.loadtxt(models.working_dir + "/pipes/masks/" + self.ID + "_mask")
 
             for j in range(self.no_of_spectra):
                 if len(mask.shape) == 1:
@@ -210,21 +209,21 @@ class Galaxy:
 
     """ Loads filter files for the specified filtlist and calculates effective wavelength values which are added to self.photometry """
     def get_eff_wavs(self):
-        filtlist = np.loadtxt(setup.working_dir + "/pipes/filters/" + self.filtlist + ".filtlist", dtype="str")
+        filtlist = np.loadtxt(models.working_dir + "/pipes/filters/" + self.filtlist + ".filtlist", dtype="str")
         for i in range(len(self.photometry)):
-            filt = np.loadtxt(setup.working_dir + "/pipes/filters/" + filtlist[i])
-            dlambda = setup.make_bins(filt[:,0])[1]
+            filt = np.loadtxt(models.working_dir + "/pipes/filters/" + filtlist[i])
+            dlambda = models.make_bins(filt[:,0])[1]
             self.photometry[i, 0] = np.round(np.sqrt(np.sum(dlambda*filt[:,1])/np.sum(dlambda*filt[:,1]/filt[:,0]/filt[:,0])), 1)
 
 
             
     """ Set the error spectrum to infinity in masked regions. """
     def mask_spectrum(self, spectrum):
-        if not os.path.exists(setup.install_dir + "/object_masks/" + self.ID + "_mask"): #" + self.ID + "
+        if not os.path.exists(models.install_dir + "/object_masks/" + self.ID + "_mask"): #" + self.ID + "
             return spectrum
 
         else:
-            mask = np.loadtxt(setup.install_dir + "/object_masks/" + self.ID + "_mask") #" + self.ID + "
+            mask = np.loadtxt(models.install_dir + "/object_masks/" + self.ID + "_mask") #" + self.ID + "
             if len(mask.shape) == 1:
                 if spectrum[(spectrum[:,0] > mask[0]) & (spectrum[:,0] < mask[1]), 2].shape[0] is not 0:
                     spectrum[(spectrum[:,0] > mask[0]) & (spectrum[:,0] < mask[1]), 2] = 9.9*10**99.

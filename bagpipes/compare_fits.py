@@ -6,8 +6,6 @@ from matplotlib import gridspec
 import os
 from scipy.ndimage.filters import gaussian_filter
 
-import setup
-
 from astropy.cosmology import FlatLambdaCDM
 cosmo = FlatLambdaCDM(H0 = 70, Om0 = 0.3)
 z_array = np.arange(0., 10., 0.01)
@@ -152,10 +150,10 @@ def compare_fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
 	sfh_ax.set_ylim(0, 1.1*np.max([np.max(sfh_y_high1), np.max(sfh_y_high2)]))
 	
 
-	if not os.path.exists(setup.install_dir + "/plots/" + comp_run):
-		os.mkdir(setup.install_dir + "/plots/" + comp_run)
+	if not os.path.exists(models.install_dir + "/plots/" + comp_run):
+		os.mkdir(models.install_dir + "/plots/" + comp_run)
 
-	fig.savefig(setup.install_dir + "/plots/" + comp_run + "/" + fit1.Galaxy.ID + "_comp_corner.pdf")#, bbox_inches="tight")
+	fig.savefig(models.install_dir + "/plots/" + comp_run + "/" + fit1.Galaxy.ID + "_comp_corner.pdf")#, bbox_inches="tight")
 
 
 

@@ -3,19 +3,18 @@ import sys
 import time
 import matplotlib.pyplot as plt
 
-sys.path.append("..")
-import setup
-
-import model_galaxy
-import setup
+from scipy.optimize import fsolve
 
 from astropy.cosmology import FlatLambdaCDM
 cosmo = FlatLambdaCDM(H0 = 70, Om0 = 0.3)
 z_array = np.arange(0., 10., 0.01)
 age_at_z = cosmo.age(z_array).value
 
-from scipy.optimize import fsolve
+import model_manager as models
+import model_galaxy
 
+component_types = ["burst", "constant", "exponential", "cexp", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
+special_component_types = ["lognormal", "dblplaw", "lognormalgauss", "custom", "cexp"]
 
 def lognorm_equations(p, consts):
 
@@ -24,6 +23,7 @@ def lognorm_equations(p, consts):
     xmax, h = consts
 
     return (np.exp(T0_solve - tau_solve**2) - xmax, xmax*(np.exp(0.5*np.sqrt(8*np.log(2)*tau_solve**2)) - np.exp(-0.5*np.sqrt(8*np.log(2)*tau_solve**2))) - h)
+
 
 
 class Star_Formation_History:
@@ -39,14 +39,14 @@ class Star_Formation_History:
 
     def __init__(self, model_components):
 
-        self.ages = setup.chosen_ages
-        self.age_lhs = setup.chosen_age_lhs[:-1]
-        self.age_widths = setup.chosen_age_widths
+        self.ages = models.chosen_ages
+        self.age_lhs = models.chosen_age_lhs[:-1]
+        self.age_widths = models.chosen_age_widths
 
         # component_types: List of all possible types of star formation history (SFH) components
-        self.component_types = ["burst", "constant", "exponential", "cexp", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
+        self.component_types = component_types
 
-        self.special_component_types = ["lognormal", "dblplaw", "lognormalgauss", "custom", "cexp"]
+        self.special_component_types = special_component_types
 
         # model_components: dictionary containing all information about the model being generated    
         self.model_components = model_components
@@ -55,7 +55,7 @@ class Star_Formation_History:
         self.weight_widths = {}
         
         # populate the weight_widths dict with arrays of ssfr values by calling the functions corresponding to the SFH component type
-        for component in self.model_components.keys():
+        for component in list(self.model_components):
             if component in self.component_types or component[:-1] in self.component_types:
                 for option in self.component_types:
                     if component[:len(option)] == option:
@@ -65,22 +65,22 @@ class Star_Formation_History:
         self.sfr = np.zeros(len(self.ages))
 
         # sum all of the weight_widths to get the total sfr(t)
-        for component in self.model_components.keys():
+        for component in list(self.model_components):
             if component in self.component_types or component[:-1] in self.component_types:
                 self.sfr += self.weight_widths[component]/self.age_widths
 
         # obtain the maximum age (time before observation) for which the ssfr is non-zero in Gyr (for plotting purposes)
         self.maxage = 0.
 
-        if "lognormal" in self.model_components.keys() or "dblplaw" in self.model_components.keys() or "lognormalgauss" in self.model_components.keys() or "custom" in self.model_components.keys() or "cexp" in self.model_components.keys():
+        if np.max(np.isin(list(self.model_components), self.special_component_types)):
             self.maxage = np.interp(self.model_components["redshift"], z_array, age_at_z)
 
-        #Hacky prior on dblplaw:tau
-        if "dblplaw" in self.model_components.keys():
+        # Hacky prior on dblplaw:tau
+        if "dblplaw" in list(self.model_components):
             if self.model_components["dblplaw"]["tau"] > self.maxage:
                 self.maxage = self.model_components["dblplaw"]["tau"]
         
-        for component in self.model_components.keys():
+        for component in list(self.model_components):
             if component in self.component_types or component[:-1] in self.component_types:
                 if component not in self.special_component_types and component[:-1] not in self.special_component_types:
                     if model_components[component]["age"] == "hubble time":
@@ -96,7 +96,7 @@ class Star_Formation_History:
     def burst(self, par_dict):
 
         # If a burst with finite width is requested, set up a constant component between the start and finish times.
-        if "width" in par_dict.keys():
+        if "width" in list(par_dict):
             if par_dict["age"] - par_dict["width"] < 0:
                 sys.exit("BAGPIPES: The time at which the burst started was less than zero.")
 
@@ -133,10 +133,10 @@ class Star_Formation_History:
     def exponential(self, par_dict):
         
         age = par_dict["age"]*10**9
-        if "tau" in par_dict.keys() and "nefolds" in par_dict.keys():
+        if "tau" in list(par_dict) and "nefolds" in list(par_dict):
             sys.exit("BAGPIPES: For exponential component please specify one of tau or nefolds only.")
 
-        if "nefolds" in par_dict.keys():    
+        if "nefolds" in list(par_dict):    
             par_dict["tau"] = par_dict["age"]/par_dict["nefolds"]
         
         age_ind = self.ages[self.ages < par_dict["age"]*10**9].shape[0]
@@ -269,7 +269,7 @@ class Star_Formation_History:
         
         age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
 
-        if "tmax" in par_dict.keys() and "fwhm" in par_dict.keys():
+        if "tmax" in list(par_dict) and "fwhm" in list(par_dict):
             tmax, fwhm = par_dict["tmax"]*10**9, par_dict["fwhm"]*10**9
 
             if tmax < 10**8:
@@ -311,7 +311,7 @@ class Star_Formation_History:
         
         age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
 
-        if "tmax" in par_dict.keys() and "fwhm" in par_dict.keys():
+        if "tmax" in list(par_dict) and "fwhm" in list(par_dict):
             tmax, fwhm = par_dict["tmax"]*10**9, par_dict["fwhm"]*10**9
 
             if tmax < 10**8:

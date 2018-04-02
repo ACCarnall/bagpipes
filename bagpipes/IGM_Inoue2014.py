@@ -1,12 +1,16 @@
+from __future__ import print_function
+
 import numpy as np 
 import matplotlib.pyplot as plt 
 import sys
 import os
 
+import model_manager as models
+
+
 # N    lambdaj   A_LAF_J_1   A_LAF_J_2   A_LAF_J_3   A_DLA_J_1   A_DLA_J_2
 
-path = os.path.dirname(os.path.realpath(__file__))
-coefs = np.loadtxt(path + "/Lyman_series_coefs_Inoue_2014_Table2.txt")
+coefs = np.loadtxt(models.install_dir + "/tables/IGM/Lyman_series_coefs_Inoue_2014_Table2.txt")
 
 
 def get_Inoue14_trans(rest_wavs, z_observed):
@@ -107,7 +111,7 @@ def get_Inoue14_trans(rest_wavs, z_observed):
 
 
 def make_table():
-	print "BAGPIPES: Generating IGM absorption table, this may take a few moments the first time you run the code."
+	print("BAGPIPES: Generating IGM absorption table, this may take a few moments the first time you run the code.")
 
 	z_array = np.arange(0.0, 10.01, 0.01)
 
@@ -118,7 +122,7 @@ def make_table():
 	for i in range(z_array.shape[0]):
 		d_IGM_grid[i,:] = get_Inoue14_trans(rest_wavs, z_array[i])
 
-	np.savetxt(path + "/D_IGM_grid_Inoue14.txt", d_IGM_grid)
+	np.savetxt(models.install_dir + "/tables/IGM//D_IGM_grid_Inoue14.txt", d_IGM_grid)
 
 
 

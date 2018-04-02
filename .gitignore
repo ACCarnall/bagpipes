@@ -1,7 +1,8 @@
-tables/IGM_Inoue2014/*.txt
-models/*
-tables/cloudy/cloudy_temp_files/*
+tables/IGM/*.txt
+backup_stellar_models/*
+tables/nebular/cloudy_temp_files/*
 testing/*
+*.fits
 
 
 

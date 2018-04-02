@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import bagpipes as pipes
 import numpy as np
 import time
@@ -8,9 +10,10 @@ from glob import glob
 from astropy.io import fits
 from subprocess import call
 
-import setup
+import model_manager as models
 from galaxy import Galaxy
-from fit import Fit
+from fit import Fit, make_dirs
+
 
 
 
@@ -73,18 +76,20 @@ class Catalogue_Fit:
 
 		self.n_objects = catalogue_IDs.shape[0]
 
-		if not os.path.exists(setup.working_dir + "/pipes/cats/" + self.run):
-			os.mkdir(setup.working_dir + "/pipes/cats/" + self.run)
+		make_dirs()
 
-		np.savetxt(setup.working_dir + "/pipes/cats/" + run + "/all_IDs", self.IDs)
+		if not os.path.exists(models.working_dir + "/pipes/cats/" + self.run):
+			os.mkdir(models.working_dir + "/pipes/cats/" + self.run)
+
+		np.savetxt(models.working_dir + "/pipes/cats/" + run + "/all_IDs", self.IDs)
 
 		
 
 	def fit(self, verbose=False, n_live=400):
 		""" Run through the catalogue, only fitting objects which have not already been started by another thread. """
 
-		if os.path.exists(setup.working_dir + "/pipes/cats/kill"):
-			call(["rm", setup.working_dir + "/pipes/cats/kill"])
+		if os.path.exists(models.working_dir + "/pipes/cats/kill"):
+			call(["rm", models.working_dir + "/pipes/cats/kill"])
 
 		objects_done = 0
 		time0 = time.time()
@@ -99,14 +104,14 @@ class Catalogue_Fit:
 				elif isinstance(self.fix_redshifts, float):
 					fit_instructions["redshift"] = (self.redshifts[i]-self.fix_redshifts/2., self.redshifts[i]+self.fix_redshifts/2.)
 				
-				print "Bagpipes: Fitting object " + str(int(self.IDs[i]))
+				print("Bagpipes: Fitting object " + str(int(self.IDs[i])))
 
-				if not os.path.exists(setup.working_dir + "/pipes/cats/" + self.run + "/" + str(int(self.IDs[i]))):
+				if not os.path.exists(models.working_dir + "/pipes/cats/" + self.run + "/" + str(int(self.IDs[i]))):
 
-					if os.path.exists(setup.working_dir + "/pipes/cats/kill"):
+					if os.path.exists(models.working_dir + "/pipes/cats/kill"):
 						sys.exit("Kill command received")
 
-					np.savetxt(setup.working_dir + "/pipes/cats/" + self.run + "/" + str(int(self.IDs[i])), np.array([0.]))
+					np.savetxt(models.working_dir + "/pipes/cats/" + self.run + "/" + str(int(self.IDs[i])), np.array([0.]))
 
 					# Extract filtlist for this object
 					if isinstance(self.catalogue_filtlist, (type(None), str)):
@@ -116,11 +121,11 @@ class Catalogue_Fit:
 						filtlist = self.catalogue_filtlist[i]
 
 					# Try to generate galaxy object
-					try:
-						galaxy = Galaxy(str(int(self.IDs[i])), self.data_load_func, filtlist=filtlist, spectrum_exists=self.spectrum_exists, photometry_exists=self.photometry_exists)
+					#try:
+					galaxy = Galaxy(str(int(self.IDs[i])), self.data_load_func, filtlist=filtlist, spectrum_exists=self.spectrum_exists, photometry_exists=self.photometry_exists)
 
-					except:
-						print "Could not load data for object " + str(int(self.IDs[i]))
+					#except:
+					#	print("Could not load data for object " + str(int(self.IDs[i])))
 
 					fit = Fit(galaxy, self.fit_instructions, run=self.run)
 
@@ -142,12 +147,12 @@ class Catalogue_Fit:
 					if objects_done == 0:
 						len_outcat =  3*fit.ndim + 20
 						outcat = np.zeros((10, len_outcat))
-						np.savetxt(setup.working_dir + "/pipes/cats/" + self.run + ".txt" + str(time0), outcat)
+						np.savetxt(models.working_dir + "/pipes/cats/" + self.run + ".txt" + str(time0), outcat)
 
 						if self.save_phot:
 							phot_bands = galaxy.photometry.shape[0]
 							photcat = np.zeros((10, 1 + 2*phot_bands))
-							np.savetxt(setup.working_dir + "/pipes/cats/" + self.run + "_phot.txt" + str(time0), photcat)
+							np.savetxt(models.working_dir + "/pipes/cats/" + self.run + "_phot.txt" + str(time0), photcat)
 
 					outcat[objects_done, 0] = fit.Galaxy.ID
 
@@ -195,14 +200,14 @@ class Catalogue_Fit:
 					fileheader += "UVcolour_16 UVcolour_median UVcolour_84 VJcolour_16 VJcolour_median VJcolour_84 tmw_16 tmw_median tmw_84 sfr_16 sfr_median sfr_84 mstar_liv_16 mstar_liv_median mstar_liv_84 z_input global_log_evidence global_log_evidence_err min_chisq_reduced"
 
 					""" Check to see if the kill switch has been set, and if so stop here. """
-					if os.path.exists(setup.working_dir + "/pipes/cats/kill"):
+					if os.path.exists(models.working_dir + "/pipes/cats/kill"):
 						sys.exit("Kill command received")
 
 					""" If not, save the updated output catalogue. """
-					np.savetxt(setup.working_dir + "/pipes/cats/" + self.run + ".txt" + str(time0), outcat, header=fileheader)
+					np.savetxt(models.working_dir + "/pipes/cats/" + self.run + ".txt" + str(time0), outcat, header=fileheader)
 
 					if self.save_phot:
-						np.savetxt(setup.working_dir + "/pipes/cats/" + self.run + "_phot.txt" + str(time0), photcat)
+						np.savetxt(models.working_dir + "/pipes/cats/" + self.run + "_phot.txt" + str(time0), photcat)
 
 					objects_done += 1
 
@@ -216,21 +221,21 @@ def compile_cat(run, mode="merge"):
 	""" Compile all the sub-catalogues into one output catalogue, optionally stop all running processes and delete incomplete object runs. """
 
 	if mode == "clean":
-		call(["touch", setup.working_dir + "/pipes/cats/kill"])
+		call(["touch", models.working_dir + "/pipes/cats/kill"])
 
 	outcats = {}
 	outphotcats = {}
 
 	# Generate lists of files to merge
-	files = glob(setup.working_dir + "/pipes/cats/" + run + ".txt*")
+	files = glob(models.working_dir + "/pipes/cats/" + run + ".txt*")
 
-	photfiles = glob(setup.working_dir + "/pipes/cats/" + run + "_phot.txt*")
+	photfiles = glob(models.working_dir + "/pipes/cats/" + run + "_phot.txt*")
 	
 	# Load up files
 	for i in range(len(files)):
 		while True:
 			try:
-				outcats[i] = np.loadtxt(files[i])
+				outcats[str(i)] = np.loadtxt(files[i])
 				break
 
 			except:
@@ -241,8 +246,10 @@ def compile_cat(run, mode="merge"):
 	header = f.readline()
 	header_list = header[2:-1].split()
 
-	outcat_final = np.zeros((self.n_objects, outcats["0"].shape[1]))
-	outcat_final[:,0] = np.loadtxt(setup.working_dir + "/pipes/cats/" + run + "/all_IDs")
+	all_IDs = np.loadtxt(models.working_dir + "/pipes/cats/" + run + "/all_IDs")
+
+	outcat_final = np.zeros((all_IDs.shape[0], outcats["0"].shape[1]))
+	outcat_final[:,0] = all_IDs
 
 	# Count the number of objects which have been fit by each thread
 	n_in_thread = {}
@@ -266,34 +273,34 @@ def compile_cat(run, mode="merge"):
 	if mode == "clean":
 		for file in files:
 			call(["rm",  file])
-		np.savetxt(setup.working_dir + "/pipes/cats/" + run + ".txt_clean", outcat_final[(outcat_final[:,1] != 0.) & (outcat_final[:,2] != 0.)], header=header[2:-1])
+		np.savetxt(models.working_dir + "/pipes/cats/" + run + ".txt_clean", outcat_final[(outcat_final[:,1] != 0.) & (outcat_final[:,2] != 0.)], header=header[2:-1])
 
-		files = os.listdir(setup.working_dir + "/pipes/cats/" + run)
-
-		IDs = np.loadtxt(setup.working_dir + "/pipes/cats/" + run + ".txt_clean", usecols=(0,1,2))
+		lock_files = os.listdir(models.working_dir + "/pipes/cats/" + run)
+		lock_files.remove("all_IDs")
+		IDs = np.loadtxt(models.working_dir + "/pipes/cats/" + run + ".txt_clean", usecols=(0,1,2))
 
 		IDs = IDs[(IDs[:,1] != 0.) & (IDs[:,2] != 0.), 0]
 
-		for file in files:
-			if float(file) not in IDs:
+		for lock_file in lock_files:
+			if float(lock_file) not in IDs:
 
-				call(["rm", setup.working_dir + "/pipes/cats/" + run + "/" + file])
+				call(["rm", models.working_dir + "/pipes/cats/" + run + "/" + lock_file])
 
-				files_toremove = glob(setup.working_dir + "/pipes/pmn_chains/" + run + "/" + file + "*")
+				files_toremove = glob(models.working_dir + "/pipes/pmn_chains/" + run + "/" + lock_file + "*")
 
 				for toremove in files_toremove:
 					call(["rm", toremove])
 
-	np.savetxt(setup.working_dir + "/pipes/cats/" + run + ".cat", outcat_final[(outcat_final[:,1] != 0.) & (outcat_final[:,2] != 0.)], header=header[2:-1])
+	np.savetxt(models.working_dir + "/pipes/cats/" + run + ".cat", outcat_final[(outcat_final[:,1] != 0.) & (outcat_final[:,2] != 0.)], header=header[2:-1])
 		
-	print "Bagpipes: Catalogue merged,", nobj, "out of", outcat_final.shape[0], "objects completed."
+	print("Bagpipes: Catalogue merged,", nobj, "out of", outcat_final.shape[0], "objects completed.")
 
 	if mode == "clean":
-		print "Bagpipes: Running processes will be killed and partially completed objects reset."
+		print("Bagpipes: Running processes will be killed and partially completed objects reset.")
 
 
 
 def clean_cat_dir(run):
 	""" Run compile_cat with the clean option enabled to kill running processes and delete . """
-	self.compile_cat(run, mode="clean")
+	compile_cat(run, mode="clean")
 
