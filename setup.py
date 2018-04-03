@@ -25,11 +25,13 @@ setup(
 
     packages=["bagpipes"],
     
+    include_package_data=True,
+
     package_data={
     "tables/IGM" : ["Lyman_series_coefs_Inoue_2014_Table2.txt"],
+    "tables/dust" : ["*.txt"],
     #"tables/nebular/bc03_miles" : ["*.fits"],
     #"tables/stellar/bc03_miles" : ["*.fits"],
-    "tables/dust/bc03_miles" : ["*.txt"],
     "" : ["*.rst", "*.txt"]
     },
     
@@ -40,3 +42,5 @@ setup(
         "ArXiv": "https://arxiv.org/abs/1712.04452",
     },
 )
+
+
