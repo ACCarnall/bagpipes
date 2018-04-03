@@ -6,5 +6,6 @@ dependencies:
     - scipy
     - matplotlib
     - numpy
-    - corner
-    - pymultinest
+    - pip:
+      - corner
+      - pymultinest
