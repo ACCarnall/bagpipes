@@ -33,7 +33,7 @@ setup(
     "" : ["*.rst", "*.txt"]
     },
 
-    install_requires=['numpy', "corner", "pymultinest", "matplotlib", "scipy", "astropy"],  
+    install_requires=['numpy', "corner", "pymultinest", "matplotlib", "scipy", "astropy<=2.0.5"],  
 
     project_urls={
         "GitHub": "https://github.com/ACCarnall/bagpipes",
