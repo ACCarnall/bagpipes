@@ -16,7 +16,7 @@ Finally, detailed API documentation for the **Model_Galaxy** class is available 
    :caption: Contents:
 
    model_components
-   fields
+   filtlists
    updating
    api_doc
 
