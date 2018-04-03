@@ -1,6 +1,0 @@
-include README.rst 
-include LICENSE.txt
-include tables/IGM/Lyman_series_coefs_Inoue_2014_Table2.txt
-include tables/nebular/bc03_miles/*.fits
-include tables/stellar/bc03_miles/*.fits
-include tables/dust/bc03_miles/*.txt
