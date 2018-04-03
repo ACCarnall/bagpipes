@@ -1,0 +1,15 @@
+name: bagpipes
+
+dependencies:
+    - python=3.5
+    - astropy
+    - scipy
+    - matplotlib
+    - numpy
+    - corner
+    - pymultinest
+    - sys
+    - os
+    - time
+    - subprocess
+    - copy

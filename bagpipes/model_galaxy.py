@@ -6,7 +6,6 @@ import matplotlib.gridspec as gridspec
 import matplotlib as mpl
 import sys
 import os
-import time
 
 from astropy.io import fits
 from numpy import interp

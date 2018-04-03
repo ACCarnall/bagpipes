@@ -1,10 +1,5 @@
-name: bagpipes
+conda:
+  file: rtd-environment.yml
 
-dependencies:
-    - python=3.5
-    - astropy
-    - scipy
-    - matplotlib
-    - numpy
-    - corner
-    - pymultinest
+python:
+   setup_py_install: true
