@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
 import model_manager as models 
-import model_galaxy
 
 from matplotlib import rc
 rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})

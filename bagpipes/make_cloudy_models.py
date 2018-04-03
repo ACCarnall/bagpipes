@@ -5,6 +5,8 @@ import os
 import matplotlib.pyplot as plt 
 import sys
 
+from astropy.io import fits
+
 import model_manager as models
 from model_galaxy import Model_Galaxy
 
@@ -128,8 +130,8 @@ def run_cloudy_grid(nthread, nthreads):
 		logU = models.logU_grid[i]
 		for zmet in models.zmet_vals[models.model_type]:
 			for age in models.chosen_ages[models.chosen_ages < 3.*10**7]:
-				print("logU: " + str(np.round(logU, 1)) + ", zmet: " + str(np.round(zmet/0.02, 3))  + ", age: " + str(np.round(age*10**-9, 5)))
-				run_cloudy_model(age*10**-9, zmet/0.02, logU)
+				print("logU: " + str(np.round(logU, 1)) + ", zmet: " + str(np.round(zmet, 3))  + ", age: " + str(np.round(age*10**-9, 5)))
+				run_cloudy_model(age*10**-9, zmet, logU)
 
 
 
@@ -209,12 +211,12 @@ def extract_cloudy_results(age, zmet, logU, test=False):
 
 def compile_cloudy_grid():
 
-	line_wavs = np.loadtxt("cloudy_linewavs.txt")
+	line_wavs = np.loadtxt(models.install_dir + "/tables/nebular/cloudy_linewavs.txt")
 
 	for logU in models.logU_grid:
 		for zmet in models.zmet_vals[models.model_type]:
 
-			print("logU: " + str(np.round(logU, 1)) + ", zmet: " + str(np.round(zmet/0.02, 3)))
+			print("logU: " + str(np.round(logU, 1)) + ", zmet: " + str(np.round(zmet, 3)))
 
 			contgrid = np.zeros((models.chosen_ages[models.chosen_ages < 3.*10**7].shape[0]+1, models.gridwavs[models.model_type].shape[0]+1))
 			contgrid[0,1:] = models.gridwavs[models.model_type]
@@ -226,24 +228,24 @@ def compile_cloudy_grid():
 
 			for i in range(models.chosen_ages[models.chosen_ages < 3.*10**7].shape[0]):
 				age = models.chosen_ages[models.chosen_ages < 3.*10**7][i]
-				cont_fluxes, line_fluxes = extract_cloudy_results(age*10**-9, zmet/0.02, logU)
+				cont_fluxes, line_fluxes = extract_cloudy_results(age*10**-9, zmet, logU)
 				contgrid[i+1,1:] = cont_fluxes
 				linegrid[i+1,1:] = line_fluxes
 
 			if not os.path.exists(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids"):
 				os.mkdir(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids")
 
-			np.savetxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + "zmet_" + str(zmet/0.02) + "_logU_" + str(logU) + ".neb_lines", linegrid)
-			np.savetxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + "zmet_" + str(zmet/0.02) + "_logU_" + str(logU) + ".neb_cont", contgrid)
+			np.savetxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + "zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_lines", linegrid)
+			np.savetxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + "zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_cont", contgrid)
 
 	# Nebular grids
 	list_of_hdus_lines = [fits.PrimaryHDU()]
 	list_of_hdus_cont = [fits.PrimaryHDU()]
 
-	for logU in pipes.logU_grid:
-		for zmet in pipes.zmet_vals[pipes.model_type]:
-			list_of_hdus_lines.append(fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_" + "%.1f" % logU, data=np.loadtxt(pipes.install_dir + "/models/bc03_miles/nebular/zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_lines")))
-			list_of_hdus_cont.append(fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_" + "%.1f" % logU, data=np.loadtxt(pipes.install_dir + "/models/bc03_miles/nebular/zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_cont")))
+	for logU in models.logU_grid:
+		for zmet in models.zmet_vals[models.model_type]:
+			list_of_hdus_lines.append(fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_" + "%.1f" % logU, data=np.loadtxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_lines")))
+			list_of_hdus_cont.append(fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_" + "%.1f" % logU, data=np.loadtxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_cont")))
 
 	hdulist_lines = fits.HDUList(hdus=list_of_hdus_lines)
 	hdulist_cont = fits.HDUList(hdus=list_of_hdus_cont)

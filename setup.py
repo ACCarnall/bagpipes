@@ -25,6 +25,14 @@ setup(
 
     packages=["bagpipes"],
 
+    package_data={
+    "tables/IGM" : ["Lyman_series_coefs_Inoue_2014_Table2.txt"]
+    "tables/nebular/bc03_miles" : ["*.fits"]
+    "tables/stellar/bc03_miles" : ["*.fits"]
+    "tables/dust/bc03_miles" : ["*.txt"]
+    "" : ["*.rst", "*.txt"]
+    }
+
     install_requires=['numpy', "corner", "pymultinest", "matplotlib", "scipy", "astropy"],  
 
     project_urls={

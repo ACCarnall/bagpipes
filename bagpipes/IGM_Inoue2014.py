@@ -7,6 +7,7 @@ import os
 
 import model_manager as models
 
+from astropy.io import fits
 
 # N    lambdaj   A_LAF_J_1   A_LAF_J_2   A_LAF_J_3   A_DLA_J_1   A_DLA_J_2
 
@@ -122,8 +123,12 @@ def make_table():
 	for i in range(z_array.shape[0]):
 		d_IGM_grid[i,:] = get_Inoue14_trans(rest_wavs, z_array[i])
 
-	np.savetxt(models.install_dir + "/tables/IGM//D_IGM_grid_Inoue14.txt", d_IGM_grid)
+	hdulist_igm = fits.HDUList(hdus=[fits.PrimaryHDU(), fits.ImageHDU(name="igm_table", data=d_IGM_grid)])
 
+	if os.path.exists(models.install_dir + "/tables/igm/D_IGM_grid_Inoue14.fits"):
+		os.system("rm " + models.install_dir + "/tables/igm/D_IGM_grid_Inoue14.fits")
+
+	hdulist_igm.writeto(models.install_dir + "/tables/igm/D_IGM_grid_Inoue14.fits")
 
 
 

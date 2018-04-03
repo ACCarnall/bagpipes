@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy as np
 import os
 import sys
@@ -9,10 +11,50 @@ working_dir = os.getcwd()
 
 import load_models
 
+z_array = None
+age_at_z = None
+ldist_at_z = None
+
 allstellargrids = {}
 allcloudylinegrids = {}
 allcloudycontgrids = {}
 
+
+def set_cosmology(H0=70., Om0=0.3):
+    global z_array
+    global age_at_z
+    global ldist_at_z
+
+    if z_array is None:
+
+        from astropy.cosmology import FlatLambdaCDM
+
+        cosmo = FlatLambdaCDM(H0 = H0, Om0 = Om0)
+        z_array = np.arange(0., 10., 0.01)
+        age_at_z = cosmo.age(z_array).value
+        ldist_at_z = cosmo.luminosity_distance(z_array).value
+
+
+
+def make_dirs():
+    """ Make local Bagpipes directory structure."""
+    if not os.path.exists(working_dir + "/pipes"):
+        os.mkdir(working_dir + "/pipes")
+
+    if not os.path.exists(working_dir + "/pipes/plots"):
+        os.mkdir(working_dir + "/pipes/plots")
+
+    if not os.path.exists(working_dir + "/pipes/pmn_chains"):
+        os.mkdir(working_dir + "/pipes/pmn_chains")
+
+    if not os.path.exists(working_dir + "/pipes/object_masks"):
+        os.mkdir(working_dir + "/pipes/object_masks")
+
+    if not os.path.exists(working_dir + "/pipes/filters"):
+        os.mkdir(working_dir + "/pipes/filters")
+
+    if not os.path.exists(working_dir + "/pipes/cats"):
+        os.mkdir(working_dir + "/pipes/cats")
 
 
 def make_bins(midpoints, make_rhs="False"):
@@ -128,7 +170,7 @@ def load_stellar_grid(zmet_ind):
 """ Loads Cloudy nebular continuum and emission lines at specified metallicity and logU. """
 def load_cloudy_grid(zmet_ind, logU):
 
-    table_index = logU_grid.shape[0]*np.argmax(logU_grid==logU) + zmet_ind + 1
+    table_index = zmet_vals[model_type].shape[0]*np.argmax(logU_grid==logU) + zmet_ind + 1
 
     # If the raw grids are not already in allcloudy*grids from a previous object, load the raw files into that dictionary
     if str(zmet_ind) + str(logU) not in list(allcloudylinegrids):
@@ -161,11 +203,11 @@ model_type = "bc03_miles"
 full_age_sampling = False
 max_zred = 10.
 
-logU_grid = np.arange(-4., -0.99, 0.5)
+logU_grid = np.arange(-4., -1.99, 0.5)
 
 # Controls the grid of ages that models are sampled onto. Sampling more coarsely in age dramatically speeds up the code.
 # Note, you'll need to regenerate the Cloudy emission line models if you change this.
-log_width = 0.05
+log_width = 0.1
 
 len_ages = int((10.21 - 6)/log_width) + 1
 

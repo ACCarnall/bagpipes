@@ -8,13 +8,9 @@ import sys
 import os
 import time
 
+from astropy.io import fits
 from numpy import interp
 from numpy.polynomial.chebyshev import chebval as cheb
-
-from astropy.cosmology import FlatLambdaCDM
-cosmo = FlatLambdaCDM(H0 = 70, Om0 = 0.3)
-z_array = np.arange(0., 10., 0.01)
-ldist_at_z = cosmo.luminosity_distance(z_array).value
 
 from matplotlib import rc
 rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
@@ -23,15 +19,13 @@ rc('text', usetex=True)
 import star_formation_history
 import model_manager as models
 
-if not os.path.exists(models.install_dir + "/tables/IGM/D_IGM_grid_Inoue14.txt"):
-	sys.path.append(models.install_dir + "/tables/IGM")
+if not os.path.exists(models.install_dir + "/tables/IGM/D_IGM_grid_Inoue14.fits"):
 	import IGM_Inoue2014 as igm 
 	igm.make_table()
 
-D_IGM_grid_global = np.loadtxt(models.install_dir + "/tables/IGM/D_IGM_grid_Inoue14.txt")
+D_IGM_grid_global = fits.open(models.install_dir + "/tables/IGM/D_IGM_grid_Inoue14.fits")[1].data
 IGM_redshifts = np.arange(0.0, 10.01, 0.01)
 IGM_wavs_global = np.arange(1.0, 1225.01, 1.0)
-
 
 class Model_Galaxy:
 	""" Build a model galaxy spectrum.
@@ -60,6 +54,8 @@ class Model_Galaxy:
 
 		if output_specwavs is None and filtlist is None:
 			sys.exit("Bagpipes: Either a filtlist or output_specwavs must be specified")
+
+		models.set_cosmology()
 
 		self.model_comp = model_components
 
@@ -535,11 +531,11 @@ class Model_Galaxy:
 			
 		# Redshift the model spectrum and put it into erg/s/cm2/A unless z = 0, in which case final units are erg/s/A
 		if self.model_comp["redshift"] != 0.:
-			composite_spectrum /= (4*np.pi*(interp(self.model_comp["redshift"], z_array, ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
+			composite_spectrum /= (4*np.pi*(interp(self.model_comp["redshift"], models.z_array, models.ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
 			composite_spectrum /= (1+self.model_comp["redshift"]) #reduce flux by a factor of 1/(1+z) to account for redshifting
 
 			if "nebular" in list(self.model_comp):
-				composite_lines /= (4*np.pi*(interp(self.model_comp["redshift"], z_array, ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
+				composite_lines /= (4*np.pi*(interp(self.model_comp["redshift"], models.z_array, models.ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
 
 		composite_spectrum *= 3.826*10**33 #convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
 

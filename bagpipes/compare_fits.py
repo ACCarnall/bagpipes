@@ -4,12 +4,6 @@ import sys
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import os
-from scipy.ndimage.filters import gaussian_filter
-
-from astropy.cosmology import FlatLambdaCDM
-cosmo = FlatLambdaCDM(H0 = 70, Om0 = 0.3)
-z_array = np.arange(0., 10., 0.01)
-age_at_z = cosmo.age(z_array).value
 
 
 from matplotlib import rc
@@ -111,18 +105,16 @@ def compare_fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
 	sfh_x2, sfh_y2, sfh_y_low2, sfh_y_high2 = get_sfh_info(fit2)
 
 	# Plot the SFH
-	sfh_ax.fill_between(np.interp(fit1.model_components["redshift"], z_array, age_at_z) - sfh_x1*10**-9, sfh_y_low1, sfh_y_high1, color=colour1_2, alpha=alpha1, lw=2, edgecolor=colour2)
-	sfh_ax.plot(np.interp(fit1.model_components["redshift"], z_array, age_at_z) - sfh_x1*10**-9, sfh_y1, color=colour1, zorder=10)
-	sfh_ax.set_xlim(np.interp(fit1.model_components["redshift"], z_array, age_at_z), 0)
+	sfh_ax.fill_between(np.interp(fit1.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x1*10**-9, sfh_y_low1, sfh_y_high1, color=colour1_2, alpha=alpha1, lw=2, edgecolor=colour2)
+	sfh_ax.plot(np.interp(fit1.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x1*10**-9, sfh_y1, color=colour1, zorder=10)
+	sfh_ax.set_xlim(np.interp(fit1.model_components["redshift"], models.z_array, models.age_at_z), 0)
 
-	#sfh_ax.plot(ages_universe, gaussian_filter(sfh_mufasa, 2), color="black", lw=2)
-
-	sfh_ax.fill_between(np.interp(fit2.model_components["redshift"], z_array, age_at_z) - sfh_x2*10**-9, sfh_y_low2, sfh_y_high2, color=colour2_2, alpha=alpha2, lw=2, edgecolor=colour2)
-	sfh_ax.plot(np.interp(fit2.model_components["redshift"], z_array, age_at_z) - sfh_x2*10**-9, sfh_y2, color=colour2, zorder=10)
+	sfh_ax.fill_between(np.interp(fit2.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x2*10**-9, sfh_y_low2, sfh_y_high2, color=colour2_2, alpha=alpha2, lw=2, edgecolor=colour2)
+	sfh_ax.plot(np.interp(fit2.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x2*10**-9, sfh_y2, color=colour2, zorder=10)
 
 
 	sfh_ax2 = sfh_ax.twiny()
-	sfh_ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], z_array, age_at_z))
+	sfh_ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], models.z_array, models.age_at_z))
 	sfh_ax2.set_xticklabels(["$0$", "$0.5$", "$1$", "$2$", "$4$", "$10$"])
 	sfh_ax2.set_xlim(sfh_ax.get_xlim())
 	sfh_ax2.set_xlabel("$\mathrm{Redshift}$", size=14)
