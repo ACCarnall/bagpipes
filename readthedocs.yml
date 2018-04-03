@@ -1,4 +1,10 @@
 name: bagpipes
 
-python
-    version: 3.5
+dependencies:
+    - python=3.5
+    - astropy
+    - scipy
+    - matplotlib
+    - numpy
+    - corner
+    - pymultinest
