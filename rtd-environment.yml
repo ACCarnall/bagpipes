@@ -8,8 +8,3 @@ dependencies:
     - numpy
     - corner
     - pymultinest
-    - sys
-    - os
-    - time
-    - subprocess
-    - copy
