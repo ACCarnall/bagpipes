@@ -54,6 +54,7 @@ class Fit:
 
 		models.make_dirs()
 		models.set_cosmology()
+		models.set_model_type(models.model_type)
 
 		# Model: contains a model galaxy 
 		self.Model = None

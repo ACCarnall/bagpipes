@@ -19,6 +19,33 @@ allstellargrids = {}
 allcloudylinegrids = {}
 allcloudycontgrids = {}
 
+# Generate dictionaries containing information about spectral models and populate them using the set_model_type function.
+gridwavs = {}
+ages = {}
+age_lhs = {}
+age_widths = {}
+zmet_vals = {}
+live_mstar_frac = {}
+
+model_type = "bc03_miles"
+full_age_sampling = False
+max_zred = 10.
+
+logU_grid = np.arange(-4., -1.99, 0.5)
+
+# Controls the grid of ages that models are sampled onto. Sampling more coarsely in age dramatically speeds up the code.
+# Note, you'll need to regenerate the Cloudy emission line models if you change this.
+log_width = 0.1
+
+len_ages = int((10.21 - 6)/log_width) + 1
+
+if not full_age_sampling:
+    chosen_ages = 10.**(6. + log_width*np.arange(len_ages))
+    chosen_age_lhs = np.zeros(len_ages+1)
+    chosen_age_lhs[1:] = 10.**(6.0 + log_width/2. + log_width*np.arange(len_ages))
+    chosen_age_widths = chosen_age_lhs[1:] - chosen_age_lhs[:-1]
+
+    
 
 def set_cosmology(H0=70., Om0=0.3):
     global z_array
@@ -191,32 +218,7 @@ def load_cloudy_grid(zmet_ind, logU):
 
 
 
-# Generate dictionaries containing information about spectral models and populate them using the set_model_type function.
-gridwavs = {}
-ages = {}
-age_lhs = {}
-age_widths = {}
-zmet_vals = {}
-live_mstar_frac = {}
 
-model_type = "bc03_miles"
-full_age_sampling = False
-max_zred = 10.
 
-logU_grid = np.arange(-4., -1.99, 0.5)
-
-# Controls the grid of ages that models are sampled onto. Sampling more coarsely in age dramatically speeds up the code.
-# Note, you'll need to regenerate the Cloudy emission line models if you change this.
-log_width = 0.1
-
-len_ages = int((10.21 - 6)/log_width) + 1
-
-if not full_age_sampling:
-    chosen_ages = 10.**(6. + log_width*np.arange(len_ages))
-    chosen_age_lhs = np.zeros(len_ages+1)
-    chosen_age_lhs[1:] = 10.**(6.0 + log_width/2. + log_width*np.arange(len_ages))
-    chosen_age_widths = chosen_age_lhs[1:] - chosen_age_lhs[:-1]
-
-set_model_type(model_type)
 
 

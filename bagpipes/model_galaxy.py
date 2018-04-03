@@ -55,6 +55,7 @@ class Model_Galaxy:
 			sys.exit("Bagpipes: Either a filtlist or output_specwavs must be specified")
 
 		models.set_cosmology()
+		models.set_model_type(models.model_type)
 
 		self.model_comp = model_components
 
