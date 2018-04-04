@@ -1,4 +1,4 @@
-Loading observational data
+Inputting Observational Data
 ====================================
 
 This section of the documentation will introduce you to loading observational data into Bagpipes.

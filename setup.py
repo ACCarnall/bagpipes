@@ -23,17 +23,9 @@ setup(
 
     author_email='adamc@roe.ac.uk',
 
-    packages=["bagpipes"],
+    packages=["bagpipes", "tables"],
     
     include_package_data=True,
-
-    package_data={
-    "tables/IGM" : ["Lyman_series_coefs_Inoue_2014_Table2.txt"],
-    "tables/dust" : ["*.txt"],
-    "tables/nebular/bc03_miles" : ["*.fits"],
-    "tables/stellar/bc03_miles" : ["*.fits"],
-    "" : ["*.rst", "*.txt"]
-    },
     
     install_requires=['numpy', "corner", "pymultinest", "matplotlib", "scipy", "astropy<=2.0.5"],  
 
@@ -42,5 +34,3 @@ setup(
         "ArXiv": "https://arxiv.org/abs/1712.04452",
     },
 )
-
-

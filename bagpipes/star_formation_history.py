@@ -99,8 +99,8 @@ class Star_Formation_History:
                 sys.exit("BAGPIPES: The time at which the burst started was less than zero.")
 
             const_par_dict = {}
-            const_par_dict["age"] = par_dict["age"]
-            const_par_dict["age_min"] = par_dict["age"] - par_dict["width"]
+            const_par_dict["agemax"] = par_dict["age"]
+            const_par_dict["agemin"] = par_dict["age"] - par_dict["width"]
             const_par_dict["massformed"] = par_dict["massformed"]
 
             weight_widths = self.constant(const_par_dict)
@@ -198,36 +198,36 @@ class Star_Formation_History:
         if par_dict["age"] == "hubble time":
             par_dict["age"] = np.interp(self.model_components["redshift"], models.z_array, models.age_at_z)
 
-        if par_dict["age_min"] > par_dict["age"]:
+        if par_dict["agemin"] > par_dict["agemax"]:
             sys.exit("Minimum constant age exceeded maximum.")
         
         age_ind = self.ages[self.ages < par_dict["age"]*10**9].shape[0]
 
-        age_min_ind = self.ages[self.ages < par_dict["age_min"]*10**9].shape[0]
+        age_min_ind = self.ages[self.ages < par_dict["agemin"]*10**9].shape[0]
 
         widths_constant = np.copy(self.age_widths)
 
-        if self.age_lhs[age_ind] - par_dict["age"]*10**9 > 0:
+        if self.age_lhs[age_ind] - par_dict["agemax"]*10**9 > 0:
             widths_constant[age_ind] = 0.
-            widths_constant[age_ind-1] = par_dict["age"]*10**9 - self.age_lhs[age_ind-1]
+            widths_constant[age_ind-1] = par_dict["agemax"]*10**9 - self.age_lhs[age_ind-1]
             
         else:
-            widths_constant[age_ind] = par_dict["age"]*10**9 - self.age_lhs[age_ind]
+            widths_constant[age_ind] = par_dict["agemax"]*10**9 - self.age_lhs[age_ind]
 
-        if self.age_lhs[age_min_ind] - par_dict["age_min"]*10**9 < 0:
+        if self.age_lhs[age_min_ind] - par_dict["agemin"]*10**9 < 0:
             widths_constant[age_min_ind-1] = 0.
-            widths_constant[age_min_ind] = self.age_lhs[age_min_ind+1] - par_dict["age_min"]*10**9
+            widths_constant[age_min_ind] = self.age_lhs[age_min_ind+1] - par_dict["agemin"]*10**9
             
         else:
-            widths_constant[age_min_ind-1] = self.age_lhs[age_min_ind] - par_dict["age_min"]*10**9
+            widths_constant[age_min_ind-1] = self.age_lhs[age_min_ind] - par_dict["agemin"]*10**9
 
         if age_min_ind > 0:
             widths_constant[:age_min_ind-1] *= 0.
 
         widths_constant[age_ind+1:] *= 0.
 
-        if age_ind == age_min_ind and self.age_lhs[age_ind] - par_dict["age"]*10**9 < 0 and self.age_lhs[age_min_ind] - par_dict["age_min"]*10**9 < 0:
-            widths_constant[age_ind] = (par_dict["age"] - par_dict["age_min"])*10**9
+        if age_ind == age_min_ind and self.age_lhs[age_ind] - par_dict["agemax"]*10**9 < 0 and self.age_lhs[age_min_ind] - par_dict["agemin"]*10**9 < 0:
+            widths_constant[age_ind] = (par_dict["agemax"] - par_dict["agemin"])*10**9
 
         weight_widths = widths_constant
         weight_widths /= np.sum(weight_widths)
@@ -426,9 +426,9 @@ class Star_Formation_History:
         sfh_x[-2:] = 1.5*10**10
 
         plt.figure(figsize=(12, 4))
-        plt.plot((models.age_at_zred - sfh_x)*10**-9, sfh_y, color="black")
-        plt.ylabel("$\mathrm{SFR\ (M_\odot\ yr^{-1}})$")
-        plt.xlabel("$\mathrm{Age\ of\ Universe\ (Gyr)}$")
+        plt.plot((models.age_at_zred - sfh_x)*10**-9, sfh_y, color="black", lw=1.5)
+        plt.ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
+        plt.xlabel("$\mathrm{Age\ of\ Universe\ /\ Gyr}$")
 
         #plt.xlabel("$\mathrm{Time\ before\ observation\ (Gyr)}$")
         plt.ylim(0, 1.1*np.max(self.sfr))

@@ -6,11 +6,6 @@ from matplotlib import gridspec
 import os
 
 
-from matplotlib import rc
-rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica'], "size": 14})
-rc('text', usetex=True)
-
-
 def compare_fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
 
 	colour1 = "darkorange"

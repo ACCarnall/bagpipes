@@ -48,6 +48,7 @@ if not full_age_sampling:
     
 
 def set_cosmology(H0=70., Om0=0.3):
+    """ Calculates a grid of cosmological properties - faster than running astropy every time a model is generated. """
     global z_array
     global age_at_z
     global ldist_at_z
@@ -64,7 +65,7 @@ def set_cosmology(H0=70., Om0=0.3):
 
 
 def make_dirs():
-    """ Make local Bagpipes directory structure."""
+    """ Make local Bagpipes directory structure. """
     if not os.path.exists(working_dir + "/pipes"):
         os.mkdir(working_dir + "/pipes")
 
@@ -110,6 +111,11 @@ def make_bins(midpoints, make_rhs="False"):
 
 def set_model_type(chosen_models):
     """ set up necessary variables for loading and manipulating spectral  Can be used to change between model types. """
+    global model_type
+    global chosen_ages
+    global chosen_age_lhs
+    global chosen_age_widths
+    global chosen_live_mstar_frac
 
     zmet_vals[chosen_models], gridwavs[chosen_models], ages[chosen_models], live_mstar_frac[chosen_models] = getattr(load_models, chosen_models)()
 
@@ -120,19 +126,14 @@ def set_model_type(chosen_models):
     age_lhs[chosen_models][0] = 0.
     age_widths[chosen_models][0] = age_lhs[chosen_models][1]
 
-    global model_type
     model_type = chosen_models
 
     if full_age_sampling == True:
-        global chosen_ages
-        global chosen_age_lhs
-        global chosen_age_widths
         chosen_ages = ages[model_type]
         chosen_age_lhs = age_lhs[model_type]
         chosen_age_widths = age_widths[model_type]
 
     if full_age_sampling == False:
-        global chosen_live_mstar_frac
 
         chosen_live_mstar_frac = np.zeros((len(zmet_vals[chosen_models]), chosen_ages.shape[0]))
 

@@ -17,10 +17,6 @@ try:
 except:
 	print("Bagpipes: MultiNest/PyMultiNest not installed, fitting will not be available.")
 
-from matplotlib import rc
-rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica'], "size": 14})
-rc('text', usetex=True)
-
 import model_manager as models
 import model_galaxy
 
@@ -484,13 +480,13 @@ class Fit:
 
 		# Set axis labels
 		if naxes == 1:
-			ax1.set_xlabel("$\lambda\ \\Big(\mathrm{\AA}\\Big)$", size=18)
-			ax2.set_xlabel("$\mathrm{log_{10}}\\Big(\lambda / \mathrm{\AA}\\Big)$", size=18)
+			ax1.set_xlabel("$\lambda\ \\Big(\mathrm{\AA}\\Big)$")
+			ax2.set_xlabel("$\mathrm{log_{10}}\\Big(\lambda / \mathrm{\AA}\\Big)$")
 
 		else:
 			for i in range(naxes-1):
-				axes[i].set_xlabel("$\lambda\ \\Big(\mathrm{\AA}\\Big)$", size=18)
-			ax2.set_xlabel("$\mathrm{log_{10}}\\Big(\lambda / \mathrm{\AA}\\Big)$", size=18)
+				axes[i].set_xlabel("$\lambda\ \\Big(\mathrm{\AA}\\Big)$")
+			ax2.set_xlabel("$\mathrm{log_{10}}\\Big(\lambda / \mathrm{\AA}\\Big)$")
 
 		if self.fit_instructions["redshift"] != 0.:
 			ylabel = "$\mathrm{f_{\lambda}}\ \mathrm{/\ 10^{-18}\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$"
@@ -499,10 +495,10 @@ class Fit:
 			ylabel = "$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ \AA^{-1}}$"
 
 		if naxes > 1:
-			fig.text(0.08, 0.55, ylabel, size=18, rotation=90)
+			fig.text(0.08, 0.55, ylabel, rotation=90)
 
 		else:
-			ax1.set_ylabel(ylabel, size=18, rotation=90)
+			ax1.set_ylabel(ylabel, rotation=90)
 
 
 		# Plot first spectrum
@@ -593,7 +589,7 @@ class Fit:
 					axes[j+1].plot(self.extra_models[j].spectrum[:,0], normalisation_factor*np.percentile(self.posterior["extra_spectra"], 16, axis=1), color="sandybrown", zorder=2, alpha=0.5)
 					axes[j+1].plot(self.extra_models[j].spectrum[:,0], normalisation_factor*np.percentile(self.posterior["extra_spectra"], 84, axis=1), color="sandybrown", zorder=2, alpha=0.5)    
 			"""
-		#axes[0].annotate("ID: " + str(self.Galaxy.ID), xy=(0.1*ax1.get_xlim()[1] + 0.9*ax1.get_xlim()[0], 0.95*ax1.get_ylim()[1] + 0.05*ax1.get_ylim()[0]), size=12, zorder=5)      
+		#axes[0].annotate("ID: " + str(self.Galaxy.ID), xy=(0.1*ax1.get_xlim()[1] + 0.9*ax1.get_xlim()[0], 0.95*ax1.get_ylim()[1] + 0.05*ax1.get_ylim()[0]), zorder=5)      
 
 		if return_fig:
 			return fig
@@ -655,7 +651,7 @@ class Fit:
 
 		#ranges = [(0., 0.5), (4., np.interp(self.model_components["redshift"], models.z_array, models.age_at_z)), (-2, 3), (0.2, 0.8), (10.15, 10.65), (0.5, 3)]
 
-		fig = corner.corner(self.posterior["samples"][:,param_cols_toplot], labels=param_names_toplot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_kwargs={"fontsize": 14}, smooth="1.5", smooth1d="0.5", truths=truths, range=ranges)#truths=param_truths_toplot, 
+		fig = corner.corner(self.posterior["samples"][:,param_cols_toplot], labels=param_names_toplot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_kwargs={"fontsize": 16}, smooth="1.5", smooth1d="0.5", truths=truths, range=ranges)#truths=param_truths_toplot, 
 		
 		sfh_ax = fig.add_axes([0.65, 0.59, 0.32, 0.15], zorder=10)
 		sfr_ax = fig.add_axes([0.82, 0.82, 0.15, 0.15], zorder=10)
@@ -752,10 +748,10 @@ class Fit:
 		sfh_ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], models.z_array, models.age_at_z))
 		sfh_ax2.set_xticklabels(["$0$", "$0.5$", "$1$", "$2$", "$4$", "$10$"])
 		sfh_ax2.set_xlim(sfh_ax.get_xlim())
-		sfh_ax2.set_xlabel("$\mathrm{Redshift}$", size=14)
+		sfh_ax2.set_xlabel("$\mathrm{Redshift}$")
 
-		sfh_ax.set_ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$", size=14)
-		sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ (Gyr)}$", size=14)
+		sfh_ax.set_ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
+		sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ (Gyr)}$")
 
 		
 

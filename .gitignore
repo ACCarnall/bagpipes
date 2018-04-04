@@ -3,7 +3,7 @@ backup_stellar_models/*
 tables/nebular/cloudy_temp_files/*
 testing/*
 *.fits
-
+examples/*
 
 
 #################################

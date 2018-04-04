@@ -11,10 +11,6 @@ from astropy.io import fits
 from numpy import interp
 from numpy.polynomial.chebyshev import chebval as cheb
 
-from matplotlib import rc
-rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-rc('text', usetex=True)
-
 import star_formation_history
 import model_manager as models
 
@@ -654,23 +650,23 @@ class Model_Galaxy:
 		ax1 = axes[0]
 		ax2 = axes[-1]
 
-		ax2.set_xlabel("$\mathrm{Wavelength\ /\ \AA}$", size=18)
+		ax2.set_xlabel("$\mathrm{Wavelength\ /\ \AA}$")
 
 		plt.subplots_adjust(hspace=0.1)
 
 		if self.model_comp["redshift"] != 0:
 			if naxes == 2:
-				fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18, rotation=90)
+				fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", rotation=90)
 
 			else:
-				ax1.set_ylabel("$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18)
+				ax1.set_ylabel("$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$")
 
 		else:
 			if naxes == 2:
-				fig.text(0.06, 0.58, "$\mathrm{L_{\lambda}}\ \mathrm{/\ 10^{40}\ erg\ s^{-1}\ \AA^{-1}}$", size=18, rotation=90)
+				fig.text(0.06, 0.58, "$\mathrm{L_{\lambda}}\ \mathrm{/\ 10^{40}\ erg\ s^{-1}\ \AA^{-1}}$", rotation=90)
 
 			else:
-				ax1.set_ylabel("$\mathrm{f_{\lambda}}\ \mathrm{/\ 10^{40}\ erg\ s^{-1}\ \AA^{-1}}$", size=18)
+				ax1.set_ylabel("$\mathrm{f_{\lambda}}\ \mathrm{/\ 10^{40}\ erg\ s^{-1}\ \AA^{-1}}$")
 
 
 		if self.filtlist is not None:

@@ -7,10 +7,6 @@ from matplotlib import gridspec
 
 import model_manager as models 
 
-from matplotlib import rc
-rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-rc('text', usetex=True)
-
 class Galaxy:
 
     """ 
