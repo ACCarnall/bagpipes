@@ -10,8 +10,6 @@ from astropy.io import fits
 import model_manager as models
 from model_galaxy import Model_Galaxy
 
-if not os.path.exists(os.environ["CLOUDY_DATA_PATH"] + "/cloudy_lines.txt"):
-	os.system("cp " + models.install_dir + "/tables/nebular/cloudy_lines.txt " + os.environ["CLOUDY_DATA_PATH"] + "/pipes_cloudy_lines.txt")
 
 
 def make_cloudy_sed_file(age, zmet):
@@ -50,6 +48,10 @@ def get_bagpipes_spectrum(age, zmet, out_units_spec="ergscma"):
 
 def make_cloudy_input_file(age, zmet, logU):
 	""" Makes an instructions file for cloudy. """
+
+	# Copy file with emission line names to the correct directory to be read by Cloudy
+	if not os.path.exists(os.environ["CLOUDY_DATA_PATH"] + "/cloudy_lines.txt"):
+		os.system("cp " + models.install_dir + "/tables/nebular/cloudy_lines.txt " + os.environ["CLOUDY_DATA_PATH"] + "/pipes_cloudy_lines.txt")
 
 	logQ = np.log10(4*np.pi*(10.**19)**2*100*2.9979*10**10*10**logU)
 
