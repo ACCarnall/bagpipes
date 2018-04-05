@@ -9,5 +9,5 @@ Bagpipes can be installed using pip:
 
 This will automatically install the python package dependencies. The only remaining dependency (used only for fitting, not for generating models) is the MultiNest algorithm.
 
-To install MultiNest, clone the GitHub repository `github.com/JohannesBuchner/MultiNest <https://github.com/JohannesBuchner/MultiNest>`_, and follow the instructions in the readme file. In the event of this not working, further information can be found `here <http://johannesbuchner.github.io/pymultinest-tutorial/install.html#on-your-own-computer>`_.
+To install MultiNest, clone the GitHub repository `github.com/JohannesBuchner/MultiNest <https://github.com/JohannesBuchner/MultiNest>`_, and follow the instructions in the readme file. If you run into trouble, further advice can be found `here <http://johannesbuchner.github.io/pymultinest-tutorial/install.html#on-your-own-computer>`_.
 

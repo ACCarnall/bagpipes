@@ -16,9 +16,9 @@ class Galaxy:
     ----------
 
     ID : str
-        string denoting the ID of the object to be loaded. This will be passed to data_load_function.
+        string denoting the ID of the object to be loaded. This will be passed to load_data.
 
-    data_load_function : function
+    load_data : function
         Function which takes ID, filtlist as its two arguments and returns the model spectrum and photometry. Spectrum should come first and 
         be an array with a column of wavelengths in Angstroms, a column of fluxes in erg/s/cm^2/A and a column of flux errors in the same 
         units. Photometry should come second and be an array with a column of fluxes in microjanskys and a column of flux errors in the 
@@ -28,15 +28,15 @@ class Galaxy:
         The name of the filtlist, must be specified if photometry is to be loaded.
 
     spectrum_exists : bool
-        If you do not have a spectrum for this object, set this to False. In this case, data_load_function should only return photometry.
+        If you do not have a spectrum for this object, set this to False. In this case, load_data should only return photometry.
 
     photometry_exists : bool
-        If you do not have photometry for this object, set this to False. In this case, data_load_function should only return a spectrum.
+        If you do not have photometry for this object, set this to False. In this case, load_data should only return a spectrum.
 
     
     """
 
-    def __init__(self, ID, data_load_function, filtlist=None, spectrum_exists=True, photometry_exists=True):
+    def __init__(self, ID, load_data, filtlist=None, spectrum_exists=True, photometry_exists=True):
 
         out_units="ergscma"
         no_of_spectra=1
@@ -53,25 +53,25 @@ class Galaxy:
 
         elif spectrum_exists == True and photometry_exists == False:
             if self.no_of_spectra == 1:
-                self.spectrum = data_load_function(self.ID, self.filtlist)
+                self.spectrum = load_data(self.ID, self.filtlist)
 
             else:
-                data = data_load_function(self.ID, self.filtlist)
+                data = load_data(self.ID, self.filtlist)
                 self.spectrum = data[0]
                 self.extra_spectra = []
                 for i in range(len(data)-1):
                     self.extra_spectra.append(data[i+1])
 
         elif spectrum_exists == False and photometry_exists == True:
-            photometry_nowavs = data_load_function(self.ID, self.filtlist)
+            photometry_nowavs = load_data(self.ID, self.filtlist)
             self.no_of_spectra = 0
 
         else:
             if self.no_of_spectra == 1:
-                self.spectrum, photometry_nowavs = data_load_function(self.ID, self.filtlist)
+                self.spectrum, photometry_nowavs = load_data(self.ID, self.filtlist)
 
             else:
-                data = data_load_function(self.ID, self.filtlist)
+                data = load_data(self.ID, self.filtlist)
                 self.spectrum = data[0]
                 self.extra_spectra = []
                 photometry_nowavs = data[-1]

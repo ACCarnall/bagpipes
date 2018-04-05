@@ -3,7 +3,9 @@
 Making model galaxies
 =====================
 
-Model galaxies in Bagpipes are created using the ``Model_Galaxy`` class. The most important argument passed to ``Model_Galaxy`` is the ``model_components`` dictionary, which contains all the physical parameters of the model.
+Model galaxies in Bagpipes are created using the ``Model_Galaxy`` class. The most important argument passed to ``Model_Galaxy`` is the ``model_components`` dictionary, which contains all the physical parameters of the model. 
+
+API documentation for ``Model_Galaxy`` is provided :ref:`here <model-galaxy-api>`.
 
 .. _model-components:
 
@@ -18,7 +20,7 @@ A simple example ``model_components`` dictionary describing a galaxy at redshift
 
 	burst = {}
 	burst["age"] = 1.0          # Age of the burst (Gyr)
-	burst["metallicity"] = 1.0  # Stellar metallicity (old Solar units: Z_sol = 0.02)
+	burst["metallicity"] = 1.0  # Stellar metallicity (old Solar units i.e. Z_sol = 0.02)
 	burst["massformed"] = 11.   # Log_10 of total mass formed by component (M_solar)
 
 	model_components = {}
@@ -27,6 +29,7 @@ A simple example ``model_components`` dictionary describing a galaxy at redshift
 
 A full description of the options which can be included in ``model_components`` to build up the complexity of a model is given :ref:`here <full-list>`.
 
+.. _getting-observables:
 
 Getting observables
 -------------------------------------
@@ -50,24 +53,24 @@ The output spectrum is stored as ``model.spectrum`` which is a two column numpy 
 
 **Model photometry**
 
-If instead we want model photometry, it is necessary to define a :ref:`filter list <filter-lists>`. Once this has been set up, we can pass the ``Model_Galaxy`` object a keyword argument called ``filtlist``.
+If instead we want model photometry, it is necessary to define a :ref:`filter list <filter-lists>`. Once this has been set up, we can pass the ``Model_Galaxy`` object a keyword argument called ``filtlist``. 
+
+For example, to use the PanSTARRS filter list set up on the :ref:`filter lists <filter-lists>` page:
 
 .. code:: python
 	
 	import bagpipes as pipes
 	import numpy as np
 
-	model = pipes.Model_Galaxy(model_components, filtlist="PS1")
+	model = pipes.Model_Galaxy(model_components, filtlist="PanSTARRS")
 
 	model.plot()
 
-Output photometry is stored as ``model.photometry``, and is a 1D array of flux values in erg/s/cm^2/A by default. The output flux units can be converted to microJanskys using the ``Model_Galaxy`` keyword argument ``out_units_phot="mujy"``. 
-
-Photometric fluxes are returned in ``model.photometry`` in the same order as the filter curves were specified in the :ref:`filter list <filter-lists>` file.
+Photometry is stored in ``model.photometry``, which is a 1D array of flux values in erg/s/cm^2/A in the same order as the filter curves are specified in the :ref:`filter list <filter-lists>` file. The output flux units can be converted to microJanskys using the ``Model_Galaxy`` keyword argument ``out_units_phot="mujy"``. 
 
 **Emission line fluxes**
 
-if a ``nebular`` component is added to ``model_components``, emission line fluxes will be stored in the ``model.line_fluxes`` dictionary. The list of available emission features are available `here <https://github.com/ACCarnall/bagpipes/blob/master/tables/nebular/cloudy_lines.txt>`_. 
+if a ``nebular`` component is added to ``model_components``, emission line fluxes will be stored in the ``model.line_fluxes`` dictionary. The list of available emission features is `here <https://github.com/ACCarnall/bagpipes/blob/master/tables/nebular/cloudy_lines.txt>`_. 
 
 Emission line naming conventions are the same as in Cloudy, the names in the above file are the keys fluxes are stored under in ``model.line_fluxes``. For example, the Lyman alpha flux is under:
 
@@ -84,18 +87,21 @@ The units specified above apply at non-zero redshift. At redshift zero the lumin
 Updating models
 ---------------
 
-Creating a new ``Model_Galaxy`` is relatively slow, however changing parameter values in ``model_components`` and calling the ``update`` method of ``Model_Galaxy`` extremely rapidly updates the output spectrum/photometry/emission lines. For example, if you wanted to change the age of the burst in the above example to 0.5 Gyr you would type the following:
+Creating a new ``Model_Galaxy`` is relatively slow, however changing parameter values in ``model_components`` and calling the ``update`` method of ``Model_Galaxy`` extremely rapidly updates the output spectrum/photometry/emission lines. For example, if you wanted to change the age of the burst in the above example to 0.5 Gyr and mass formed to 10\ :sup:`10.5` Solar masses you would type the following:
 
 .. code:: python
 
 	model_components["burst"]["age"] = 0.5
+	model_components["burst"]["massformed"] = 10.5
+
 
 	model.update(model_components)
 
-Now all of the outputs described above have been changed to reflect the new burst age. This kind of example could be useful when building a model spectrum for a simulated galaxy from a list of star particles with different ages and masses.
+Now all of the outputs described :ref:`above <getting-observables>` have been changed to reflect the new parameters. This kind of example could be useful when building a model spectrum for a simulated galaxy from a list of star particles with different ages and masses.
 
 It should be noted that the ``update`` method is designed to deal with changed parameter values, not adding or removing components of the model.
 
+.. _model-galaxy-api:
 
 Model_Galaxy API documentation
 ----------------------------------
@@ -109,9 +115,9 @@ Model_Galaxy API documentation
 All model_components options
 ----------------------------
 
-All of the physical parameters of a model are passed to ``Model_Galaxy`` within the ``model_components`` dictionary. The example :ref:`above <model-components>` is the simplest possible ``model_components`` dictionary. The rest of this page takes you through the options you can use to build up the complexity of your model. 
+All of the physical parameters of a model are passed to ``Model_Galaxy`` within the ``model_components`` dictionary. The example :ref:`above <model-components>` is the simplest possible ``model_components`` dictionary. The rest of this page takes you through the options you can use to build up the complexity of your model.
 
-To understand the implementation of each of the options described below please consult Section 3 of `Carnall et al. 2017 <https://arxiv.org/abs/1712.04452>`_.
+To understand the implementation of each of the options described below please consult Section 3 of `Carnall et al. 2017 <https://arxiv.org/abs/1712.04452>`_. The numerical values given in this section are just placeholders.
 
 
 **Global options**
@@ -156,11 +162,11 @@ The nebular model in Bagpipes has only one free parameter, it must be labelled a
 
 	model_comp["nebular"] = nebular
 
-The metallicity of the gas in the stellar birth clouds is assumed to be the same as the stars providing the ionizing flux.
+The metallicity of the gas in the stellar birth clouds is assumed to be the same as the stars producing the ionizing flux.
 
 **Star formation history components**
 
-Bagpipes builds up star-formation histories by superimposing multiple components. Multiple components of the same type should be labelled sequentially in ``model_components`` e.g. ``burst1``, ``burst2`` etc. 
+Bagpipes can build up complex star-formation histories by superimposing multiple components. Components of the same type should be labelled sequentially in ``model_components`` e.g. ``burst1``, ``burst2`` etc. 
 
 All star formation history components take the following keys:
 
@@ -168,10 +174,10 @@ All star formation history components take the following keys:
 
 	sfh_comp = {}
 	sfh_comp["massformed"] = 11.   # Log_10 total stellar mass formed in Solar masses (required)
-	sfh_comp["metallicity"] = 1.0  # Metallicity in old Solar units: Z_sol = 0.02 (required)
+	sfh_comp["metallicity"] = 1.0  # Metallicity in old Solar units, i.e. Z_sol = 0.02 (required)
 
 
-The different types of components available and the extra shape parameters they each take are shown below (the numerical values given are just placeholders):
+The different types of components available and the extra shape parameters they each take are shown below:
 
 .. code:: python
 
@@ -180,7 +186,7 @@ The different types of components available and the extra shape parameters they 
 
 
 	constant = {}              # tophat function between some limits
-	constant["agemax"] = 1.0   # Time since the constant switched on in Gyr (required)
+	constant["age"] = 1.0   # Time since the constant switched on in Gyr (required)
 	constant["agemin"] = 0.5   # Time since the constant switched off in Gyr (required)
 
 

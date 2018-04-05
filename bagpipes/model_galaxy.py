@@ -14,6 +14,8 @@ from numpy.polynomial.chebyshev import chebval as cheb
 import star_formation_history
 import model_manager as models
 
+# Ignore division by zero and overflow warnings
+np.seterr(divide='ignore', invalid='ignore', over="ignore")
 
 class Model_Galaxy:
 	""" Build a model galaxy spectrum.

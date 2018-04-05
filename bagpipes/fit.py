@@ -20,12 +20,6 @@ except:
 import model_manager as models
 import model_galaxy
 
-"""
-# Turn off annoying dividion by zero errors when MultiNest is running
-import warnings
-warnings.filterwarnings("ignore")
-print("Bagpipes: Warning, Python warnings are being ignored.")
-"""
 
 
 class Fit:
@@ -161,7 +155,6 @@ class Fit:
 					self.priors.append(self.fit_instructions[fit_param.split(":")[0]][fit_param.split(":")[1] + "prior"])
 
 			else:
-				print("Bagpipes: Warning, no prior specified on " + fit_param + ", adopting a uniform prior.")
 				self.priors.append("uniform")
 
 		"""
@@ -179,9 +172,11 @@ class Fit:
 	def fit(self, verbose=False, sampling_efficiency="model", n_live=400, const_efficiency_mode=False):
 		""" Fit the specified model to the input galaxy data. """
 
+		print("\nBagpipes: fitting object " + self.Galaxy.ID + "\n")
+
 		pmn.run(self.get_lnprob, self.prior_transform, self.ndim, const_efficiency_mode = const_efficiency_mode, importance_nested_sampling = False, verbose = verbose, sampling_efficiency = sampling_efficiency, n_live_points = n_live, outputfiles_basename=models.working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
 
-		a = pmn.Analyzer(n_params = self.ndim, outputfiles_basename=models.working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
+		a = pmn.Analyzer(n_params = self.ndim, outputfiles_basename=models.working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-", verbose=False)
 
 		s = a.get_stats()
 
@@ -213,11 +208,10 @@ class Fit:
 
 		self.min_chisq_red = self.min_chisq/float(self.ndof)
 
-		if verbose == True:
-			print("\nBagpipes: Confidence interval:")
-			for x in range(self.ndim):
-				print(str(np.round(self.conf_int[x], 4)), np.round(self.posterior_median[x], 4), self.fit_params[x])
-			print("\n")
+		print("\nBagpipes: fitting complete, confidence interval")
+		for x in range(self.ndim):
+			print(str(np.round(self.conf_int[x], 4)), np.round(self.posterior_median[x], 4), self.fit_params[x])
+		print("\n")
 
 		self.get_model(self.posterior_median)
 		self.get_post_info()
@@ -390,7 +384,7 @@ class Fit:
 
 			nsamples = self.posterior["samples"].shape[0]
 
-			self.posterior["sfh"] = np.zeros((nsamples, self.Model.sfh.ages.shape[0]))
+			self.posterior["sfh"] = np.zeros((self.Model.sfh.ages.shape[0], nsamples))
 			self.posterior["sfr"] = np.zeros(nsamples)
 			self.posterior["tmw"] = np.zeros(nsamples)
 			self.posterior["UVJ"] = np.zeros((3, nsamples))
@@ -421,8 +415,8 @@ class Fit:
 			for i in range(nsamples):
 				self.get_model(self.posterior["samples"][i,:])
 
-				self.posterior["sfh"][i,:] = self.Model.sfh.sfr 
-				self.posterior["sfr"][i] = self.posterior["sfh"][i,0]
+				self.posterior["sfh"][:,i] = self.Model.sfh.sfr 
+				self.posterior["sfr"][i] = self.posterior["sfh"][0,i]
 				self.posterior["tmw"][i] = np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - (10**-9)*np.sum(self.Model.sfh.sfr*self.Model.sfh.ages*self.Model.sfh.age_widths)/np.sum(self.Model.sfh.sfr*self.Model.sfh.age_widths)
 				self.posterior["living_stellar_mass"]["total"][i] = self.Model.living_stellar_mass["total"]
 
@@ -633,8 +627,6 @@ class Fit:
 			plot_range.append(self.fit_limits[i])
 			
 			if self.fit_params[i] in param_names_tolog:
-				#param_names_toplot[-1] = "log_" + param_names_toplot[-1]
-				#param_truths_toplot[-1] = np.log10(param_truths_toplot[-1])
 				params_tolog.append(len(param_cols_toplot)-1)
 				plot_range[-1] = (np.log10(plot_range[-1][0]), np.log10(plot_range[-1][1]))
 
@@ -649,9 +641,7 @@ class Fit:
 			if param_names_toplot[i] in reference_param_names:
 				param_names_toplot[i] = latex_param_names[reference_param_names.index(param_names_toplot[i])]
 
-		#ranges = [(0., 0.5), (4., np.interp(self.model_components["redshift"], models.z_array, models.age_at_z)), (-2, 3), (0.2, 0.8), (10.15, 10.65), (0.5, 3)]
-
-		fig = corner.corner(self.posterior["samples"][:,param_cols_toplot], labels=param_names_toplot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_kwargs={"fontsize": 16}, smooth="1.5", smooth1d="0.5", truths=truths, range=ranges)#truths=param_truths_toplot, 
+		fig = corner.corner(self.posterior["samples"][:,param_cols_toplot], labels=param_names_toplot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_kwargs={"fontsize": 14}, smooth=1.5, smooth1d=0.5, truths=truths, range=ranges)
 		
 		sfh_ax = fig.add_axes([0.65, 0.59, 0.32, 0.15], zorder=10)
 		sfr_ax = fig.add_axes([0.82, 0.82, 0.15, 0.15], zorder=10)
@@ -663,13 +653,13 @@ class Fit:
 		self.plot_sfh_post(sfh_ax, style="step")
 
 		# Plot the current star formation rate posterior
-		sfr_ax.hist(self.posterior["sfr"], bins=15, color="white", normed=True, histtype="step", edgecolor="black")
+		sfr_ax.hist(self.posterior["sfr"], bins=20, color="white", density=True, histtype="step", edgecolor="black", lw=1.5, range=(np.max([0., np.mean(self.posterior["sfr"]) - 3*np.std(self.posterior["sfr"])]), np.mean(self.posterior["sfr"]) + 3*np.std(self.posterior["sfr"])))
 		sfr_ax.set_xlabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
 		sfr_ax.set_xlim(np.max([0., np.mean(self.posterior["sfr"]) - 3*np.std(self.posterior["sfr"])]), np.mean(self.posterior["sfr"]) + 3*np.std(self.posterior["sfr"]))
 		sfr_ax.set_yticklabels([])
 
 		# Plot the mass weighted age posterior
-		tmw_ax.hist(self.posterior["tmw"], bins=15, color="white", normed=True, histtype="step", edgecolor="black")
+		tmw_ax.hist(self.posterior["tmw"], bins=20, color="white", density=True, histtype="step", edgecolor="black", lw=1.5, range=(np.max([0., np.mean(self.posterior["tmw"]) - 3*np.std(self.posterior["tmw"])]), np.mean(self.posterior["tmw"]) + 3*np.std(self.posterior["tmw"])))
 		tmw_ax.set_xlabel("$t(z_\mathrm{form})\ /\ \mathrm{Gyr}$")
 		tmw_ax.set_xlim(np.mean(self.posterior["tmw"]) - 3*np.std(self.posterior["tmw"]), np.mean(self.posterior["tmw"]) + 3*np.std(self.posterior["tmw"]))
 		tmw_ax.set_yticklabels([])
@@ -684,8 +674,8 @@ class Fit:
 		tmw_ax.axvline(np.percentile(self.posterior["tmw"], 84), linestyle="--", color="black")
 		#mwa_ax.axvline(self.mwa_maxprob, color="#4682b4")
 
-		fig.text(0.725, 0.978, "$t(z_\mathrm{form})\ /\ \mathrm{Gyr} =\ " + str(np.round(np.percentile(self.posterior["tmw"], 50), 2)) + "^{+" + str(np.round(np.percentile(self.posterior["tmw"], 84) - np.percentile(self.posterior["tmw"], 50), 2)) + "}_{-" + str(np.round(np.percentile(self.posterior["tmw"], 50) - np.percentile(self.posterior["tmw"], 16), 2)) + "}$", horizontalalignment = "center")
-		fig.text(0.895, 0.978, "$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}\ =\ " + str(np.round(np.percentile(self.posterior["sfr"], 50), 2)) + "^{+" + str(np.round(np.percentile(self.posterior["sfr"], 84) - np.percentile(self.posterior["sfr"], 50), 2)) + "}_{-" + str(np.round(np.percentile(self.posterior["sfr"], 50) - np.percentile(self.posterior["sfr"], 16), 2)) + "}$", horizontalalignment = "center")
+		fig.text(0.725, 0.978, "$t(z_\mathrm{form})\ /\ \mathrm{Gyr} =\ " + str(np.round(np.percentile(self.posterior["tmw"], 50), 2)) + "^{+" + str(np.round(np.percentile(self.posterior["tmw"], 84) - np.percentile(self.posterior["tmw"], 50), 2)) + "}_{-" + str(np.round(np.percentile(self.posterior["tmw"], 50) - np.percentile(self.posterior["tmw"], 16), 2)) + "}$", horizontalalignment = "center", size=14)
+		fig.text(0.895, 0.978, "$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}\ =\ " + str(np.round(np.percentile(self.posterior["sfr"], 50), 2)) + "^{+" + str(np.round(np.percentile(self.posterior["sfr"], 84) - np.percentile(self.posterior["sfr"], 50), 2)) + "}_{-" + str(np.round(np.percentile(self.posterior["sfr"], 50) - np.percentile(self.posterior["sfr"], 16), 2)) + "}$", horizontalalignment = "center", size=14)
 
 		fig.savefig(models.working_dir + "/pipes/plots/" + self.run + "/" + self.Galaxy.ID + "_corner.pdf")
 
@@ -697,7 +687,15 @@ class Fit:
 
 
 
-	def plot_sfh_post(self, sfh_ax, style="smooth"):
+	def plot_sfh_post(self, sfh_ax, style="smooth", colorscheme="bw"):
+
+		color1 = "black"
+		color2 = "gray"
+
+		if colorscheme == "irnbru":
+			color1 = "darkorange"
+			color2 = "navajowhite"
+
 		if style == "step":
 			# Generate and populate sfh arrays which allow the SFH to be plotted with straight lines across bins of SFH
 			sfh_x = np.zeros(2*self.Model.sfh.ages.shape[0])
@@ -709,11 +707,11 @@ class Fit:
 
 				sfh_x[2*j] = self.Model.sfh.age_lhs[j]
 
-				sfh_y[2*j] = np.median(self.posterior["sfh"][:,j])
-				sfh_y[2*j + 1] = np.median(self.posterior["sfh"][:,j])
+				sfh_y[2*j] = np.median(self.posterior["sfh"][j,:])
+				sfh_y[2*j + 1] = np.median(self.posterior["sfh"][j,:])
 
-				sfh_y_low[2*j] = np.percentile(self.posterior["sfh"][:,j], 16)
-				sfh_y_low[2*j + 1] = np.percentile(self.posterior["sfh"][:,j], 16)
+				sfh_y_low[2*j] = np.percentile(self.posterior["sfh"][j,:], 16)
+				sfh_y_low[2*j + 1] = np.percentile(self.posterior["sfh"][j,:], 16)
 
 				if sfh_y_low[2*j] < 0:
 					sfh_y_low[2*j] = 0.
@@ -721,8 +719,8 @@ class Fit:
 				if sfh_y_low[2*j+1] < 0:
 					sfh_y_low[2*j+1] = 0.
 
-				sfh_y_high[2*j] = np.percentile(self.posterior["sfh"][:,j], 84)
-				sfh_y_high[2*j + 1] = np.percentile(self.posterior["sfh"][:,j], 84)
+				sfh_y_high[2*j] = np.percentile(self.posterior["sfh"][j,:], 84)
+				sfh_y_high[2*j + 1] = np.percentile(self.posterior["sfh"][j,:], 84)
 
 				if j == self.Model.sfh.sfr.shape[0]-1:
 					sfh_x[-1] = self.Model.sfh.age_lhs[-1] + 2*(self.Model.sfh.ages[-1] - self.Model.sfh.age_lhs[-1])
@@ -731,16 +729,16 @@ class Fit:
 					sfh_x[2*j + 1] = self.Model.sfh.age_lhs[j+1]
 
 			# Plot the SFH
-			sfh_ax.fill_between(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x*10**-9, sfh_y_low, sfh_y_high, color="gray", alpha=0.75)
-			sfh_ax.plot(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x*10**-9, sfh_y, color="black", zorder=10)
-			sfh_ax.plot(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x*10**-9, sfh_y_high, color="gray")
-			sfh_ax.plot(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x*10**-9, sfh_y_low, color="gray")
+			sfh_ax.fill_between(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x*10**-9, sfh_y_low, sfh_y_high, color=color2, alpha=0.75)
+			sfh_ax.plot(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x*10**-9, sfh_y, color=color1, zorder=10)
+			sfh_ax.plot(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x*10**-9, sfh_y_high, color=color2)
+			sfh_ax.plot(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x*10**-9, sfh_y_low, color=color2)
 			sfh_ax.set_ylim(0, 1.1*np.max(sfh_y_high))
 
 		elif style == "smooth":
-			sfh_ax.fill_between(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - self.Model.sfh.ages*10**-9, np.percentile(self.posterior["sfh"], 16, axis=0), np.percentile(self.posterior["sfh"], 84, axis=0), color="navajowhite")
-			sfh_ax.plot(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - self.Model.sfh.ages*10**-9, np.percentile(self.posterior["sfh"], 50, axis=0), color="darkorange")
-			sfh_ax.set_ylim(0, 1.1*np.max(np.percentile(self.posterior["sfh"], 84, axis=0)))
+			sfh_ax.fill_between(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - self.Model.sfh.ages*10**-9, np.percentile(self.posterior["sfh"], 16, axis=1), np.percentile(self.posterior["sfh"], 84, axis=1), color=color2)
+			sfh_ax.plot(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z) - self.Model.sfh.ages*10**-9, np.percentile(self.posterior["sfh"], 50, axis=1), color=color1)
+			sfh_ax.set_ylim(0, 1.1*np.max(np.percentile(self.posterior["sfh"], 84, axis=1)))
 
 		sfh_ax.set_xlim(np.interp(self.model_components["redshift"], models.z_array, models.age_at_z), 0)
 

@@ -5,8 +5,6 @@ Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation
 
 Bagpipes is a state of the art code for generating realistic model galaxy spectra and fitting these to spectroscopic and photometric observations. The model generation routines are ideal for turning output from simulations into mock observations, and the fitting routines allow the physical parameters of real galaxies to be constrained.
 
-The current release of Bagpipes is a beta version. Generating models and fitting models to observed photometry are stable and documented. Other functionality of the code is still under development and is not yet fully documented.
-
 
 Source and installation
 -----------------------
@@ -47,7 +45,7 @@ Follow `this link <getting_started.html>`_ to get started with the code.
    getting_started.rst
    filtlists.rst
    model_galaxies.rst
-
-   loading_galaxies/loading_galaxies.rst
-   fitting_galaxies/fitting_galaxies.rst
+   loading_galaxies.rst
+   fitting_galaxies.rst
+   worked_example_1.rst
 
