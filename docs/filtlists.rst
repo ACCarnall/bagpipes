@@ -7,9 +7,9 @@ Bagpipes uses filter lists to load up filter curve files which are in turn used 
 
 To define a filter list (referred to as ``filtlist`` within the code) you'll first have to set up some of the :ref:`directory structure <directory-structure>`. Specifically, within your working directory you'll have to make a ``pipes/`` directory, and within ``pipes/`` a ``filters/`` directory.
 
-Now, within the ``pipes/filters/`` directory you should create a file called ``<name of filter list>.filtlist``. For example, if I wanted to set up a PanSTARRS filter list, I could call my file ``PanSTARRS.filtlist``. 
+Now, within the ``pipes/filters/`` directory you should create a file called ``<filter list name>.filtlist``. For example, if I wanted to set up a PanSTARRS filter list, I could call my file ``PanSTARRS.filtlist``. 
 
-In this file, you'll have to add paths from the ``pipes/filters/`` directory to the locations the filter curves you want to include are stored. In order to find the curves you want I recommend the `SVO filter profile service <http://svo2.cab.inta-csic.es/svo/theory/fps>`_.
+In this file, you'll have to add paths from the ``pipes/filters/`` directory to the locations the filter curves you want to include are stored. In order to find the curves you want I recommend the `SVO filter profile service <http://svo2.cab.inta-csic.es/svo/theory/fps>`_. Bagpipes expects filter curve files to contain a column of wavelengths in Angstroms followed by a column of relative transmission values (normalisation not important).
 
 For example, if you downloaded the PS1 grizy filters and put them in a directory called ``PanSTARRS/`` within the ``pipes/filters/`` directory, you'd need the following in ``PanSTARRS.filtlist``:
 

@@ -1,7 +1,7 @@
 .. _making-model-galaxies:
 
-Making Model Galaxies
-======================
+Making model galaxies
+=====================
 
 Model galaxies in Bagpipes are created using the ``Model_Galaxy`` class. The most important argument passed to ``Model_Galaxy`` is the ``model_components`` dictionary, which contains all the physical parameters of the model.
 

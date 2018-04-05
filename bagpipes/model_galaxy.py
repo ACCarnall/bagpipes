@@ -14,13 +14,6 @@ from numpy.polynomial.chebyshev import chebval as cheb
 import star_formation_history
 import model_manager as models
 
-if not os.path.exists(models.install_dir + "/tables/IGM/D_IGM_grid_Inoue14.fits"):
-	import IGM_Inoue2014 as igm 
-	igm.make_table()
-
-D_IGM_grid_global = fits.open(models.install_dir + "/tables/IGM/D_IGM_grid_Inoue14.fits")[1].data
-IGM_redshifts = np.arange(0.0, 10.01, 0.01)
-IGM_wavs_global = np.arange(1.0, 1225.01, 1.0)
 
 class Model_Galaxy:
 	""" Build a model galaxy spectrum.
@@ -52,6 +45,7 @@ class Model_Galaxy:
 
 		models.set_cosmology()
 		models.set_model_type(models.model_type)
+		models.get_igm_grid()
 
 		self.model_comp = model_components
 
@@ -196,10 +190,10 @@ class Model_Galaxy:
 			self.keep_ionizing_continuum = False
 
 		# D_IGM_grid: a grid of correction factors for IGM attenuation as a function of wavelength and redshift taken from Inoue et al. (2014)
-		self.D_IGM_grid = np.zeros((IGM_redshifts.shape[0], self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)].shape[0]))
+		self.D_IGM_grid = np.zeros((models.IGM_redshifts.shape[0], self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)].shape[0]))
 		
-		for i in range(IGM_redshifts.shape[0]):
-			self.D_IGM_grid[i,:] = interp(self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)], IGM_wavs_global, D_IGM_grid_global[i,:])
+		for i in range(models.IGM_redshifts.shape[0]):
+			self.D_IGM_grid[i,:] = interp(self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)], models.IGM_wavs, models.D_IGM_grid[i,:])
 
 		# If filtlist is not None, finish off necessary calculations for photometry calculation
 		if self.filtlist is not None:
@@ -236,10 +230,10 @@ class Model_Galaxy:
 			if "dust" in list(self.model_comp):
 				self.k_lambda_lines[self.model_comp["dust"]["type"]] = self.get_dust_model(self.model_comp["dust"]["type"], wavs=self.cloudylinewavs)
 
-			self.D_IGM_grid_lines = np.zeros((IGM_redshifts.shape[0], self.cloudylinewavs.shape[0]))
+			self.D_IGM_grid_lines = np.zeros((models.IGM_redshifts.shape[0], self.cloudylinewavs.shape[0]))
 			
-			for i in range(IGM_redshifts.shape[0]):
-				self.D_IGM_grid_lines[i,:] = interp(self.cloudylinewavs, IGM_wavs_global, D_IGM_grid_global[i,:], left=0., right=1.)
+			for i in range(models.IGM_redshifts.shape[0]):
+				self.D_IGM_grid_lines[i,:] = interp(self.cloudylinewavs, models.IGM_wavs, models.D_IGM_grid[i,:], left=0., right=1.)
 
 		self.update(self.model_comp)
 
@@ -484,9 +478,9 @@ class Model_Galaxy:
 
 		# Apply intergalactic medium absorption to the model spectrum
 		if self.model_comp["redshift"] > 0.:
-			zred_ind = IGM_redshifts[IGM_redshifts < self.model_comp["redshift"]].shape[0]
+			zred_ind = models.IGM_redshifts[models.IGM_redshifts < self.model_comp["redshift"]].shape[0]
 
-			high_zred_factor = (IGM_redshifts[zred_ind] - self.model_comp["redshift"])/(IGM_redshifts[zred_ind] - IGM_redshifts[zred_ind-1])
+			high_zred_factor = (models.IGM_redshifts[zred_ind] - self.model_comp["redshift"])/(models.IGM_redshifts[zred_ind] - models.IGM_redshifts[zred_ind-1])
 			low_zred_factor = 1. - high_zred_factor
 
 			# Interpolate IGM transmission from pre-loaded grid

@@ -64,6 +64,22 @@ def set_cosmology(H0=70., Om0=0.3):
 
 
 
+def get_igm_grid():
+    """ Loads the grid of IGM transmission factors. """
+    global D_IGM_grid
+    global IGM_redshifts
+    global IGM_wavs
+
+    if not os.path.exists(install_dir + "/tables/IGM/D_IGM_grid_Inoue14.fits"):
+        import IGM_Inoue2014 as igm 
+        igm.make_table()
+
+    D_IGM_grid = fits.open(install_dir + "/tables/IGM/D_IGM_grid_Inoue14.fits")[1].data
+    IGM_redshifts = np.arange(0.0, 10.01, 0.01)
+    IGM_wavs = np.arange(1.0, 1225.01, 1.0)
+
+
+
 def make_dirs():
     """ Make local Bagpipes directory structure. """
     if not os.path.exists(working_dir + "/pipes"):

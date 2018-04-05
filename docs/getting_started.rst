@@ -3,13 +3,13 @@
 Getting Started
 ===============
 
-Bagpipes is structured around three core classes. The ``Model_Galaxy`` class, which allows model galaxy spectra, photometry and emission line strengths to be generated, the **Galaxy** glass, which allows the user to input and plot observational data, and the ``Fit`` class, which allows the data within a ``Galaxy`` object to be fitted with Bagpipes models.
+Bagpipes is structured around three core classes. The ``Model_Galaxy`` class, which allows model galaxy spectra, photometry and emission line strengths to be generated, the ``Galaxy`` class, which allows the user to input and plot observational data, and the ``Fit`` class, which allows the data within a ``Galaxy`` object to be fitted with Bagpipes models.
 
 
 Your first model galaxy spectrum
 --------------------------------
 
-Using the ``Model_Galaxy`` class to generate model galaxies is described fully in the :ref:`Making Model Galaxies <making-model-galaxies>` section. However, for those wishing to start quickly, we can generate and plot a simple model galaxy spectrum as follows:
+Using the ``Model_Galaxy`` class to generate model galaxies is described fully in the :ref:`Making model galaxies <making-model-galaxies>` section. However, for those wishing to start quickly, we can generate and plot a simple model galaxy spectrum as follows:
 
 .. code:: python
 

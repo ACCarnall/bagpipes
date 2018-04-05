@@ -99,7 +99,7 @@ class Star_Formation_History:
                 sys.exit("BAGPIPES: The time at which the burst started was less than zero.")
 
             const_par_dict = {}
-            const_par_dict["agemax"] = par_dict["age"]
+            const_par_dict["age"] = par_dict["age"]
             const_par_dict["agemin"] = par_dict["age"] - par_dict["width"]
             const_par_dict["massformed"] = par_dict["massformed"]
 
@@ -198,7 +198,7 @@ class Star_Formation_History:
         if par_dict["age"] == "hubble time":
             par_dict["age"] = np.interp(self.model_components["redshift"], models.z_array, models.age_at_z)
 
-        if par_dict["agemin"] > par_dict["agemax"]:
+        if par_dict["agemin"] > par_dict["age"]:
             sys.exit("Minimum constant age exceeded maximum.")
         
         age_ind = self.ages[self.ages < par_dict["age"]*10**9].shape[0]
@@ -207,12 +207,12 @@ class Star_Formation_History:
 
         widths_constant = np.copy(self.age_widths)
 
-        if self.age_lhs[age_ind] - par_dict["agemax"]*10**9 > 0:
+        if self.age_lhs[age_ind] - par_dict["age"]*10**9 > 0:
             widths_constant[age_ind] = 0.
-            widths_constant[age_ind-1] = par_dict["agemax"]*10**9 - self.age_lhs[age_ind-1]
+            widths_constant[age_ind-1] = par_dict["age"]*10**9 - self.age_lhs[age_ind-1]
             
         else:
-            widths_constant[age_ind] = par_dict["agemax"]*10**9 - self.age_lhs[age_ind]
+            widths_constant[age_ind] = par_dict["age"]*10**9 - self.age_lhs[age_ind]
 
         if self.age_lhs[age_min_ind] - par_dict["agemin"]*10**9 < 0:
             widths_constant[age_min_ind-1] = 0.
@@ -226,8 +226,8 @@ class Star_Formation_History:
 
         widths_constant[age_ind+1:] *= 0.
 
-        if age_ind == age_min_ind and self.age_lhs[age_ind] - par_dict["agemax"]*10**9 < 0 and self.age_lhs[age_min_ind] - par_dict["agemin"]*10**9 < 0:
-            widths_constant[age_ind] = (par_dict["agemax"] - par_dict["agemin"])*10**9
+        if age_ind == age_min_ind and self.age_lhs[age_ind] - par_dict["age"]*10**9 < 0 and self.age_lhs[age_min_ind] - par_dict["agemin"]*10**9 < 0:
+            widths_constant[age_ind] = (par_dict["age"] - par_dict["agemin"])*10**9
 
         weight_widths = widths_constant
         weight_widths /= np.sum(weight_widths)
