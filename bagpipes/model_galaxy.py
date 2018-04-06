@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import print_function, division, absolute_import
 
 import numpy as np 
 import matplotlib.pyplot as plt
@@ -11,14 +11,14 @@ from astropy.io import fits
 from numpy import interp
 from numpy.polynomial.chebyshev import chebval as cheb
 
-import star_formation_history
-import model_manager as models
+from . import model_manager as models
+from . import star_formation_history
 
 # Ignore division by zero and overflow warnings
 np.seterr(divide='ignore', invalid='ignore', over="ignore")
 
 class Model_Galaxy:
-	""" Build a model galaxy spectrum.
+	""" Build a model galaxy spectrum. Note, at least one of output_specwavs or filtlist must be defined.
 
 	Parameters
 	----------
@@ -26,16 +26,16 @@ class Model_Galaxy:
 	model_components : dict
 		A dictionary containing information about the model you wish to generate. 
 
-	filtlist : str (optional)
+	filtlist : str - optional
 		The name of the filtlist: a collection of filter files through which photometric fluxes will be calculated.
 
-	output_specwavs : array (optional)
+	output_specwavs : array - optional
 		An array of wavelengths at which spectral fluxes should be returned.
 
-	out_units_spec : str (optional)
+	out_units_spec : str - optional
 		The units the output spectrum and photometry will be returned in. Default is "ergscma" for ergs per second per centimetre squared per angstrom, can be set to "mujy" for microjanskys.
 	
-	out_units_phot : str (optional)
+	out_units_phot : str - optional
 		The units the output spectrum and photometry will be returned in. Default is "mujy" for microjanskys, can be set to "ergscma" for ergs per second per centimetre squared per angstrom.
 	
 	"""
@@ -224,8 +224,7 @@ class Model_Galaxy:
 			# get_phot_wavs generates the central wavelengths for each photometric band and populates phot_wavs with them
 			self.get_phot_wavs()
 
-		# This is relocated stuff about cloudy line dust attenuation etc. It 
-		# If it has not already been populated, populate cloudylinewavs with the wavelengths at which the lines should be inserted
+		# Populate cloudylinewavs with the wavelengths at which the lines should be inserted
 		if "nebular" in list(self.model_comp):
 			self.cloudylinewavs = np.loadtxt(models.install_dir + "/tables/nebular/cloudy_linewavs.txt")
 
@@ -562,7 +561,7 @@ class Model_Galaxy:
 
 				# Resample onto the requested wavelength grid
 				if x_kernel_pix.shape[0] > 1:
-					self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs[(x_kernel_pix.shape[0]-1)/2:-(x_kernel_pix.shape[0]-1)/2]*(1+self.model_comp["redshift"]), composite_spectrum_veldisp, left=0, right=0)]).T
+					self.spectrum = np.array([self.output_specwavs, interp(self.output_specwavs, self.chosen_modelgrid_wavs[(x_kernel_pix.shape[0]-1)//2:-(x_kernel_pix.shape[0]-1)//2]*(1+self.model_comp["redshift"]), composite_spectrum_veldisp, left=0, right=0)]).T
 					""" Output spectrum array, contains a column of wavelengths in Angstroms and a column of flux values, by default in erg/s/cm^2/A or erg/s/A at redshift zero. """
 
 				else:
@@ -598,50 +597,41 @@ class Model_Galaxy:
 			self.photometry /= (10**-29)*(2.9979*10**18/self.phot_wavs/self.phot_wavs)
 
 
-	def get_restframe_UVJ(self):
 
-		if self.UVJ_filterlist is None:
+	def plot(self, fancy=False, input_fig=None):
+		""" Creates a plot of the model spectrum and/or photometry.
 
-			# filterlist: a list of the filter file names for UVJ.
-			self.UVJ_filterlist = np.loadtxt(models.install_dir + "/filters/UVJ.filtlist", dtype="str")
-
-			# filt_array_restframe: An array to contain the rest frame sampled filter profiles used to generate the model photometry
-			self.UVJ_filt_array = np.zeros((self.chosen_modelgrid_wavs.shape[0], 3))
-
-			for i in range(len(self.UVJ_filterlist)):
-				filter_raw = np.loadtxt(models.install_dir + "/filters/" + self.UVJ_filterlist[i], usecols=(0, 1))
-
-				self.UVJ_filt_array[:,i] = np.interp(self.chosen_modelgrid_wavs, filter_raw[:,0], filter_raw[:,1], left=0, right=0)
-			
-			ABzpt_spec = np.array([self.chosen_modelgrid_wavs, (3.*10**18*3631.*10**-23)/(self.chosen_modelgrid_wavs**2)]).T
-
-			self.ABzpt = np.sum(np.expand_dims(ABzpt_spec[:,1]*self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)/np.sum(np.expand_dims(self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)
-
-		UVJ = (np.squeeze(np.sum(np.expand_dims(self.spectrum_full*self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)/np.sum(self.UVJ_filt_array*np.expand_dims(self.wav_widths, axis=1), axis=0)))
-
-		UVJ = -2.5*np.log10((np.squeeze(np.sum(np.expand_dims(self.spectrum_full*self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)/np.sum(self.UVJ_filt_array*np.expand_dims(self.wav_widths, axis=1), axis=0)))/self.ABzpt)
-
-		return UVJ
-
-
-	def plot(self, fancy=False, fig=None):
-		""" Creates a plot of the model attributes which were requested by the user. """
-
+		Parameters
+		----------
+		
+		input_fig : matplotlib.figure - optional
+			If fig is specified, the plot will be added to this figure. The figure will be returned to the user instead of being shown.
+		
+		fancy : bool - optional
+			Makes a fancy plot like that shown in Figure 1 of Carnall et al. (2017). This is designed only to be used at redshift zero with both a spectrum and photometry.
+		"""
+		
 		if fancy==True:
 			self.spectrum[:,1] *= 10**-40
 			self.spectrum_full *= 10**-40
 			self.photometry *= 10**-40
 
-		#fancy = False
 		naxes = 1
 
 		if self.filtlist is not None and self.output_specwavs is not None:
 			naxes = 2
 
-		fig, axes = plt.subplots(naxes, figsize=(12, 4.*naxes))
+		if input_fig is None:
+			fig, axes = plt.subplots(naxes, figsize=(12, 4.*naxes))
 
-		if naxes == 1:
-			axes = [axes]
+			if naxes == 1:
+				axes = [axes]
+
+		else:
+			axes = []
+			fig = input_figure
+			for i in range(naxes):
+				axes.append = plt.subplot(naxes, 1, i)
 
 		ax1 = axes[0]
 		ax2 = axes[-1]
@@ -716,8 +706,39 @@ class Model_Galaxy:
 			allspec_ax.get_xaxis().set_tick_params(which='minor', size=0)
 			allspec_ax.get_yaxis().set_tick_params(which='minor', size=0)
 
-		plt.show()
-		plt.close(fig)
+		if input_fig is None:
+			plt.show()
+			plt.close(fig)
+
+		else:
+			return fig
 
 
 
+	def get_restframe_UVJ(self):
+		""" 
+		Return rest-frame UVJ magnitudes for this model. 
+		"""
+
+		if self.UVJ_filterlist is None:
+
+			# filterlist: a list of the filter file names for UVJ.
+			self.UVJ_filterlist = np.loadtxt(models.install_dir + "/filters/UVJ.filtlist", dtype="str")
+
+			# filt_array_restframe: An array to contain the rest frame sampled filter profiles used to generate the model photometry
+			self.UVJ_filt_array = np.zeros((self.chosen_modelgrid_wavs.shape[0], 3))
+
+			for i in range(len(self.UVJ_filterlist)):
+				filter_raw = np.loadtxt(models.install_dir + "/filters/" + self.UVJ_filterlist[i], usecols=(0, 1))
+
+				self.UVJ_filt_array[:,i] = np.interp(self.chosen_modelgrid_wavs, filter_raw[:,0], filter_raw[:,1], left=0, right=0)
+			
+			ABzpt_spec = np.array([self.chosen_modelgrid_wavs, (3.*10**18*3631.*10**-23)/(self.chosen_modelgrid_wavs**2)]).T
+
+			self.ABzpt = np.sum(np.expand_dims(ABzpt_spec[:,1]*self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)/np.sum(np.expand_dims(self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)
+
+		UVJ = (np.squeeze(np.sum(np.expand_dims(self.spectrum_full*self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)/np.sum(self.UVJ_filt_array*np.expand_dims(self.wav_widths, axis=1), axis=0)))
+
+		UVJ = -2.5*np.log10((np.squeeze(np.sum(np.expand_dims(self.spectrum_full*self.wav_widths, axis=1)*self.UVJ_filt_array, axis=0)/np.sum(self.UVJ_filt_array*np.expand_dims(self.wav_widths, axis=1), axis=0)))/self.ABzpt)
+
+		return UVJ

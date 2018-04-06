@@ -1,16 +1,15 @@
+from __future__ import print_function, division, absolute_import
+
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
 
 from scipy.optimize import fsolve
 
-import model_manager as models
-import model_galaxy
+from . import model_manager as models
 
 component_types = ["burst", "constant", "exponential", "cexp", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
 special_component_types = ["lognormal", "dblplaw", "lognormalgauss", "custom", "cexp"]
-
-
 
 def lognorm_equations(p, consts):
 

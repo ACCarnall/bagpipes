@@ -5,7 +5,7 @@ This example takes you through loading and fitting a model to a catalogue of pho
 
 The example was set up primarily for the April 2018 conference `"The Art of Measuring Physical Parameters in Galaxies" <https://sites.google.com/site/candelsworkshop/home>`_ at UC Riverside.
 
-The photometry catalogue in this example is the first catalogue of CANDELS data posted on the conference website `here <https://sites.google.com/site/candelsworkshop/sedfitting-tools/catalogs>`_.
+The photometry catalogue in this example is the first catalogue of CANDELS data posted on the conference website `here <https://sites.google.com/site/candelsworkshop/sedfitting-tools/catalogs>`__.
 
 
 Loading up the catalogue
@@ -110,7 +110,7 @@ We will fit this data with a double-power-law star-formation history model. The 
 
 The output plots are saved in ``pipes/plots/``. The CPU time for this kind of fit is roughly 2-3 minutes.
 
-For the first object, the output spectral plot is `here <https://github.com/ACCarnall/bagpipes_examples/blob/master/UC_Riverside/pipes/plots/first_run/449_fit.pdf>`_. The output corner plot is `here <https://github.com/ACCarnall/bagpipes_examples/blob/master/UC_Riverside/pipes/plots/first_run/449_corner.pdf>`_.
+For the first object, the output spectral plot is `here <https://github.com/ACCarnall/bagpipes_examples/blob/master/UC_Riverside/pipes/plots/first_run/449_fit.pdf>`__. The output corner plot is `here <https://github.com/ACCarnall/bagpipes_examples/blob/master/UC_Riverside/pipes/plots/first_run/449_corner.pdf>`__.
 
 
 

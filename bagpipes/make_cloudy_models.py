@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import print_function, division, absolute_import
 
 import numpy as np 
 import os
@@ -7,8 +7,8 @@ import sys
 
 from astropy.io import fits
 
-import model_manager as models
-from model_galaxy import Model_Galaxy
+from . import model_manager as models
+from .model_galaxy import Model_Galaxy
 
 
 

@@ -1,11 +1,11 @@
-from __future__ import print_function
+from __future__ import print_function, division, absolute_import
 
 import numpy as np 
 import matplotlib.pyplot as plt 
 import sys
 import os
 
-import model_manager as models
+from . import model_manager as models
 
 from astropy.io import fits
 

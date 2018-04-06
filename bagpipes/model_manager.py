@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import print_function, division, absolute_import
 
 import numpy as np
 import os
@@ -9,7 +9,9 @@ from astropy.io import fits
 install_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
 working_dir = os.getcwd()
 
-import load_models
+#sys.path.append(install_dir + "/bagpipes")
+
+from . import load_models
 
 z_array = None
 age_at_z = None

@@ -187,7 +187,7 @@ These can be generated with:
 	fit.plot_fit()
 	fit.plot_corner()
 
-and will be saved in the ``pipes/plots/`` subdirectory of your working directory.
+and will be saved in the ``pipes/plots/`` subdirectory of your working directory. These plots are designed for diagnostic purposes, rather than as publication-quality figures.
 
 
 The run keyword argument

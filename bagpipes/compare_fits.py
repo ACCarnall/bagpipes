@@ -1,3 +1,5 @@
+from __future__ import print_function, division, absolute_import
+
 import numpy as np 
 import corner
 import sys
@@ -6,7 +8,7 @@ from matplotlib import gridspec
 import os
 
 
-def compare_fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
+def Compare_Fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
 
 	colour1 = "darkorange"
 	colour1_2 = "navajowhite"

@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import print_function, division, absolute_import
 
 import bagpipes as pipes
 import numpy as np
@@ -10,9 +10,9 @@ from glob import glob
 from astropy.io import fits
 from subprocess import call
 
-import model_manager as models
-from galaxy import Galaxy
-from fit import Fit
+from . import model_manager as models
+from .galaxy import Galaxy
+from .fit import Fit
 
 
 

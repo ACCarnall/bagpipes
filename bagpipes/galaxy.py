@@ -1,3 +1,5 @@
+from __future__ import print_function, division, absolute_import
+
 import numpy as np
 import sys
 import os
@@ -5,7 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
-import model_manager as models 
+from . import model_manager as models 
 
 class Galaxy:
 
@@ -142,7 +144,7 @@ class Galaxy:
         ax2.set_xlabel("$\mathrm{log_{10}}\\Big(\lambda / \mathrm{\AA}\\Big)$", size=18)
 
         if naxes == 2:
-            fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}\ \mathrm{/\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18, rotation=90)
+            fig.text(0.06, 0.58, "$\mathrm{f_{\lambda}}\ \mathrm{/\ 10^{-18}\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18, rotation=90)
 
         else:
             ax1.set_ylabel("$\mathrm{f_{\lambda}}\ \mathrm{/\ 10^{-18}\ erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}$", size=18)
@@ -183,8 +185,8 @@ class Galaxy:
 
 
         # Add masked regions to plots
-        if os.path.exists(models.working_dir + "/pipes/masks/" + self.ID + "_mask") and self.spectrum_exists:
-            mask = np.loadtxt(models.working_dir + "/pipes/masks/" + self.ID + "_mask")
+        if os.path.exists(models.working_dir + "/pipes/object_masks/" + self.ID + "_mask") and self.spectrum_exists:
+            mask = np.loadtxt(models.working_dir + "/pipes/object_masks/" + self.ID + "_mask")
 
             for j in range(self.no_of_spectra):
                 if len(mask.shape) == 1:
@@ -193,9 +195,7 @@ class Galaxy:
                 if len(mask.shape) == 2:
                     for i in range(mask.shape[0]):
                         axes[j].axvspan(mask[i,0], mask[i,1], color="gray", alpha=0.8, zorder=3)
-            
-        plt.savefig("/Users/adam/using_bagpipes/JWST_targets/plots/" + self.ID + "_3dhst_spec.pdf", bbox_inches="tight")
-
+        
         plt.show()
         plt.close(fig)
 
@@ -214,11 +214,11 @@ class Galaxy:
             
     """ Set the error spectrum to infinity in masked regions. """
     def mask_spectrum(self, spectrum):
-        if not os.path.exists(models.install_dir + "/object_masks/" + self.ID + "_mask"): #" + self.ID + "
+        if not os.path.exists(models.working_dir + "/pipes/object_masks/" + self.ID + "_mask"): #" + self.ID + "
             return spectrum
 
         else:
-            mask = np.loadtxt(models.install_dir + "/object_masks/" + self.ID + "_mask") #" + self.ID + "
+            mask = np.loadtxt(models.working_dir + "/pipes/object_masks/" + self.ID + "_mask") #" + self.ID + "
             if len(mask.shape) == 1:
                 if spectrum[(spectrum[:,0] > mask[0]) & (spectrum[:,0] < mask[1]), 2].shape[0] is not 0:
                     spectrum[(spectrum[:,0] > mask[0]) & (spectrum[:,0] < mask[1]), 2] = 9.9*10**99.
