@@ -11,15 +11,25 @@ working_dir = os.getcwd()
 
 #sys.path.append(install_dir + "/bagpipes")
 
-from . import load_models
-
-z_array = None
-age_at_z = None
-ldist_at_z = None
+from .load_models import *
 
 allstellargrids = {}
 allcloudylinegrids = {}
 allcloudycontgrids = {}
+
+from astropy.cosmology import FlatLambdaCDM
+cosmo = FlatLambdaCDM(H0 = 70., Om0 = 0.3)
+z_array = np.arange(0., 10., 0.01)
+age_at_z = cosmo.age(z_array).value
+ldist_at_z = cosmo.luminosity_distance(z_array).value
+
+if not os.path.exists(install_dir + "/tables/igm/d_igm_grid_inoue14.fits"):
+    from .igm_inoue2014 import make_table
+    make_table()
+
+D_IGM_grid = fits.open(install_dir + "/tables/igm/d_igm_grid_inoue14.fits")[1].data    
+IGM_redshifts = np.arange(0.0, 10.01, 0.01)
+IGM_wavs = np.arange(1.0, 1225.01, 1.0)
 
 # Generate dictionaries containing information about spectral models and populate them using the set_model_type function.
 gridwavs = {}
@@ -47,38 +57,6 @@ if not full_age_sampling:
     chosen_age_lhs[1:] = 10.**(6.0 + log_width/2. + log_width*np.arange(len_ages))
     chosen_age_widths = chosen_age_lhs[1:] - chosen_age_lhs[:-1]
 
-    
-
-def set_cosmology(H0=70., Om0=0.3):
-    """ Calculates a grid of cosmological properties - faster than running astropy every time a model is generated. """
-    global z_array
-    global age_at_z
-    global ldist_at_z
-
-    if z_array is None:
-
-        from astropy.cosmology import FlatLambdaCDM
-
-        cosmo = FlatLambdaCDM(H0 = H0, Om0 = Om0)
-        z_array = np.arange(0., 10., 0.01)
-        age_at_z = cosmo.age(z_array).value
-        ldist_at_z = cosmo.luminosity_distance(z_array).value
-
-
-
-def get_igm_grid():
-    """ Loads the grid of IGM transmission factors. """
-    global D_IGM_grid
-    global IGM_redshifts
-    global IGM_wavs
-
-    if not os.path.exists(install_dir + "/tables/IGM/D_IGM_grid_Inoue14.fits"):
-        import IGM_Inoue2014 as igm 
-        igm.make_table()
-
-    D_IGM_grid = fits.open(install_dir + "/tables/IGM/D_IGM_grid_Inoue14.fits")[1].data
-    IGM_redshifts = np.arange(0.0, 10.01, 0.01)
-    IGM_wavs = np.arange(1.0, 1225.01, 1.0)
 
 
 
@@ -135,7 +113,7 @@ def set_model_type(chosen_models):
     global chosen_age_widths
     global chosen_live_mstar_frac
 
-    zmet_vals[chosen_models], gridwavs[chosen_models], ages[chosen_models], live_mstar_frac[chosen_models] = getattr(load_models, chosen_models)()
+    zmet_vals[chosen_models], gridwavs[chosen_models], ages[chosen_models], live_mstar_frac[chosen_models] = globals()[chosen_models]()
 
     wavs_micron = np.copy(gridwavs[chosen_models])*10**-4
 
@@ -165,7 +143,7 @@ def load_stellar_grid(zmet_ind):
 
     # If this raw grid is not already in allgrids from a previous model object, load the file into that dictionary
     if model_type + str(zmet_ind) not in list(allstellargrids):
-        allstellargrids[model_type + str(zmet_ind)] = getattr(load_models, model_type + "_get_grid")(zmet_ind)
+        allstellargrids[model_type + str(zmet_ind)] = globals()[model_type + "_get_grid"](zmet_ind)
 
     grid = allstellargrids[model_type + str(zmet_ind)]
 
@@ -236,7 +214,7 @@ def load_cloudy_grid(zmet_ind, logU):
     return cloudy_cont_grid, cloudy_line_grid
 
 
-
+set_model_type(model_type)
 
 
 

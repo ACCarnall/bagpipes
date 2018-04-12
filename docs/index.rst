@@ -7,14 +7,7 @@ Photometry and VLT/VIMOS spectrum for a z ~ 1 post-starburst galaxy (blue) fitte
 Source and installation
 -----------------------
 
-Bagpipes can be installed using pip. The model grids the code requires mean the distribution is too large (200MB) to be hosted by PyPI, so pip must be linked through this site to the source files:
-
-.. code::
-
-	pip install -f https://bagpipes.readthedocs.io/en/latest/installation.html bagpipes
-
-
-This should install all dependencies except for MultiNest. See the `installation <installation.html>`_ page for further information.
+See the `installation <installation.html>`_ page for information on how to download the latest Bagpipes distribution.
 
 Bagpipes is developed at GitHub, view the source code at `github.com/ACCarnall/bagpipes <https://github.com/ACCarnall/bagpipes>`_.
 

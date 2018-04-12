@@ -7,12 +7,15 @@ import matplotlib as mpl
 import sys
 import os
 
+from matplotlib import rc
+rc('text', usetex=True)
+
 from astropy.io import fits
 from numpy import interp
 from numpy.polynomial.chebyshev import chebval as cheb
 
-from . import model_manager as models
-from . import star_formation_history
+from .utils import *
+from .star_formation_history import *
 
 # Ignore division by zero and overflow warnings
 np.seterr(divide='ignore', invalid='ignore', over="ignore")
@@ -45,10 +48,6 @@ class Model_Galaxy:
 		if output_specwavs is None and filtlist is None:
 			sys.exit("Bagpipes: Either a filtlist or output_specwavs must be specified")
 
-		models.set_cosmology()
-		models.set_model_type(models.model_type)
-		models.get_igm_grid()
-
 		self.model_comp = model_components
 
 		self.filtlist = filtlist
@@ -59,7 +58,7 @@ class Model_Galaxy:
 		self.output_specwavs = output_specwavs
 
 		# original_modelgrid_wavs: The wavelength sampling the model grids will have when they are loaded from file.
-		self.original_modelgrid_wavs = np.copy(models.gridwavs[models.model_type])
+		self.original_modelgrid_wavs = np.copy(gridwavs[model_type])
 
 		# modelgrids: Dictionary used to store model grids which have been resampled onto the desired wavelength sampling
 		self.modelgrids = {}
@@ -74,10 +73,10 @@ class Model_Galaxy:
 		self.UVJ_filterlist = None
 
 		# cloudylinelabels: an array of line labels from cloudy, used to construct line strength dictionary
-		self.cloudylinelabels = np.genfromtxt(models.install_dir + "/tables/nebular/cloudy_lines.txt", dtype="str", delimiter="\t")
+		self.cloudylinelabels = np.genfromtxt(install_dir + "/tables/nebular/cloudy_lines.txt", dtype="str", delimiter="\t")
 
 		# component_types: List of all possible types of star formation history (SFH) components
-		self.component_types = star_formation_history.component_types
+		self.component_types = component_types
 
 		# sfh_components: List of the SFH components for this model
 		self.sfh_components = []
@@ -91,8 +90,8 @@ class Model_Galaxy:
 		if len(self.sfh_components) == 0:
 			sys.exit("Bagpipes: Error, Model_Galaxy was not passed any recognised star formation history components in model_components dict.")
 
-		# zmet_vals: An array of metallicity values at which model grids are available for the chosen set of SPS models.
-		self.zmet_vals = np.copy(models.zmet_vals[models.model_type])
+		# zmet_vals: An array of metallicity values at which model grids are available for the chosen set of SPS 
+		self.zmet_vals = np.copy(zmet_vals[model_type])
 		self.zmet_vals_highres = np.arange(0., 10., 0.01) + 0.005
 
 		self.zmet_lims = np.zeros(self.zmet_vals.shape[0]+1)
@@ -115,12 +114,12 @@ class Model_Galaxy:
 		if self.filtlist is not None:
 
 			# filterlist: a list of the filter file names associated with the specified filtlist
-			self.filterlist = np.loadtxt(models.working_dir + "/pipes/filters/" + self.filtlist + ".filtlist", dtype="str")
+			self.filterlist = np.loadtxt(working_dir + "/pipes/filters/" + self.filtlist + ".filtlist", dtype="str")
 
 			# filter_raw_dict: a dict containing the raw filter files
 			filter_raw_dict = {}
 			for filtername in self.filterlist:
-				filter_raw_dict[filtername] = np.loadtxt(models.working_dir + "/pipes/filters/" + filtername, usecols=(0, 1))
+				filter_raw_dict[filtername] = np.loadtxt(working_dir + "/pipes/filters/" + filtername, usecols=(0, 1))
 
 				#Get rid of trailing zeros at either end of the filter files
 				while filter_raw_dict[filtername][0,1] == 0.:
@@ -152,24 +151,24 @@ class Model_Galaxy:
 		x = [1.]
 
 		if output_specwavs is None:
-			self.max_wavs = [min_phot_wav/(1.+models.max_zred), 1.01*max_phot_wav, 10**8]
+			self.max_wavs = [min_phot_wav/(1.+max_zred), 1.01*max_phot_wav, 10**8]
 			self.R = [10., 100., 10.]#[10., 100., 10.]
 
 		elif self.filtlist is None:
-			self.max_wavs = [output_specwavs[0]/(1.+models.max_zred), output_specwavs[-1], 10**8]
+			self.max_wavs = [output_specwavs[0]/(1.+max_zred), output_specwavs[-1], 10**8]
 			self.R = [10., 600., 10.]#[10., 600., 10.]
 
 		else:
 			if output_specwavs[0] > min_phot_wav and output_specwavs[-1] < max_phot_wav:
-				self.max_wavs = [min_phot_wav/(1.+models.max_zred), output_specwavs[0]/(1.+models.max_zred), output_specwavs[-1], max_phot_wav, 10**8]
+				self.max_wavs = [min_phot_wav/(1.+max_zred), output_specwavs[0]/(1.+max_zred), output_specwavs[-1], max_phot_wav, 10**8]
 				self.R = [10., 100., 600., 100., 10.]
 
 			elif output_specwavs[0] < min_phot_wav and output_specwavs[-1] < max_phot_wav:
-				self.max_wavs = [output_specwavs[0]/(1.+models.max_zred), output_specwavs[-1], max_phot_wav, 10**8]
+				self.max_wavs = [output_specwavs[0]/(1.+max_zred), output_specwavs[-1], max_phot_wav, 10**8]
 				self.R = [10., 600., 100., 10.]
 
 			if output_specwavs[0] > min_phot_wav and output_specwavs[-1] > max_phot_wav:
-				self.max_wavs = [min_phot_wav/(1.+models.max_zred), output_specwavs[0]/(1.+models.max_zred), output_specwavs[-1], 10**8]
+				self.max_wavs = [min_phot_wav/(1.+max_zred), output_specwavs[0]/(1.+max_zred), output_specwavs[-1], 10**8]
 				self.R = [10., 100., 600., 10.]
 
 		# Generate the wavelength grid the models will be resampled onto. This runs from 1 to 10**8 Angstroms with variable sampling
@@ -192,10 +191,10 @@ class Model_Galaxy:
 			self.keep_ionizing_continuum = False
 
 		# D_IGM_grid: a grid of correction factors for IGM attenuation as a function of wavelength and redshift taken from Inoue et al. (2014)
-		self.D_IGM_grid = np.zeros((models.IGM_redshifts.shape[0], self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)].shape[0]))
+		self.D_IGM_grid = np.zeros((IGM_redshifts.shape[0], self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)].shape[0]))
 		
-		for i in range(models.IGM_redshifts.shape[0]):
-			self.D_IGM_grid[i,:] = interp(self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)], models.IGM_wavs, models.D_IGM_grid[i,:])
+		for i in range(IGM_redshifts.shape[0]):
+			self.D_IGM_grid[i,:] = interp(self.chosen_modelgrid_wavs[(self.chosen_modelgrid_wavs > 911.8) & (self.chosen_modelgrid_wavs < 1220.)], IGM_wavs, D_IGM_grid[i,:])
 
 		# If filtlist is not None, finish off necessary calculations for photometry calculation
 		if self.filtlist is not None:
@@ -226,15 +225,15 @@ class Model_Galaxy:
 
 		# Populate cloudylinewavs with the wavelengths at which the lines should be inserted
 		if "nebular" in list(self.model_comp):
-			self.cloudylinewavs = np.loadtxt(models.install_dir + "/tables/nebular/cloudy_linewavs.txt")
+			self.cloudylinewavs = np.loadtxt(install_dir + "/tables/nebular/cloudy_linewavs.txt")
 
 			if "dust" in list(self.model_comp):
 				self.k_lambda_lines[self.model_comp["dust"]["type"]] = self.get_dust_model(self.model_comp["dust"]["type"], wavs=self.cloudylinewavs)
 
-			self.D_IGM_grid_lines = np.zeros((models.IGM_redshifts.shape[0], self.cloudylinewavs.shape[0]))
+			self.D_IGM_grid_lines = np.zeros((IGM_redshifts.shape[0], self.cloudylinewavs.shape[0]))
 			
-			for i in range(models.IGM_redshifts.shape[0]):
-				self.D_IGM_grid_lines[i,:] = interp(self.cloudylinewavs, models.IGM_wavs, models.D_IGM_grid[i,:], left=0., right=1.)
+			for i in range(IGM_redshifts.shape[0]):
+				self.D_IGM_grid_lines[i,:] = interp(self.cloudylinewavs, IGM_wavs, D_IGM_grid[i,:], left=0., right=1.)
 
 		self.update(self.model_comp)
 
@@ -244,8 +243,8 @@ class Model_Galaxy:
 
 		self.phot_wavs = np.zeros(len(self.filterlist))
 		for i in range(len(self.filterlist)):
-			filt = np.loadtxt(models.working_dir + "/pipes/filters/" + self.filterlist[i])
-			dlambda = models.make_bins(filt[:,0])[1]
+			filt = np.loadtxt(working_dir + "/pipes/filters/" + self.filterlist[i])
+			dlambda = make_bins(filt[:,0])[1]
 			self.phot_wavs[i] = np.round(np.sqrt(np.sum(dlambda*filt[:,1])/np.sum(dlambda*filt[:,1]/filt[:,0]/filt[:,0])), 1)
 
 
@@ -257,11 +256,11 @@ class Model_Galaxy:
 			wavs = self.chosen_modelgrid_wavs
 
 		if dust_type == "Calzetti":
-			dust_corr_calz = np.loadtxt(models.install_dir + "/tables/dust/Calzetti2000_pow_0.77_extrap.txt")
+			dust_corr_calz = np.loadtxt(install_dir + "/tables/dust/Calzetti2000_pow_0.77_extrap.txt")
 			return interp(wavs, dust_corr_calz[:,0], dust_corr_calz[:,1], right=0)
 
 		elif dust_type == "Cardelli":
-			dust_corr_card = np.loadtxt(models.install_dir + "/tables/dust/Cardelli_1989_MW.txt")
+			dust_corr_card = np.loadtxt(install_dir + "/tables/dust/Cardelli_1989_MW.txt")
 			return interp(wavs, dust_corr_card[:,0], dust_corr_card[:,1], right=0)
 
 		elif dust_type == "CF00":
@@ -275,12 +274,12 @@ class Model_Galaxy:
 	""" Loads model grids at specified metallicity, compresses ages and resamples to chosen_modelgrid_wavs. """
 	def load_stellar_grid(self, zmet_ind):
 
-		grid_compressed = models.load_stellar_grid(zmet_ind)
+		grid_compressed = load_stellar_grid(zmet_ind)
 
 		# Resample model grid to the wavelength basis specified in chosen_modelgrid_wavs
 		grid_compressed_resampled = np.zeros((grid_compressed.shape[0], self.chosen_modelgrid_wavs.shape[0]))
 
-		for i in xrange(grid_compressed_resampled.shape[0]):
+		for i in range(grid_compressed_resampled.shape[0]):
 			grid_compressed_resampled[i,:] = interp(self.chosen_modelgrid_wavs, self.original_modelgrid_wavs, grid_compressed[i,:], left=0, right=0)
 
 		# Add the resampled grid to the modelgrids dictionary
@@ -291,7 +290,7 @@ class Model_Galaxy:
 	""" Loads Cloudy nebular continuum and emission lines at specified metallicity and logU. """
 	def load_cloudy_grid(self, zmet_ind, logU):
 
-		cloudy_cont_grid, cloudy_line_grid = models.load_cloudy_grid(zmet_ind, logU)
+		cloudy_cont_grid, cloudy_line_grid = load_cloudy_grid(zmet_ind, logU)
 
 		# Resample the nebular continuum onto the same wavelength basis as the stellar grids have been resampled to
 		cloudy_cont_grid_resampled = np.zeros((cloudy_cont_grid.shape[0], self.chosen_modelgrid_wavs.shape[0]))
@@ -318,7 +317,7 @@ class Model_Galaxy:
 		self.model_comp = model_components
 
 		# sfh: A star formation history object generated using model_components
-		self.sfh = star_formation_history.Star_Formation_History(self.model_comp)
+		self.sfh = Star_Formation_History(self.model_comp)
 
 		self.living_stellar_mass = {}
 		self.living_stellar_mass["total"] = 0.
@@ -334,8 +333,8 @@ class Model_Galaxy:
 
 		# Figure out which are the nebular grids in logU closest to the chosen logU and what fraction of each grid should be taken
 		if "nebular" in list(self.model_comp):
-			high_logU_val = np.min(models.logU_grid[models.logU_grid >= self.model_comp["nebular"]["logU"]])
-			low_logU_val =  np.max(models.logU_grid[models.logU_grid < self.model_comp["nebular"]["logU"]])
+			high_logU_val = np.min(logU_grid[logU_grid >= self.model_comp["nebular"]["logU"]])
+			low_logU_val =  np.max(logU_grid[logU_grid < self.model_comp["nebular"]["logU"]])
 			high_logU_factor = (self.model_comp["nebular"]["logU"] - low_logU_val)/(high_logU_val - low_logU_val)
 			low_logU_factor = 1. - high_logU_factor
 
@@ -393,7 +392,7 @@ class Model_Galaxy:
 					self.load_stellar_grid(i)
 
 			#Calculate living stellar mass contribution from this SFH component
-			comp_living_mass = np.sum(sfr_dt*np.sum(np.expand_dims(zmet_weights, 1)*models.chosen_live_mstar_frac, axis=0))
+			comp_living_mass = np.sum(sfr_dt*np.sum(np.expand_dims(zmet_weights, 1)*chosen_live_mstar_frac, axis=0))
 			self.living_stellar_mass["total"] += comp_living_mass
 			self.living_stellar_mass[comp] = np.copy(comp_living_mass)
 
@@ -406,8 +405,8 @@ class Model_Galaxy:
 			# Calculate how many lines of the grids are affected by birth clouds and what fraction of the final line is affected
 			# Otherwise check nothing which required t_bc to be specified has been specified and crash the code if so
 			if "t_bc" in list(self.model_comp):
-				nlines = models.chosen_age_lhs[models.chosen_age_lhs < self.model_comp["t_bc"]*10**9].shape[0]
-				frac_bc = (self.model_comp["t_bc"]*10**9 - models.chosen_age_lhs[nlines-1])/models.chosen_age_widths[nlines-1]
+				nlines = chosen_age_lhs[chosen_age_lhs < self.model_comp["t_bc"]*10**9].shape[0]
+				frac_bc = (self.model_comp["t_bc"]*10**9 - chosen_age_lhs[nlines-1])/chosen_age_widths[nlines-1]
 
 			else:
 				if "nebular" in list(self.model_comp) or "dust" in list(self.model_comp) and "eta" in list(self.model_comp["dust"]):
@@ -425,7 +424,7 @@ class Model_Galaxy:
 
 				# Interpolate the nebular/cloudy grids in Zmet and logU
 				interpolated_cloudy_grid = high_zmet_factor*(high_logU_factor*self.cloudygrids[str(high_zmet_ind) + str(high_logU_val)] + low_logU_factor*self.cloudygrids[str(high_zmet_ind) + str(low_logU_val)]) + low_zmet_factor*(high_logU_factor*self.cloudygrids[str(low_zmet_ind) + str(high_logU_val)] + low_logU_factor*self.cloudygrids[str(low_zmet_ind) + str(low_logU_val)])
-				interpolated_cloudy_line_grid = high_zmet_factor*(high_logU_factor*models.allcloudylinegrids[str(high_zmet_ind) + str(high_logU_val)] + low_logU_factor*models.allcloudylinegrids[str(high_zmet_ind) + str(low_logU_val)]) + low_zmet_factor*(high_logU_factor*models.allcloudylinegrids[str(low_zmet_ind) + str(high_logU_val)] + low_logU_factor*models.allcloudylinegrids[str(low_zmet_ind) + str(low_logU_val)])
+				interpolated_cloudy_line_grid = high_zmet_factor*(high_logU_factor*allcloudylinegrids[str(high_zmet_ind) + str(high_logU_val)] + low_logU_factor*allcloudylinegrids[str(high_zmet_ind) + str(low_logU_val)]) + low_zmet_factor*(high_logU_factor*allcloudylinegrids[str(low_zmet_ind) + str(high_logU_val)] + low_logU_factor*allcloudylinegrids[str(low_zmet_ind) + str(low_logU_val)])
 
 				# Add nebular grid to stellar grid
 				interpolated_stellar_grid[:nlines-1, :] += interpolated_cloudy_grid[:nlines-1, :]
@@ -479,9 +478,9 @@ class Model_Galaxy:
 
 		# Apply intergalactic medium absorption to the model spectrum
 		if self.model_comp["redshift"] > 0.:
-			zred_ind = models.IGM_redshifts[models.IGM_redshifts < self.model_comp["redshift"]].shape[0]
+			zred_ind = IGM_redshifts[IGM_redshifts < self.model_comp["redshift"]].shape[0]
 
-			high_zred_factor = (models.IGM_redshifts[zred_ind] - self.model_comp["redshift"])/(models.IGM_redshifts[zred_ind] - models.IGM_redshifts[zred_ind-1])
+			high_zred_factor = (IGM_redshifts[zred_ind] - self.model_comp["redshift"])/(IGM_redshifts[zred_ind] - IGM_redshifts[zred_ind-1])
 			low_zred_factor = 1. - high_zred_factor
 
 			# Interpolate IGM transmission from pre-loaded grid
@@ -522,11 +521,11 @@ class Model_Galaxy:
 			
 		# Redshift the model spectrum and put it into erg/s/cm2/A unless z = 0, in which case final units are erg/s/A
 		if self.model_comp["redshift"] != 0.:
-			composite_spectrum /= (4*np.pi*(interp(self.model_comp["redshift"], models.z_array, models.ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
+			composite_spectrum /= (4*np.pi*(interp(self.model_comp["redshift"], z_array, ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
 			composite_spectrum /= (1+self.model_comp["redshift"]) #reduce flux by a factor of 1/(1+z) to account for redshifting
 
 			if "nebular" in list(self.model_comp):
-				composite_lines /= (4*np.pi*(interp(self.model_comp["redshift"], models.z_array, models.ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
+				composite_lines /= (4*np.pi*(interp(self.model_comp["redshift"], z_array, ldist_at_z, left=0, right=0)*3.086*10**24)**2) #convert to observed flux at given redshift in L_sol/s/A/cm^2
 
 		composite_spectrum *= 3.826*10**33 #convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
 
@@ -598,7 +597,7 @@ class Model_Galaxy:
 
 
 
-	def plot(self, fancy=False, input_fig=None):
+	def plot(self, fancy=False, input_fig=None, return_fig=False):
 		""" Creates a plot of the model spectrum and/or photometry.
 
 		Parameters
@@ -688,8 +687,8 @@ class Model_Galaxy:
 
 			sfh_x[-2:] = 1.5*10**10
 
-			sfh_ax.plot(cosmo.age(self.model_comp["redshift"]).value - sfh_x*10**-9, sfh_y, color="black")
-			sfh_ax.set_xlim(cosmo.age(self.model_comp["redshift"]).value, 0.)
+			sfh_ax.plot(interp(self.model_comp["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y, color="black")
+			sfh_ax.set_xlim(interp(self.model_comp["redshift"], z_array, age_at_z), 0.)
 			sfh_ax.set_ylim(0., 1.1*np.max(sfh_y))
 			sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ /\ Gyr}$")
 			sfh_ax.set_ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
@@ -706,7 +705,7 @@ class Model_Galaxy:
 			allspec_ax.get_xaxis().set_tick_params(which='minor', size=0)
 			allspec_ax.get_yaxis().set_tick_params(which='minor', size=0)
 
-		if input_fig is None:
+		if input_fig is None and not return_fig:
 			plt.show()
 			plt.close(fig)
 
@@ -723,13 +722,13 @@ class Model_Galaxy:
 		if self.UVJ_filterlist is None:
 
 			# filterlist: a list of the filter file names for UVJ.
-			self.UVJ_filterlist = np.loadtxt(models.install_dir + "/filters/UVJ.filtlist", dtype="str")
+			self.UVJ_filterlist = np.loadtxt(install_dir + "/filters/UVJ.filtlist", dtype="str")
 
 			# filt_array_restframe: An array to contain the rest frame sampled filter profiles used to generate the model photometry
 			self.UVJ_filt_array = np.zeros((self.chosen_modelgrid_wavs.shape[0], 3))
 
 			for i in range(len(self.UVJ_filterlist)):
-				filter_raw = np.loadtxt(models.install_dir + "/filters/" + self.UVJ_filterlist[i], usecols=(0, 1))
+				filter_raw = np.loadtxt(install_dir + "/filters/" + self.UVJ_filterlist[i], usecols=(0, 1))
 
 				self.UVJ_filt_array[:,i] = np.interp(self.chosen_modelgrid_wavs, filter_raw[:,0], filter_raw[:,1], left=0, right=0)
 			

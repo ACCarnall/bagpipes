@@ -7,7 +7,7 @@ import sys
 
 from astropy.io import fits
 
-from . import model_manager as models
+from .utils import *
 from .model_galaxy import Model_Galaxy
 
 
@@ -23,7 +23,7 @@ def make_cloudy_sed_file(age, zmet):
 
 	out_spectrum[out_spectrum[:,1] == 0., 1] = 9.9*10**-99
 
-	np.savetxt(os.environ["CLOUDY_DATA_PATH"] + "/SED/" + models.model_type + "_age_" + "%.5f" % age + "_zmet_" + "%.3f" % zmet + ".sed", out_spectrum[::-1, :], header="Energy units: Rydbergs, Flux units: erg/s/Hz")
+	np.savetxt(os.environ["CLOUDY_DATA_PATH"] + "/SED/" + model_type + "_age_" + "%.5f" % age + "_zmet_" + "%.3f" % zmet + ".sed", out_spectrum[::-1, :], header="Energy units: Rydbergs, Flux units: erg/s/Hz")
 
 
 
@@ -40,7 +40,7 @@ def get_bagpipes_spectrum(age, zmet, out_units_spec="ergscma"):
 	model_comp["redshift"] = 0.
 	model_comp["keep_ionizing_continuum"] = True
 
-	model = Model_Galaxy(model_comp, output_specwavs=models.gridwavs[models.model_type], out_units_spec=out_units_spec)
+	model = Model_Galaxy(model_comp, output_specwavs=gridwavs[model_type], out_units_spec=out_units_spec)
 
 	return model.spectrum
 
@@ -51,17 +51,17 @@ def make_cloudy_input_file(age, zmet, logU):
 
 	# Copy file with emission line names to the correct directory to be read by Cloudy
 	if not os.path.exists(os.environ["CLOUDY_DATA_PATH"] + "/cloudy_lines.txt"):
-		os.system("cp " + models.install_dir + "/tables/nebular/cloudy_lines.txt " + os.environ["CLOUDY_DATA_PATH"] + "/pipes_cloudy_lines.txt")
+		os.system("cp " + install_dir + "/tables/nebular/cloudy_lines.txt " + os.environ["CLOUDY_DATA_PATH"] + "/pipes_cloudy_lines.txt")
 
 	logQ = np.log10(4*np.pi*(10.**19)**2*100*2.9979*10**10*10**logU)
 
-	if not os.path.exists(models.install_dir + "/tables/nebular/cloudy_temp_files"):
-		os.mkdir(models.install_dir + "/tables/nebular/cloudy_temp_files")
+	if not os.path.exists(install_dir + "/tables/nebular/cloudy_temp_files"):
+		os.mkdir(install_dir + "/tables/nebular/cloudy_temp_files")
 
-	if not os.path.exists(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type):
-		os.mkdir(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type)
+	if not os.path.exists(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type):
+		os.mkdir(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type)
 
-	path = models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/"
+	path = install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/"
 
 	if not os.path.exists(path + "logU_" + "%.1f" % logU + "_zmet_" + "%.3f" % zmet):
 		os.mkdir(path + "logU_" + "%.1f" % logU + "_zmet_" + "%.3f" % zmet)
@@ -120,7 +120,7 @@ def run_cloudy_model(age, zmet, logU):
 
 	make_cloudy_sed_file(age, zmet)
 	make_cloudy_input_file(age, zmet, logU)
-	os.chdir(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/" + "logU_" + "%.1f" % logU + "_zmet_" + "%.3f" % zmet)
+	os.chdir(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/" + "logU_" + "%.1f" % logU + "_zmet_" + "%.3f" % zmet)
 	os.system(os.environ["CLOUDY_EXE"] + " -r " + "%.5f" % age)
 	os.chdir("../../..")
 
@@ -128,10 +128,10 @@ def run_cloudy_model(age, zmet, logU):
 
 def run_cloudy_grid(nthread, nthreads):
 
-	for i in range(nthread, models.logU_grid.shape[0], nthreads):
-		logU = models.logU_grid[i]
-		for zmet in models.zmet_vals[models.model_type]:
-			for age in models.chosen_ages[models.chosen_ages < 3.*10**7]:
+	for i in range(nthread, logU_grid.shape[0], nthreads):
+		logU = logU_grid[i]
+		for zmet in zmet_vals[model_type]:
+			for age in chosen_ages[chosen_ages < 3.*10**7]:
 				print("logU: " + str(np.round(logU, 1)) + ", zmet: " + str(np.round(zmet, 3))  + ", age: " + str(np.round(age*10**-9, 5)))
 				run_cloudy_model(age*10**-9, zmet, logU)
 
@@ -140,8 +140,8 @@ def run_cloudy_grid(nthread, nthreads):
 def extract_cloudy_results(age, zmet, logU, test=False):
 	""" Loads the cloudy results from the output files and converts the units to L_sol/A for continuum, L_sol for lines. """
 
-	cloudy_lines = np.loadtxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/logU_" + "%.1f" % logU + "_zmet_" + "%.3f" % zmet + "/" + "%.5f" % age + ".lines", usecols=(1), delimiter="\t", skiprows=2)
-	cloudy_cont = np.loadtxt(models.install_dir + "/tables/nebular/cloudy_temp_files/bc03_miles/logU_" + "%.1f" % logU + "_zmet_" + "%.3f" % zmet + "/" + "%.5f" % age + ".econ", usecols=(0,2))[::-1,:]
+	cloudy_lines = np.loadtxt(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/logU_" + "%.1f" % logU + "_zmet_" + "%.3f" % zmet + "/" + "%.5f" % age + ".lines", usecols=(1), delimiter="\t", skiprows=2)
+	cloudy_cont = np.loadtxt(install_dir + "/tables/nebular/cloudy_temp_files/bc03_miles/logU_" + "%.1f" % logU + "_zmet_" + "%.3f" % zmet + "/" + "%.5f" % age + ".econ", usecols=(0,2))[::-1,:]
 	
 	# wavelengths from microns to angstroms
 	cloudy_cont[:,0] *= 10**4
@@ -166,10 +166,10 @@ def extract_cloudy_results(age, zmet, logU, test=False):
 	cloudy_lines /= 3.826*10**33
 	cloudy_cont[:,1] /= 3.826*10**33
 
-	cloudy_cont_resampled = np.zeros((models.gridwavs[models.model_type].shape[0], 2))
+	cloudy_cont_resampled = np.zeros((gridwavs[model_type].shape[0], 2))
 
 	# Resample the nebular continuum onto the wavelength basis of the stellar models
-	cloudy_cont_resampled[:,0] = models.gridwavs[models.model_type]
+	cloudy_cont_resampled[:,0] = gridwavs[model_type]
 	cloudy_cont_resampled[:,1] = np.interp(cloudy_cont_resampled[:,0], cloudy_cont[:,0], cloudy_cont[:,1])
 
 	if test == True:
@@ -213,50 +213,50 @@ def extract_cloudy_results(age, zmet, logU, test=False):
 
 def compile_cloudy_grid():
 
-	line_wavs = np.loadtxt(models.install_dir + "/tables/nebular/cloudy_linewavs.txt")
+	line_wavs = np.loadtxt(install_dir + "/tables/nebular/cloudy_linewavs.txt")
 
-	for logU in models.logU_grid:
-		for zmet in models.zmet_vals[models.model_type]:
+	for logU in logU_grid:
+		for zmet in zmet_vals[model_type]:
 
 			print("logU: " + str(np.round(logU, 1)) + ", zmet: " + str(np.round(zmet, 3)))
 
-			contgrid = np.zeros((models.chosen_ages[models.chosen_ages < 3.*10**7].shape[0]+1, models.gridwavs[models.model_type].shape[0]+1))
-			contgrid[0,1:] = models.gridwavs[models.model_type]
-			contgrid[1:,0] = models.chosen_ages[models.chosen_ages < 3.*10**7]
+			contgrid = np.zeros((chosen_ages[chosen_ages < 3.*10**7].shape[0]+1, gridwavs[model_type].shape[0]+1))
+			contgrid[0,1:] = gridwavs[model_type]
+			contgrid[1:,0] = chosen_ages[chosen_ages < 3.*10**7]
 
-			linegrid = np.zeros((models.chosen_ages[models.chosen_ages < 3.*10**7].shape[0]+1, line_wavs.shape[0]+1))
+			linegrid = np.zeros((chosen_ages[chosen_ages < 3.*10**7].shape[0]+1, line_wavs.shape[0]+1))
 			linegrid[0,1:] = line_wavs
-			linegrid[1:,0] = models.chosen_ages[models.chosen_ages < 3.*10**7]
+			linegrid[1:,0] = chosen_ages[chosen_ages < 3.*10**7]
 
-			for i in range(models.chosen_ages[models.chosen_ages < 3.*10**7].shape[0]):
-				age = models.chosen_ages[models.chosen_ages < 3.*10**7][i]
+			for i in range(chosen_ages[chosen_ages < 3.*10**7].shape[0]):
+				age = chosen_ages[chosen_ages < 3.*10**7][i]
 				cont_fluxes, line_fluxes = extract_cloudy_results(age*10**-9, zmet, logU)
 				contgrid[i+1,1:] = cont_fluxes
 				linegrid[i+1,1:] = line_fluxes
 
-			if not os.path.exists(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids"):
-				os.mkdir(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids")
+			if not os.path.exists(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids"):
+				os.mkdir(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids")
 
-			np.savetxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + "zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_lines", linegrid)
-			np.savetxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + "zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_cont", contgrid)
+			np.savetxt(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids/" + "zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_lines", linegrid)
+			np.savetxt(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids/" + "zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_cont", contgrid)
 
 	# Nebular grids
 	list_of_hdus_lines = [fits.PrimaryHDU()]
 	list_of_hdus_cont = [fits.PrimaryHDU()]
 
-	for logU in models.logU_grid:
-		for zmet in models.zmet_vals[models.model_type]:
-			list_of_hdus_lines.append(fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_" + "%.1f" % logU, data=np.loadtxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_lines")))
-			list_of_hdus_cont.append(fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_" + "%.1f" % logU, data=np.loadtxt(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_cont")))
+	for logU in logU_grid:
+		for zmet in zmet_vals[model_type]:
+			list_of_hdus_lines.append(fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_" + "%.1f" % logU, data=np.loadtxt(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids/zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_lines")))
+			list_of_hdus_cont.append(fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_" + "%.1f" % logU, data=np.loadtxt(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids/zmet_" + str(zmet) + "_logU_" + str(logU) + ".neb_cont")))
 
 	hdulist_lines = fits.HDUList(hdus=list_of_hdus_lines)
 	hdulist_cont = fits.HDUList(hdus=list_of_hdus_cont)
 
-	os.system("rm " + models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + models.model_type + "_nebular_line_grids.fits")
-	os.system("rm " + models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + models.model_type + "_nebular_cont_grids.fits")
+	os.system("rm " + install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids/" + model_type + "_nebular_line_grids.fits")
+	os.system("rm " + install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids/" + model_type + "_nebular_cont_grids.fits")
 
-	hdulist_lines.writeto(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + models.model_type + "_nebular_line_grids.fits")
-	hdulist_cont.writeto(models.install_dir + "/tables/nebular/cloudy_temp_files/" + models.model_type + "/grids/" + models.model_type + "_nebular_cont_grids.fits")
+	hdulist_lines.writeto(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids/" + model_type + "_nebular_line_grids.fits")
+	hdulist_cont.writeto(install_dir + "/tables/nebular/cloudy_temp_files/" + model_type + "/grids/" + model_type + "_nebular_cont_grids.fits")
 
 if __name__ == "__main__":
 

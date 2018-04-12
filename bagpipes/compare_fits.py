@@ -7,6 +7,10 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import os
 
+from .utils import *
+
+from matplotlib import rc
+rc('text', usetex=True)
 
 def Compare_Fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
 
@@ -102,16 +106,16 @@ def Compare_Fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
 	sfh_x2, sfh_y2, sfh_y_low2, sfh_y_high2 = get_sfh_info(fit2)
 
 	# Plot the SFH
-	sfh_ax.fill_between(np.interp(fit1.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x1*10**-9, sfh_y_low1, sfh_y_high1, color=colour1_2, alpha=alpha1, lw=2, edgecolor=colour2)
-	sfh_ax.plot(np.interp(fit1.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x1*10**-9, sfh_y1, color=colour1, zorder=10)
-	sfh_ax.set_xlim(np.interp(fit1.model_components["redshift"], models.z_array, models.age_at_z), 0)
+	sfh_ax.fill_between(np.interp(fit1.model_components["redshift"], z_array, age_at_z) - sfh_x1*10**-9, sfh_y_low1, sfh_y_high1, color=colour1_2, alpha=alpha1, lw=2, edgecolor=colour2)
+	sfh_ax.plot(np.interp(fit1.model_components["redshift"], z_array, age_at_z) - sfh_x1*10**-9, sfh_y1, color=colour1, zorder=10)
+	sfh_ax.set_xlim(np.interp(fit1.model_components["redshift"], z_array, age_at_z), 0)
 
-	sfh_ax.fill_between(np.interp(fit2.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x2*10**-9, sfh_y_low2, sfh_y_high2, color=colour2_2, alpha=alpha2, lw=2, edgecolor=colour2)
-	sfh_ax.plot(np.interp(fit2.model_components["redshift"], models.z_array, models.age_at_z) - sfh_x2*10**-9, sfh_y2, color=colour2, zorder=10)
+	sfh_ax.fill_between(np.interp(fit2.model_components["redshift"], z_array, age_at_z) - sfh_x2*10**-9, sfh_y_low2, sfh_y_high2, color=colour2_2, alpha=alpha2, lw=2, edgecolor=colour2)
+	sfh_ax.plot(np.interp(fit2.model_components["redshift"], z_array, age_at_z) - sfh_x2*10**-9, sfh_y2, color=colour2, zorder=10)
 
 
 	sfh_ax2 = sfh_ax.twiny()
-	sfh_ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], models.z_array, models.age_at_z))
+	sfh_ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], z_array, age_at_z))
 	sfh_ax2.set_xticklabels(["$0$", "$0.5$", "$1$", "$2$", "$4$", "$10$"])
 	sfh_ax2.set_xlim(sfh_ax.get_xlim())
 	sfh_ax2.set_xlabel("$\mathrm{Redshift}$", size=14)
@@ -139,10 +143,10 @@ def Compare_Fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
 	sfh_ax.set_ylim(0, 1.1*np.max([np.max(sfh_y_high1), np.max(sfh_y_high2)]))
 	
 
-	if not os.path.exists(models.install_dir + "/plots/" + comp_run):
-		os.mkdir(models.install_dir + "/plots/" + comp_run)
+	if not os.path.exists(install_dir + "/plots/" + comp_run):
+		os.mkdir(install_dir + "/plots/" + comp_run)
 
-	fig.savefig(models.install_dir + "/plots/" + comp_run + "/" + fit1.Galaxy.ID + "_comp_corner.pdf")#, bbox_inches="tight")
+	fig.savefig(install_dir + "/plots/" + comp_run + "/" + fit1.Galaxy.ID + "_comp_corner.pdf")#, bbox_inches="tight")
 
 
 

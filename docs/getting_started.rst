@@ -14,6 +14,12 @@ Bagpipes is structured around three core classes:
 	- The ``Fit`` class, which allows the data within a ``Galaxy`` object to be fitted with Bagpipes models. This is described in the :ref:`fitting observational data <fitting-observational-data>` section.
 
 
+Where to run Bagpipes
+---------------------
+
+One of the quirks of MultiNest is that it fails to save output files if the full path to the file is too long. Therefore, you should ideally run Bagpipes from a direct subfolder of your home directory, rather than one at the end of a long path. This is another reason I'm currently working on converting to a pure-python sampler.
+
+
 Your first model galaxy spectrum
 --------------------------------
 

@@ -1,4 +1,4 @@
-include tables/IGM/Lyman_series_coefs_Inoue_2014_Table2.txt
+include tables/igm/lyman_series_coefs_inoue_2014_table2.txt
 include tables/dust/*.txt
 include tables/nebular/*.txt
 include tables/nebular/bc03_miles/*.fits

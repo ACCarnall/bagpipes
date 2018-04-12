@@ -4,7 +4,7 @@ dependencies:
     - python=2.7
     - astropy=2.0.5
     - scipy
-    - matplotlib
+    - matplotlib>=2.2.2
     - numpy
     - pip:
       - corner
