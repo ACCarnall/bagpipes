@@ -4,7 +4,7 @@ Installation
 The Bagpipes code and Python dependencies
 -----------------------------------------
 
-The packaged source for the most recent Bagpipes version can be downloaded at this link: `bagpipes-0.1.1 <http://dl.dropboxusercontent.com/s/afwu4c3qdiy9yj7/bagpipes-0.1.1.tar.gz?dl=0>`_.
+The packaged source for the most recent Bagpipes version can be downloaded at this link: `bagpipes-0.1.1 <http://dl.dropboxusercontent.com/s/lp2yef3xksrx6vw/bagpipes-0.1.1.tar.gz?dl=0>`_.
 
 Once you've downloaded and unzipped the source, in the main directory run
 

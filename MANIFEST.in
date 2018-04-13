@@ -5,3 +5,7 @@ include tables/nebular/bc03_miles/*.fits
 include tables/stellar/bc03_miles/*.fits
 include README.rst 
 include LICENSE.txt
+include filters/UVJ.filtlist
+include filters/UVJ/Generic-Bessell.U.dat
+include filters/UVJ/Generic-Bessell.V.dat
+include filters/UVJ/Keck-NIRC2.J.dat

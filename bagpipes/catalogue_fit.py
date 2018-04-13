@@ -104,8 +104,6 @@ class Catalogue_Fit:
 				elif isinstance(self.fix_redshifts, float):
 					fit_instructions["redshift"] = (self.redshifts[i]-self.fix_redshifts/2., self.redshifts[i]+self.fix_redshifts/2.)
 				
-				print("Bagpipes: Fitting object " + str(int(self.IDs[i])))
-
 				if not os.path.exists(working_dir + "/pipes/cats/" + self.run + "/" + str(int(self.IDs[i]))):
 
 					if os.path.exists(working_dir + "/pipes/cats/kill"):
@@ -120,12 +118,7 @@ class Catalogue_Fit:
 					else:
 						filtlist = self.catalogue_filtlist[i]
 
-					# Try to generate galaxy object
-					#try:
 					galaxy = Galaxy(str(int(self.IDs[i])), self.data_load_func, filtlist=filtlist, spectrum_exists=self.spectrum_exists, photometry_exists=self.photometry_exists)
-
-					#except:
-					#	print("Could not load data for object " + str(int(self.IDs[i])))
 
 					fit = Fit(galaxy, self.fit_instructions, run=self.run)
 
