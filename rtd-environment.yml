@@ -9,3 +9,4 @@ dependencies:
     - pip:
       - corner
       - pymultinest
+      - dynesty

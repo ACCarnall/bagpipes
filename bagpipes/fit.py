@@ -5,17 +5,18 @@ import os
 import sys
 import corner
 import matplotlib.pyplot as plt
+import time
+import dynesty
 
 from matplotlib import gridspec
 from copy import deepcopy, copy
 from scipy.special import erf, erfinv
-from numpy.polynomial.chebyshev import chebval as cheb
 
 try:
 	import pymultinest as pmn
 
 except:
-	print("Bagpipes: MultiNest/PyMultiNest not installed, fitting will not be available.")
+	print("Bagpipes: MultiNest/PyMultiNest not installed, if you want fitting you'll need to set the sampler keyword argument to dynesty.")
 
 from .utils import *
 from .model_galaxy import Model_Galaxy
@@ -168,7 +169,7 @@ class Fit:
 
 
 
-	def fit(self, verbose=False, sampling_efficiency="model", n_live=400, const_efficiency_mode=False):
+	def fit(self, verbose=False, sampling_efficiency="model", n_live=400, sampler="pmn"):
 		""" Fit the specified model to the input galaxy data using the MultiNest algorithm. 
 
 		Parameters
@@ -183,32 +184,69 @@ class Fit:
 		n_live : int - optional
 			Number of MultiNest live points. Reducing speeds up the code but may lead to unreliable results.
 
-		const_efficiency_mode : bool - optional
-			Use MultiNest's constant efficiency mode, dramatically speeds things up, but often fails to find the correct solution.
-
 		"""
 
 		print("\nBagpipes: fitting object " + self.Galaxy.ID + "\n")
+		start_time = time.time()
 
-		pmn.run(self.get_lnprob, self.prior_transform, self.ndim, const_efficiency_mode = const_efficiency_mode, importance_nested_sampling = False, verbose = verbose, sampling_efficiency = sampling_efficiency, n_live_points = n_live, outputfiles_basename=working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
 
-		a = pmn.Analyzer(n_params = self.ndim, outputfiles_basename=working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-", verbose=False)
+		if sampler == "pmn":
+			pmn.run(self.get_lnprob, self.prior_transform, self.ndim, importance_nested_sampling = False, verbose = verbose, sampling_efficiency = sampling_efficiency, n_live_points = n_live, outputfiles_basename=working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-")
 
-		s = a.get_stats()
+			a = pmn.Analyzer(n_params = self.ndim, outputfiles_basename=working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-", verbose=False)
+
+			s = a.get_stats()
+
+			self.global_log_evidence = s["nested sampling global log-evidence"]
+			self.global_log_evidence_err = s["nested sampling global log-evidence error"]
+
+			self.posterior["samples"] = np.loadtxt(working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat")[:,:-1]
+			self.posterior["lnprob"] = np.loadtxt(working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat", usecols=(-1))
+
+
+		elif sampler == "dynesty":
+
+			if os.path.exists(working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-dynesty_post.dat"):
+				self.posterior["samples"] = np.loadtxt(working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-dynesty_post.dat")[:,:-1]
+				self.posterior["lnprob"] = np.loadtxt(working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-dynesty_post.dat", usecols=(-1))
+				
+				self.global_log_evidence, self.global_log_evidence_err = np.loadtxt(working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-dynesty_evidence.dat")
+
+				print("Bagpipes: Previous dynesty run output detected, loading posterior.")
+
+			else:
+				self.sampler = dynesty.NestedSampler(self.get_lnprob, self.prior_transform, self.ndim, nlive=n_live, bound="multi", sample="rwalk", walks=25)#, bootstrap=0, enlarge=1.25, vol_dec=0.8, vol_check=1.5, first_update={'min_ncall': -np.inf, 'min_eff': np.inf})
+				self.sampler.run_nested(dlogz=0.01)
+
+				weights = np.exp(self.sampler.results.logwt - self.sampler.results.logz[-1])
+				weights /= weights.sum()
+				self.posterior["samples"] = dynesty.utils.resample_equal(self.sampler.results.samples, weights)
+				self.posterior["lnprob"] = self.sampler.results.logl
+
+				self.global_log_evidence = self.sampler.results.logz[-1]
+				self.global_log_evidence_err = np.std(np.array([dynesty.utils.simulate_run(self.sampler.results).logz[-1] for i in range(50)]))
+
+				output = np.zeros((self.posterior["samples"].shape[0], self.posterior["samples"].shape[1]+1))
+				output[:,:-1] = self.posterior["samples"]
+				output[:,-1] = self.posterior["lnprob"]
+
+				np.savetxt(working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-dynesty_evidence.dat", np.array([self.global_log_evidence, self.global_log_evidence_err]))
+				np.savetxt(working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-dynesty_post.dat", output)
+
+
+		for i in range(len(self.fit_params)):
+			self.posterior[self.fit_params[i]] = self.posterior["samples"][:,i]
 
 		self.posterior_median = np.zeros(self.ndim)
 		for j in range(self.ndim):
-			self.posterior_median[j] = s["marginals"][j]["median"]
+			self.posterior_median[j] = np.median(self.posterior["samples"][:,j])
 
 		self.conf_int = []
 		for j in range(self.ndim):
-			self.conf_int.append((s["marginals"][j]["1sigma"][0], s["marginals"][j]["1sigma"][1]))
+			self.conf_int.append((np.percentile(self.posterior["samples"][:,j], 16), np.percentile(self.posterior["samples"][:,j], 84)))
 
-		self.global_log_evidence = s["nested sampling global log-evidence"]
-		self.global_log_evidence_err = s["nested sampling global log-evidence error"]
-
-		self.best_fit_params = a.get_best_fit()["parameters"]
-		self.get_lnprob(a.get_best_fit()["parameters"], self.ndim, self.ndim)
+		self.best_fit_params = self.posterior["samples"][np.argmax(self.posterior["lnprob"]),:]
+		self.get_lnprob(self.best_fit_params, self.ndim, self.ndim)
 
 		self.min_chisq = 0.
 		self.min_chisq_red = 0.
@@ -224,7 +262,7 @@ class Fit:
 
 		self.min_chisq_red = self.min_chisq/float(self.ndof)
 
-		print("\nBagpipes: fitting complete, confidence interval")
+		print("\nBagpipes: fitting complete in " + str("%.1f" % (time.time() - start_time)) + " seconds, confidence interval:")
 		for x in range(self.ndim):
 			print(str(np.round(self.conf_int[x], 4)), np.round(self.posterior_median[x], 4), self.fit_params[x])
 		print("\n")
@@ -234,7 +272,7 @@ class Fit:
 
 
 
-	def prior_transform(self, cube, ndim, nparam): 
+	def prior_transform(self, cube, ndim=0, nparam=0): 
 		# Prior function for MultiNest algorithm.
 
 		for i in range(self.ndim):
@@ -276,13 +314,13 @@ class Fit:
 
 
 
-	def get_lnprob(self, x, ndim, nparam):
+	def get_lnprob(self, x, ndim=0, nparam=0):
 		# Returns the log-probability for a given model sfh and parameter vector x. 
 
 		self.get_model(x)
 
 		# If the age of any model component is greater than the age of the Universe, return a huge negative value for lnprob.
-		if self.Model.sfh.maxage <= np.interp(self.model_components["redshift"], z_array, age_at_z):
+		if self.Model.sfh.maxage <= self.Model.sfh.age_of_universe:
 			if "hypspec" in list(self.model_components):
 				self.hyp_spec = self.model_components["hypspec"]
 
@@ -381,27 +419,16 @@ class Fit:
 
 
 
-	def load_posterior(self):
-		# Load the posterior samples generated by MultiNest. 
-
-		if "samples" not in list(self.posterior):
-			self.posterior["samples"] = np.loadtxt(working_dir + "/pipes/pmn_chains/" + self.run + "/" + self.Galaxy.ID + "-post_equal_weights.dat")[:,:-1]
-			for i in range(len(self.fit_params)):
-				self.posterior[self.fit_params[i]] = self.posterior["samples"][:,i]
-
-
-
 	def get_post_info(self):
 		# Calculates a whole bunch of useful posterior quantities from the MultiNest output. 
 
 		if "sfh" not in list(self.posterior):
 
-			self.load_posterior()
-
 			nsamples = self.posterior["samples"].shape[0]
 
 			self.posterior["sfh"] = np.zeros((self.Model.sfh.ages.shape[0], nsamples))
 			self.posterior["sfr"] = np.zeros(nsamples)
+			self.posterior["mwa"] = np.zeros(nsamples)
 			self.posterior["tmw"] = np.zeros(nsamples)
 			self.posterior["UVJ"] = np.zeros((3, nsamples))
 
@@ -433,7 +460,8 @@ class Fit:
 
 				self.posterior["sfh"][:,i] = self.Model.sfh.sfr 
 				self.posterior["sfr"][i] = self.posterior["sfh"][0,i]
-				self.posterior["tmw"][i] = np.interp(self.model_components["redshift"], z_array, age_at_z) - (10**-9)*np.sum(self.Model.sfh.sfr*self.Model.sfh.ages*self.Model.sfh.age_widths)/np.sum(self.Model.sfh.sfr*self.Model.sfh.age_widths)
+				self.posterior["mwa"][i] = (10**-9)*np.sum(self.Model.sfh.sfr*self.Model.sfh.ages*self.Model.sfh.age_widths)/np.sum(self.Model.sfh.sfr*self.Model.sfh.age_widths)
+				self.posterior["tmw"][i] = np.interp(self.model_components["redshift"], z_array, age_at_z) - self.posterior["mwa"][i]
 				self.posterior["living_stellar_mass"]["total"][i] = self.Model.living_stellar_mass["total"]
 
 				for comp in self.Model.sfh_components:
@@ -729,7 +757,7 @@ class Fit:
 
 
 
-	def plot_sfh_post(self, sfh_ax, style="smooth", colorscheme="bw"):
+	def plot_sfh_post(self, sfh_ax, style="smooth", colorscheme="bw", variable="sfr"):
 
 		color1 = "black"
 		color2 = "gray"
@@ -737,6 +765,25 @@ class Fit:
 		if colorscheme == "irnbru":
 			color1 = "darkorange"
 			color2 = "navajowhite"
+
+		if variable == "sfr":
+			postgrid = self.posterior["sfh"]
+
+		elif variable == "ssfr":
+			self.posterior["ssfr"] = np.zeros_like(self.posterior["sfh"])
+
+			for i in range(self.posterior["sfh"].shape[1]):
+
+				for j in range(chosen_ages.shape[0]):
+
+					if np.sum(self.posterior["sfh"][j:,i]) != 0.:
+						self.posterior["ssfr"][j,i] = np.log10(self.posterior["sfh"][j,i]/np.sum(self.posterior["sfh"][j:,i]*chosen_age_widths[j:]))
+						#print(self.posterior["ssfr"][j,i])
+						#raw_input()
+					else:
+						self.posterior["ssfr"][j,i] = 0.
+
+			postgrid = self.posterior["ssfr"]
 
 		if style == "step":
 			# Generate and populate sfh arrays which allow the SFH to be plotted with straight lines across bins of SFH
@@ -749,20 +796,22 @@ class Fit:
 
 				sfh_x[2*j] = self.Model.sfh.age_lhs[j]
 
-				sfh_y[2*j] = np.median(self.posterior["sfh"][j,:])
-				sfh_y[2*j + 1] = np.median(self.posterior["sfh"][j,:])
+				sfh_y[2*j] = np.median(postgrid[j,:])
+				sfh_y[2*j + 1] = sfh_y[2*j]
 
-				sfh_y_low[2*j] = np.percentile(self.posterior["sfh"][j,:], 16)
-				sfh_y_low[2*j + 1] = np.percentile(self.posterior["sfh"][j,:], 16)
+				sfh_y_low[2*j] = np.percentile(postgrid[j,:], 16)
+				sfh_y_low[2*j + 1] = sfh_y_low[2*j]
 
-				if sfh_y_low[2*j] < 0:
-					sfh_y_low[2*j] = 0.
+				if variable == "sfr":
 
-				if sfh_y_low[2*j+1] < 0:
-					sfh_y_low[2*j+1] = 0.
+					if sfh_y_low[2*j] < 0:
+						sfh_y_low[2*j] = 0.
 
-				sfh_y_high[2*j] = np.percentile(self.posterior["sfh"][j,:], 84)
-				sfh_y_high[2*j + 1] = np.percentile(self.posterior["sfh"][j,:], 84)
+					if sfh_y_low[2*j+1] < 0:
+						sfh_y_low[2*j+1] = 0.
+
+				sfh_y_high[2*j] = np.percentile(postgrid[j,:], 84)
+				sfh_y_high[2*j + 1] = sfh_y_high[2*j]
 
 				if j == self.Model.sfh.sfr.shape[0]-1:
 					sfh_x[-1] = self.Model.sfh.age_lhs[-1] + 2*(self.Model.sfh.ages[-1] - self.Model.sfh.age_lhs[-1])
@@ -771,16 +820,22 @@ class Fit:
 					sfh_x[2*j + 1] = self.Model.sfh.age_lhs[j+1]
 
 			# Plot the SFH
-			sfh_ax.fill_between(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_low, sfh_y_high, color=color2, alpha=0.75)
+			sfh_ax.fill_between(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_low, sfh_y_high, color=color2, alpha=0.75, zorder=10)
 			sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y, color=color1, zorder=10)
-			sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_high, color=color2)
-			sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_low, color=color2)
-			sfh_ax.set_ylim(0, 1.1*np.max(sfh_y_high))
+			sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_high, color=color2, zorder=10)
+			sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - sfh_x*10**-9, sfh_y_low, color=color2, zorder=10)
 
 		elif style == "smooth":
-			sfh_ax.fill_between(np.interp(self.model_components["redshift"], z_array, age_at_z) - self.Model.sfh.ages*10**-9, np.percentile(self.posterior["sfh"], 16, axis=1), np.percentile(self.posterior["sfh"], 84, axis=1), color=color2)
-			sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - self.Model.sfh.ages*10**-9, np.percentile(self.posterior["sfh"], 50, axis=1), color=color1)
-			sfh_ax.set_ylim(0, 1.1*np.max(np.percentile(self.posterior["sfh"], 84, axis=1)))
+			sfh_ax.fill_between(np.interp(self.model_components["redshift"], z_array, age_at_z) - self.Model.sfh.ages*10**-9, np.percentile(postgrid, 16, axis=1), np.percentile(postgrid, 84, axis=1), color=color2)
+			sfh_ax.plot(np.interp(self.model_components["redshift"], z_array, age_at_z) - self.Model.sfh.ages*10**-9, np.percentile(postgrid, 50, axis=1), color=color1)
+
+		if variable == "sfr":
+			sfh_ax.set_ylim(0., np.max([sfh_ax.get_ylim()[1], 1.1*np.max(sfh_y_high)]))
+			sfh_ax.set_ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
+
+		elif variable == "ssfr":
+			sfh_ax.set_ylim(-12.5, -7.5)
+			sfh_ax.set_ylabel("$\mathrm{sSFR\ /\ yr^{-1}}$")
 
 		sfh_ax.set_xlim(np.interp(self.model_components["redshift"], z_array, age_at_z), 0)
 
@@ -790,7 +845,6 @@ class Fit:
 		sfh_ax2.set_xlim(sfh_ax.get_xlim())
 		sfh_ax2.set_xlabel("$\mathrm{Redshift}$")
 
-		sfh_ax.set_ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
 		sfh_ax.set_xlabel("$\mathrm{Age\ of\ Universe\ (Gyr)}$")
 
 		

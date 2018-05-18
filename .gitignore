@@ -1,5 +1,4 @@
-tables/IGM/D_IGM_grid_Inoue14.txt
-backup_stellar_models/*
+tables/igm/d_igm_grid_inoue14.txt
 tables/nebular/cloudy_temp_files/*
 testing/*
 *.fits

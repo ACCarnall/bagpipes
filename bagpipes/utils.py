@@ -47,7 +47,7 @@ logU_grid = np.arange(-4., -1.99, 0.5)
 
 # Controls the grid of ages that models are sampled onto. Sampling more coarsely in age dramatically speeds up the code.
 # Note, you'll need to regenerate the Cloudy emission line models if you change this.
-log_width = 0.1
+log_width = 0.1#0.1
 
 len_ages = int((10.21 - 6)/log_width) + 1
 

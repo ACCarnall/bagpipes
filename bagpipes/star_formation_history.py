@@ -5,6 +5,7 @@ import sys
 import matplotlib.pyplot as plt
 
 from scipy.optimize import fsolve
+from copy import copy, deepcopy
 
 from .utils import *
 
@@ -64,11 +65,15 @@ class Star_Formation_History:
             if component in self.component_types or component[:-1] in self.component_types:
                 self.sfr += self.weight_widths[component]/self.age_widths
 
+        self.sfr_100myr = np.sum(self.sfr[chosen_ages < 10**8.]*chosen_age_widths[chosen_ages < 10**8.])/chosen_age_lhs[chosen_age_lhs < 10**8.][-1]
+
+        self.age_of_universe = np.interp(self.model_components["redshift"], z_array, age_at_z)
+
         # obtain the maximum age (time before observation) for which the ssfr is non-zero in Gyr (for plotting purposes)
         self.maxage = 0.
 
         if np.max(np.isin(list(self.model_components), self.special_component_types)):
-            self.maxage = np.interp(self.model_components["redshift"], z_array, age_at_z)
+            self.maxage = self.age_of_universe
 
         # Hacky prior on dblplaw:tau
         if "dblplaw" in list(self.model_components):
@@ -83,6 +88,7 @@ class Star_Formation_History:
                                         
                     if model_components[component]["age"] > self.maxage:
                         self.maxage = model_components[component]["age"]
+
 
 
 
@@ -250,6 +256,8 @@ class Star_Formation_History:
             
         else:
             widths_delayed[age_ind] = par_dict["age"]*10**9 - self.age_lhs[age_ind]
+
+        #widths_delayed[chosen_ages < 10**8] = 0.
 
         weight_widths = weights_delayed*widths_delayed
         weight_widths /= np.sum(weight_widths)
