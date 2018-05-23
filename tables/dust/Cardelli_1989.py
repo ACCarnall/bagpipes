@@ -30,4 +30,4 @@ wavs = np.logspace(1., 7., num=10000)
 
 cardelli = np.array([wavs, get_cardelli_extinction(wavs)]).T
 
-np.savetxt("Cardelli_1989_MW.txt", cardelli, header="wavs_angstrom A_lambda/A_V")
+np.savetxt("Cardelli_1989.txt", cardelli, header="wavs_angstrom A_lambda/A_V")

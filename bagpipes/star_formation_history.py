@@ -22,7 +22,7 @@ def lognorm_equations(p, consts):
 
 
 
-class Star_Formation_History:
+class star_formation_history:
     """ Generate a star formation history. This class is not intended to be used directly, it should be accessed through Model_Galaxy.
 
     Parameters
