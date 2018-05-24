@@ -28,12 +28,12 @@ if not os.path.exists(install_dir
     make_table()
 
 igm_grid = fits.open(install_dir
-                         + "/tables/igm/d_igm_grid_inoue14.fits")[1].data
+                     + "/tables/igm/d_igm_grid_inoue14.fits")[1].data
 
 igm_redshifts = np.arange(0.0, 10.01, 0.01)
 igm_wavs = np.arange(1.0, 1225.01, 1.0)
 
-# line_labels: array of emission line labels, 
+# line_labels: array of emission line labels
 # line_wavs: array of emission line wavelengths
 label_path = install_dir + "/tables/nebular/cloudy_lines.txt"
 wavs_path = install_dir + "/tables/nebular/cloudy_linewavs.txt"
@@ -145,8 +145,10 @@ def set_model_type(name):
         chosen_age_lhs = age_lhs[model_type]
         chosen_age_widths = age_widths[model_type]
 
-    if not full_age_sampling:
+    if full_age_sampling:
+        chosen_live_frac = live_frac[name][:, 1:].T
 
+    else:
         chosen_live_frac = np.zeros((len(zmet_vals[name]),
                                      chosen_ages.shape[0]))
 

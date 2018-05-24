@@ -6,8 +6,7 @@ from . import utils
 from .star_formation_history import component_types
 
 
-class chemical_evolution_history:
-
+class chemical_enrichment_history:
 
     def __init__(self, model_comp):
 
@@ -20,16 +19,15 @@ class chemical_evolution_history:
 
         for name in list(self.model_comp):
             if name in component_types or name[:-1] in component_types:
-                if (("metallicity dist" in list(self.model_comp[name])) 
+                if (("metallicity dist" in list(self.model_comp[name]))
                         and self.model_comp[name]["metallicity dist"]):
                     self.zmet_weights[name] = self.exp(self.model_comp[name])
 
                 else:
                     self.zmet_weights[name] = self.delta(self.model_comp[name])
 
-
-    """ Delta function metallicity history. """
     def delta(self, comp):
+        """ Delta function metallicity history. """
 
         zmet = comp["metallicity"]
 
@@ -51,9 +49,8 @@ class chemical_evolution_history:
 
         return weights
 
-
-    """ P(Z) = exp(-z/z_mean). Currently no age dependency! """
     def exp(self, comp):
+        """ P(Z) = exp(-z/z_mean). Currently no age dependency! """
 
         mean_zmet = comp["metallicity"]
 
@@ -64,10 +61,8 @@ class chemical_evolution_history:
         factors_hr = (1./mean_zmet)*np.exp(-self.vals_hr/mean_zmet)
 
         for i in range(zmet_weights.shape[0]):
-            lowmask = (vals_hr > self.zmet_lims[i]) 
+            lowmask = (vals_hr > self.zmet_lims[i])
             highmask = (vals_hr < self.zmet_lims[i+1])
             weights[i] = np.sum(0.01*factors_hr[lowmask & highmask])
 
         return weights
-
-

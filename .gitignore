@@ -3,6 +3,7 @@ tables/nebular/cloudy_temp_files/*
 testing/*
 *.fits
 examples/*
+*/test/*
 
 
 #################################
