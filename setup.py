@@ -23,11 +23,11 @@ setup(
 
     author_email='adamc@roe.ac.uk',
 
-    packages=["bagpipes", "tables", "filters"],
+    packages=["bagpipes", "models", "filters"],
     
     include_package_data=True,
     
-    install_requires=['numpy>=1.14.2', "corner", "pymultinest", "matplotlib>=2.2.2", "scipy", "astropy<=2.0.5", "dynesty"],  
+    install_requires=['numpy>=1.14.2', "corner", "pymultinest", "matplotlib>=2.2.2", "scipy", "astropy<=2.0.6", "dynesty", "deepdish"],  
 
     project_urls={
         "GitHub": "https://github.com/ACCarnall/bagpipes",

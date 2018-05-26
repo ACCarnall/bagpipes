@@ -22,21 +22,21 @@ allcloudylinegrids = {}
 allcloudycontgrids = {}
 
 if not os.path.exists(install_dir
-                      + "/tables/igm/d_igm_grid_inoue14.fits"):
+                      + "/models/igm/d_igm_grid_inoue14.fits"):
 
     from .igm_inoue2014 import make_table
     make_table()
 
 igm_grid = fits.open(install_dir
-                     + "/tables/igm/d_igm_grid_inoue14.fits")[1].data
+                     + "/models/igm/d_igm_grid_inoue14.fits")[1].data
 
 igm_redshifts = np.arange(0.0, 10.01, 0.01)
 igm_wavs = np.arange(1.0, 1225.01, 1.0)
 
 # line_labels: array of emission line labels
 # line_wavs: array of emission line wavelengths
-label_path = install_dir + "/tables/nebular/cloudy_lines.txt"
-wavs_path = install_dir + "/tables/nebular/cloudy_linewavs.txt"
+label_path = install_dir + "/models/nebular/cloudy_lines.txt"
+wavs_path = install_dir + "/models/nebular/cloudy_linewavs.txt"
 line_names = np.loadtxt(label_path, dtype="str", delimiter="\t")
 line_wavs = np.loadtxt(wavs_path)
 
@@ -52,7 +52,7 @@ live_frac = {}
 
 model_type = "bc03_miles"
 full_age_sampling = False
-max_zred = 10.
+max_redshift = 10.
 
 logU_grid = np.arange(-4., -1.99, 0.5)
 
@@ -81,14 +81,8 @@ def make_dirs():
     if not os.path.exists(working_dir + "/pipes/plots"):
         os.mkdir(working_dir + "/pipes/plots")
 
-    if not os.path.exists(working_dir + "/pipes/pmn_chains"):
-        os.mkdir(working_dir + "/pipes/pmn_chains")
-
-    if not os.path.exists(working_dir + "/pipes/object_masks"):
-        os.mkdir(working_dir + "/pipes/object_masks")
-
-    if not os.path.exists(working_dir + "/pipes/filters"):
-        os.mkdir(working_dir + "/pipes/filters")
+    if not os.path.exists(working_dir + "/pipes/posterior"):
+        os.mkdir(working_dir + "/pipes/posterior")
 
     if not os.path.exists(working_dir + "/pipes/cats"):
         os.mkdir(working_dir + "/pipes/cats")
@@ -242,7 +236,7 @@ def load_cloudy_grid(zmet_val, logU):
 
     key = str(zmet_val) + str(logU)
 
-    path = install_dir + "/tables/nebular/" + model_type + "/"
+    path = install_dir + "/models/nebular/" + model_type + "/"
     linepath = path + model_type + "_nebular_line_grids.fits"
     contpath = path + model_type + "_nebular_cont_grids.fits"
 

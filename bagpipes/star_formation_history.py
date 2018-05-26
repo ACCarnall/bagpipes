@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 from copy import copy, deepcopy
 
-from .utils import *
+from . import utils
+from . import plotting
 
 component_types = ["burst", "constant", "exponential", "cexp", "delayed", "lognormal", "dblplaw", "lognormalgauss", "custom"]
 special_component_types = ["lognormal", "dblplaw", "lognormalgauss", "custom", "cexp"]
@@ -35,10 +36,6 @@ class star_formation_history:
 
     def __init__(self, model_components):
 
-        self.ages = chosen_ages
-        self.age_lhs = chosen_age_lhs[:-1]
-        self.age_widths = chosen_age_widths
-
         # component_types: List of all possible types of star formation history (SFH) components
         self.component_types = component_types
 
@@ -50,6 +47,8 @@ class star_formation_history:
         # weight_widths: A dictionary which will contain arrays of SSP weights for different SFH components to allow CSPs to be made
         self.weight_widths = {}
         
+        self.age_of_universe = np.interp(self.model_components["redshift"], utils.z_array, utils.age_at_z)
+
         # populate the weight_widths dict with arrays of ssfr values by calling the functions corresponding to the SFH component type
         for component in list(self.model_components):
             if component in self.component_types or component[:-1] in self.component_types:
@@ -58,16 +57,16 @@ class star_formation_history:
                         self.weight_widths[component] = getattr(self, option)(self.model_components[component])
 
         # sfr: an array of total (mass normalised) star formation rate values across all SFH components 
-        self.sfr = np.zeros(len(self.ages))
+        self.sfr = np.zeros(len(utils.chosen_ages))
 
         # sum all of the weight_widths to get the total sfr(t)
         for component in list(self.model_components):
             if component in self.component_types or component[:-1] in self.component_types:
-                self.sfr += self.weight_widths[component]/self.age_widths
+                self.sfr += self.weight_widths[component]/utils.chosen_age_widths
 
-        self.sfr_100myr = np.sum(self.sfr[chosen_ages < 10**8.]*chosen_age_widths[chosen_ages < 10**8.])/chosen_age_lhs[chosen_age_lhs < 10**8.][-1]
+        self.sfr_100myr = np.sum(self.sfr[utils.chosen_ages < 10**8.]*utils.chosen_age_widths[utils.chosen_ages < 10**8.])/utils.chosen_age_lhs[utils.chosen_age_lhs < 10**8.][-1]
 
-        self.age_of_universe = np.interp(self.model_components["redshift"], z_array, age_at_z)
+        self.mass_weighted_age = (10**-9)*np.sum(self.sfr*utils.chosen_ages*utils.chosen_age_widths)/np.sum(self.sfr*utils.chosen_age_widths)
 
         # obtain the maximum age (time before observation) for which the ssfr is non-zero in Gyr (for plotting purposes)
         self.maxage = 0.
@@ -84,7 +83,7 @@ class star_formation_history:
             if component in self.component_types or component[:-1] in self.component_types:
                 if component not in self.special_component_types and component[:-1] not in self.special_component_types:
                     if model_components[component]["age"] == "hubble time":
-                        self.maxage = np.interp(self.model_components["redshift"], z_array, age_at_z)
+                        self.maxage = self.age_of_universe
                                         
                     if model_components[component]["age"] > self.maxage:
                         self.maxage = model_components[component]["age"]
@@ -111,12 +110,12 @@ class star_formation_history:
 
         else:
 
-            widths_burst = np.copy(self.age_widths)
+            widths_burst = np.copy(utils.chosen_age_widths)
             weights_burst = np.zeros(len(widths_burst))
             
-            age_ind = self.ages[self.ages < par_dict["age"]*10**9].shape[0]
+            age_ind = utils.chosen_ages[utils.chosen_ages < par_dict["age"]*10**9].shape[0]
 
-            hiage_factor = ((par_dict["age"]*10**9 - self.ages[age_ind-1])/(self.ages[age_ind] - self.ages[age_ind-1]))
+            hiage_factor = ((par_dict["age"]*10**9 - utils.chosen_ages[age_ind-1])/(utils.chosen_ages[age_ind] - utils.chosen_ages[age_ind-1]))
             lowage_factor = (1. - hiage_factor)
 
             weights_burst[age_ind-1] = lowage_factor
@@ -140,19 +139,19 @@ class star_formation_history:
         if "nefolds" in list(par_dict):    
             par_dict["tau"] = par_dict["age"]/par_dict["nefolds"]
         
-        age_ind = self.ages[self.ages < par_dict["age"]*10**9].shape[0]
+        age_ind = utils.chosen_ages[utils.chosen_ages < par_dict["age"]*10**9].shape[0]
 
-        widths_exponential = np.copy(self.age_widths)
+        widths_exponential = np.copy(utils.chosen_age_widths)
         
         weights_exponential = np.zeros(widths_exponential.shape)
-        weights_exponential[:age_ind+1] = np.exp(-(par_dict["age"]*10**9 - self.ages[:age_ind+1])/(par_dict["tau"]*10**9))
+        weights_exponential[:age_ind+1] = np.exp(-(par_dict["age"]*10**9 - utils.chosen_ages[:age_ind+1])/(par_dict["tau"]*10**9))
 
-        if self.age_lhs[age_ind] - par_dict["age"]*10**9 > 0:
+        if utils.chosen_age_lhs[:-1][age_ind] - par_dict["age"]*10**9 > 0:
             widths_exponential[age_ind] = 0.
-            widths_exponential[age_ind-1] = par_dict["age"]*10**9 - self.age_lhs[age_ind-1]
+            widths_exponential[age_ind-1] = par_dict["age"]*10**9 - utils.chosen_age_lhs[:-1][age_ind-1]
             
         else:
-            widths_exponential[age_ind] = par_dict["age"]*10**9 - self.age_lhs[age_ind]
+            widths_exponential[age_ind] = par_dict["age"]*10**9 - utils.chosen_age_lhs[:-1][age_ind]
 
         weight_widths = weights_exponential*widths_exponential
         weight_widths /= np.sum(weight_widths)
@@ -168,16 +167,14 @@ class star_formation_history:
         T0 = par_dict["T0"]*10**9
         tau = par_dict["tau"]*10**9
         
-        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
+        age_lhs_universe = self.age_of_universe*10**9 - utils.chosen_age_lhs[:-1]
+        ages_universe = self.age_of_universe*10**9 - utils.chosen_ages[age_lhs_universe > 0.]
 
-        age_lhs_universe = age_at_zred - self.age_lhs
-        ages_universe = age_at_zred - self.ages[age_lhs_universe > 0.]
-
-        width_red_factor = (age_at_zred - self.age_lhs[age_lhs_universe > 0.][-1])/(self.age_lhs[age_lhs_universe[age_lhs_universe > 0.].shape[0]] - self.age_lhs[age_lhs_universe > 0.][-1])
+        width_red_factor = (self.age_of_universe*10**9 - utils.chosen_age_lhs[:-1][age_lhs_universe > 0.][-1])/(utils.chosen_age_lhs[:-1][age_lhs_universe[age_lhs_universe > 0.].shape[0]] - utils.chosen_age_lhs[:-1][age_lhs_universe > 0.][-1])
 
         ages_universe[-1] = age_lhs_universe[age_lhs_universe > 0.][-1]/2.
 
-        widths_cexp = np.copy(self.age_widths)
+        widths_cexp = np.copy(utils.chosen_age_widths)
 
         widths_cexp[-1] *= width_red_factor
        
@@ -204,32 +201,32 @@ class star_formation_history:
         if par_dict["agemin"] > par_dict["age"]:
             sys.exit("Minimum constant age exceeded maximum.")
         
-        age_ind = self.ages[self.ages < par_dict["age"]*10**9].shape[0]
+        age_ind = utils.chosen_ages[utils.chosen_ages < par_dict["age"]*10**9].shape[0]
 
-        age_min_ind = self.ages[self.ages < par_dict["agemin"]*10**9].shape[0]
+        age_min_ind = utils.chosen_ages[utils.chosen_ages < par_dict["agemin"]*10**9].shape[0]
 
-        widths_constant = np.copy(self.age_widths)
+        widths_constant = np.copy(utils.chosen_age_widths)
 
-        if self.age_lhs[age_ind] - par_dict["age"]*10**9 > 0:
+        if utils.chosen_age_lhs[:-1][age_ind] - par_dict["age"]*10**9 > 0:
             widths_constant[age_ind] = 0.
-            widths_constant[age_ind-1] = par_dict["age"]*10**9 - self.age_lhs[age_ind-1]
+            widths_constant[age_ind-1] = par_dict["age"]*10**9 - utils.chosen_age_lhs[:-1][age_ind-1]
             
         else:
-            widths_constant[age_ind] = par_dict["age"]*10**9 - self.age_lhs[age_ind]
+            widths_constant[age_ind] = par_dict["age"]*10**9 - utils.chosen_age_lhs[:-1][age_ind]
 
-        if self.age_lhs[age_min_ind] - par_dict["agemin"]*10**9 < 0:
+        if utils.chosen_age_lhs[:-1][age_min_ind] - par_dict["agemin"]*10**9 < 0:
             widths_constant[age_min_ind-1] = 0.
-            widths_constant[age_min_ind] = self.age_lhs[age_min_ind+1] - par_dict["agemin"]*10**9
+            widths_constant[age_min_ind] = utils.chosen_age_lhs[:-1][age_min_ind+1] - par_dict["agemin"]*10**9
             
         else:
-            widths_constant[age_min_ind-1] = self.age_lhs[age_min_ind] - par_dict["agemin"]*10**9
+            widths_constant[age_min_ind-1] = utils.chosen_age_lhs[:-1][age_min_ind] - par_dict["agemin"]*10**9
 
         if age_min_ind > 0:
             widths_constant[:age_min_ind-1] *= 0.
 
         widths_constant[age_ind+1:] *= 0.
 
-        if age_ind == age_min_ind and self.age_lhs[age_ind] - par_dict["age"]*10**9 < 0 and self.age_lhs[age_min_ind] - par_dict["agemin"]*10**9 < 0:
+        if age_ind == age_min_ind and utils.chosen_age_lhs[:-1][age_ind] - par_dict["age"]*10**9 < 0 and utils.chosen_age_lhs[:-1][age_min_ind] - par_dict["agemin"]*10**9 < 0:
             widths_constant[age_ind] = (par_dict["age"] - par_dict["agemin"])*10**9
 
         weight_widths = widths_constant
@@ -243,19 +240,19 @@ class star_formation_history:
     """ returns an array of sfr(t) values for a delayed component. """
     def delayed(self, par_dict):
 
-        age_ind = self.ages[self.ages < par_dict["age"]*10**9].shape[0]
+        age_ind = utils.chosen_ages[utils.chosen_ages < par_dict["age"]*10**9].shape[0]
 
-        widths_delayed = np.copy(self.age_widths)
+        widths_delayed = np.copy(utils.chosen_age_widths)
        
         weights_delayed = np.zeros(len(widths_delayed))
-        weights_delayed[:age_ind+1] = (self.ages[age_ind+1] - self.ages[:age_ind+1])*np.exp(-(self.ages[age_ind+1] - self.ages[:age_ind+1])/(10**par_dict["tau"]*10**9))
+        weights_delayed[:age_ind+1] = (utils.chosen_ages[age_ind+1] - utils.chosen_ages[:age_ind+1])*np.exp(-(utils.chosen_ages[age_ind+1] - utils.chosen_ages[:age_ind+1])/(10**par_dict["tau"]*10**9))
         
-        if self.age_lhs[age_ind] - par_dict["age"]*10**9 > 0:
+        if utils.chosen_age_lhs[:-1][age_ind] - par_dict["age"]*10**9 > 0:
             widths_delayed[age_ind] = 0.
-            widths_delayed[age_ind-1] = par_dict["age"]*10**9 - self.age_lhs[age_ind-1]
+            widths_delayed[age_ind-1] = par_dict["age"]*10**9 - utils.chosen_age_lhs[:-1][age_ind-1]
             
         else:
-            widths_delayed[age_ind] = par_dict["age"]*10**9 - self.age_lhs[age_ind]
+            widths_delayed[age_ind] = par_dict["age"]*10**9 - utils.chosen_age_lhs[:-1][age_ind]
 
         #widths_delayed[chosen_ages < 10**8] = 0.
 
@@ -270,8 +267,6 @@ class star_formation_history:
     """ returns an array of sfr(t) values for a lognormal component. """
     def lognormal(self, par_dict):
         
-        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
-
         if "tmax" in list(par_dict) and "fwhm" in list(par_dict):
             tmax, fwhm = par_dict["tmax"]*10**9, par_dict["fwhm"]*10**9
 
@@ -283,16 +278,16 @@ class star_formation_history:
         else:
             tau, T0 = par_dict["tau"], par_dict["T0"]
 
-        age_lhs_universe = age_at_zred - self.age_lhs
-        ages_universe = age_at_zred - self.ages[age_lhs_universe > 0.]
+        age_lhs_universe = self.age_of_universe*10**9 - utils.chosen_age_lhs[:-1]
+        ages_universe = self.age_of_universe*10**9 - utils.chosen_ages[age_lhs_universe > 0.]
 
-        width_red_factor = (age_at_zred - self.age_lhs[age_lhs_universe > 0.][-1])/(self.age_lhs[age_lhs_universe[age_lhs_universe > 0.].shape[0]] - self.age_lhs[age_lhs_universe > 0.][-1])
+        width_red_factor = (self.age_of_universe*10**9 - utils.chosen_age_lhs[:-1][age_lhs_universe > 0.][-1])/(utils.chosen_age_lhs[:-1][age_lhs_universe[age_lhs_universe > 0.].shape[0]] - utils.chosen_age_lhs[:-1][age_lhs_universe > 0.][-1])
         
         ages_universe[-1] = age_lhs_universe[age_lhs_universe > 0.][-1]/2.
 
         log_ages_universe = np.log(ages_universe)
 
-        widths_lognormal = np.copy(self.age_widths)
+        widths_lognormal = np.copy(utils.chosen_age_widths)
 
         widths_lognormal[-1] *= width_red_factor
        
@@ -312,8 +307,6 @@ class star_formation_history:
     """ returns an array of sfr(t) values for a lognormal component with a gaussian stuck on the end. """
     def lognormalgauss(self, par_dict):
         
-        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
-
         if "tmax" in list(par_dict) and "fwhm" in list(par_dict):
             tmax, fwhm = par_dict["tmax"]*10**9, par_dict["fwhm"]*10**9
 
@@ -325,16 +318,16 @@ class star_formation_history:
         else:
             tau, T0 = par_dict["tau"], par_dict["T0"]
 
-        age_lhs_universe = age_at_zred - self.age_lhs
-        ages_universe = age_at_zred - self.ages[age_lhs_universe > 0.]
+        age_lhs_universe = self.age_of_universe*10**9 - utils.chosen_age_lhs[:-1]
+        ages_universe = self.age_of_universe*10**9 - utils.chosen_ages[age_lhs_universe > 0.]
 
-        width_red_factor = (age_at_zred - self.age_lhs[age_lhs_universe > 0.][-1])/(self.age_lhs[age_lhs_universe[age_lhs_universe > 0.].shape[0]] - self.age_lhs[age_lhs_universe > 0.][-1])
+        width_red_factor = (self.age_of_universe*10**9 - utils.chosen_age_lhs[:-1][age_lhs_universe > 0.][-1])/(utils.chosen_age_lhs[:-1][age_lhs_universe[age_lhs_universe > 0.].shape[0]] - utils.chosen_age_lhs[:-1][age_lhs_universe > 0.][-1])
         
         ages_universe[-1] = age_lhs_universe[age_lhs_universe > 0.][-1]/2.
 
         log_ages_universe = np.log(ages_universe)
 
-        widths_lognormal = np.copy(self.age_widths)
+        widths_lognormal = np.copy(utils.chosen_age_widths)
 
         widths_lognormal[-1] *= width_red_factor
        
@@ -344,7 +337,7 @@ class star_formation_history:
 
 
         weights_gausscomp = np.zeros(widths_lognormal.shape[0])
-        weights_gausscomp[:log_ages_universe.shape[0]] = np.exp(-self.ages[age_lhs_universe > 0.]**2/(par_dict["gausssig"]*10**9)**2)
+        weights_gausscomp[:log_ages_universe.shape[0]] = np.exp(-utils.chosen_ages[age_lhs_universe > 0.]**2/(par_dict["gausssig"]*10**9)**2)
         weight_widths_gausscomp = weights_gausscomp*widths_lognormal
         weight_widths_gausscomp /= np.sum(weight_widths_gausscomp)
         weight_widths_gausscomp *= 10**par_dict["gaussmass"]
@@ -366,16 +359,14 @@ class star_formation_history:
         beta = par_dict["beta"]
         tau = par_dict["tau"]*10**9
         
-        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
+        age_lhs_universe = self.age_of_universe*10**9 - utils.chosen_age_lhs[:-1]
+        ages_universe = self.age_of_universe*10**9 - utils.chosen_ages[age_lhs_universe > 0.]
 
-        age_lhs_universe = age_at_zred - self.age_lhs
-        ages_universe = age_at_zred - self.ages[age_lhs_universe > 0.]
-
-        width_red_factor = (age_at_zred - self.age_lhs[age_lhs_universe > 0.][-1])/(self.age_lhs[age_lhs_universe[age_lhs_universe > 0.].shape[0]] - self.age_lhs[age_lhs_universe > 0.][-1])
+        width_red_factor = (self.age_of_universe*10**9 - utils.chosen_age_lhs[:-1][age_lhs_universe > 0.][-1])/(utils.chosen_age_lhs[:-1][age_lhs_universe[age_lhs_universe > 0.].shape[0]] - utils.chosen_age_lhs[:-1][age_lhs_universe > 0.][-1])
 
         ages_universe[-1] = age_lhs_universe[age_lhs_universe > 0.][-1]/2.
 
-        widths_dblplaw = np.copy(self.age_widths)
+        widths_dblplaw = np.copy(utils.chosen_age_widths)
 
         widths_dblplaw[-1] *= width_red_factor
        
@@ -394,8 +385,6 @@ class star_formation_history:
 
     def custom(self, par_dict):
 
-        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
-
         if isinstance(par_dict["history"], str):
             ages = np.loadtxt(par_dict["history"], usecols=(0,))
             sfr = np.loadtxt(par_dict["history"], usecols=(1,))
@@ -404,44 +393,15 @@ class star_formation_history:
             ages = par_dict["history"][:,0]*10**9
             sfr = par_dict["history"][:,1]
 
-        weights_custom = np.interp(self.ages, ages, sfr, right=0.)
+        weights_custom = np.interp(utils.chosen_ages, ages, sfr, right=0.)
 
-        weight_widths = weights_custom*np.copy(self.age_widths)
+        weight_widths = weights_custom*np.copy(utils.chosen_age_widths)
 
         return weight_widths
 
 
     """ Creates a plot of sfr(t) for this star formation history. """
-    def plot(self, return_fig=False):
+    def plot(self, show=True):
 
-        age_at_zred = np.interp(self.model_components["redshift"], z_array, age_at_z)*10**9
-
-        sfh_x = np.zeros(2*self.ages.shape[0])
-        sfh_y = np.zeros(2*self.sfr.shape[0])
-
-        for j in range(self.sfr.shape[0]):
-
-            sfh_x[2*j] = self.age_lhs[j]
-            if j+1 < self.sfr.shape[0]:
-                sfh_x[2*j + 1] = self.age_lhs[j+1]
-
-            sfh_y[2*j] = self.sfr[j]
-            sfh_y[2*j + 1] = self.sfr[j]
-
-        sfh_x[-2:] = 1.5*10**10
-
-        fig = plt.figure(figsize=(12, 4))
-        plt.plot((age_at_zred - sfh_x)*10**-9, sfh_y, color="black", lw=1.5)
-        plt.ylabel("$\mathrm{SFR\ /\ M_\odot\ yr^{-1}}$")
-        plt.xlabel("$\mathrm{Age\ of\ Universe\ /\ Gyr}$")
-
-        #plt.xlabel("$\mathrm{Time\ before\ observation\ (Gyr)}$")
-        plt.ylim(0, 1.1*np.max(self.sfr))
-        plt.xlim(age_at_zred*10**-9, 0.)
-        #plt.savefig("examplesfh.jpg", bbox_inches="tight")
-
-        if not return_fig:
-            plt.show()
+        return plotting.plot_sfh(self, show=show)
         
-        else:
-            return fig

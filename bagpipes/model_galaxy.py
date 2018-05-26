@@ -14,8 +14,8 @@ from . import plotting
 np.seterr(divide='ignore', invalid='ignore', over="ignore")
 
 
-class Model_Galaxy:
-    """ Build a model galaxy spectrum. Note, at least one of filtlist
+class model_galaxy:
+    """ Build a model galaxy spectrum. Note, at least one of filt_list
     or spec_wavs must be defined.
 
     Parameters
@@ -25,8 +25,8 @@ class Model_Galaxy:
         A dictionary containing information about the model you wish to
         generate.
 
-    filtlist : str - optional
-        The name of the filtlist: a collection of filter files through
+    filt_list : str - optional
+        The name of the filt_list: a collection of filter files through
         which photometric fluxes will be calculated.
 
     spec_wavs : array - optional
@@ -44,14 +44,14 @@ class Model_Galaxy:
         for ergs per second per centimetre squared per angstrom.
     """
 
-    def __init__(self, model_comp, filtlist=None, spec_wavs=None,
+    def __init__(self, model_components, filt_list=None, spec_wavs=None,
                  spec_units="ergscma", phot_units="ergscma"):
 
-        if spec_wavs is None and filtlist is None:
-            sys.exit("Bagpipes: Specify either filtlist or spec_wavs.")
+        if spec_wavs is None and filt_list is None:
+            sys.exit("Bagpipes: Specify either filt_list or spec_wavs.")
 
-        self.model_comp = model_comp
-        self.filtlist = filtlist
+        self.model_comp = model_components
+        self.filt_list = filt_list
         self.spec_wavs = spec_wavs
         self.spec_units = spec_units
         self.phot_units = phot_units
@@ -70,15 +70,15 @@ class Model_Galaxy:
         # UVJ_filt_names: UVJ filter names, see get_restframe_UVJ.
         self.UVJ_filt_names = None
 
-        # Loads filter curves from filtlist and finds max and min wavs.
-        if self.filtlist is not None:
+        # Loads filter curves from filt_list and finds max and min wavs.
+        if self.filt_list is not None:
             self._load_filter_curves()
 
         # Calculate chosen_wavs, a common wavelength sampling.
         self._get_chosen_wavs()
 
         # Resample filter curves to chosen_wavs.
-        if self.filtlist is not None:
+        if self.filt_list is not None:
             self._resample_filter_curves()
 
         # Resample the igm grids onto chosen_wavs.
@@ -111,23 +111,14 @@ class Model_Galaxy:
         self.update(self.model_comp)
 
     def _load_filter_curves(self):
-        """ Loads filter files for the specified filtlist, truncates
+        """ Loads filter files for the specified filt_list, truncates
         zeros from their edges and calculates effective wavelength
         values which are added to eff_wavs. """
 
-        # filterlist: a list of the filter file names associated with
-        # the specified filtlist.
-        self.filt_names = np.loadtxt(working_dir + "/pipes/filters/"
-                                     + self.filtlist + ".filtlist",
-                                     dtype="str")
-
         # self.filt_dict: a dict containing the raw filter files
         self.filt_dict = {}
-        for filt in self.filt_names:
-            self.filt_dict[filt] = np.loadtxt(working_dir
-                                              + "/pipes/filters/"
-                                              + filt,
-                                              usecols=(0, 1))
+        for filt in self.filt_list:
+            self.filt_dict[filt] = np.loadtxt(filt, usecols=(0, 1))
 
             # Get rid of trailing zeros at ends of the filter files
             while self.filt_dict[filt][0, 1] == 0.:
@@ -141,7 +132,7 @@ class Model_Galaxy:
         self.min_phot_wav = 9.9*10**99
         self.max_phot_wav = 0.
 
-        for filt in self.filt_names:
+        for filt in self.filt_list:
             min_wav = (self.filt_dict[filt][0, 0]
                        - 2*(self.filt_dict[filt][1, 0]
                        - self.filt_dict[filt][0, 0]))
@@ -157,11 +148,11 @@ class Model_Galaxy:
                 self.max_phot_wav = max_wav
 
         # eff_wavs: effective wavelengths of each filter curve
-        self.eff_wavs = np.zeros(len(self.filt_names))
+        self.eff_wavs = np.zeros(len(self.filt_list))
 
-        for i in range(len(self.filt_names)):
-            filt = self.filt_names[i]
-            dlambda = make_bins(self.filt_dict[filt][:, 0])[1]
+        for i in range(len(self.filt_list)):
+            filt = self.filt_list[i]
+            dlambda = utils.make_bins(self.filt_dict[filt][:, 0])[1]
             filt_weights = dlambda*self.filt_dict[filt][:, 1]
             self.eff_wavs[i] = np.sqrt(np.sum(filt_weights)
                                        / np.sum(filt_weights
@@ -174,10 +165,10 @@ class Model_Galaxy:
         # filt_rest: An array to contain the rest frame sampled filter
         # profiles used to generate the model photometry.
         self.filt_rest = np.zeros((self.chosen_wavs.shape[0],
-                                   len(self.filt_names)))
+                                   len(self.filt_list)))
 
-        for i in range(len(self.filt_names)):
-            filt = self.filt_names[i]
+        for i in range(len(self.filt_list)):
+            filt = self.filt_list[i]
             self.filt_rest[:, i] = np.interp(self.chosen_wavs,
                                              self.filt_dict[filt][:, 0],
                                              self.filt_dict[filt][:, 1],
@@ -186,10 +177,10 @@ class Model_Galaxy:
         # filt_array: An array to contain the resampled filter profiles
         # used to generate the model photometry.
         self.filt_array = np.zeros((self.chosen_wavs.shape[0],
-                                    len(self.filt_names)))
+                                    len(self.filt_list)))
 
         # model_widths: the widths of the bins with midp chosen_wavs.
-        model_widths = make_bins(self.chosen_wavs)[1]
+        model_widths = utils.make_bins(self.chosen_wavs)[1]
 
         # wav_widths: An array containing the relative widths*wavs
         # for each point in the spectrum.
@@ -203,13 +194,13 @@ class Model_Galaxy:
         x = [1.]
 
         if self.spec_wavs is None:
-            self.max_wavs = [self.min_phot_wav/(1.+max_zred),
+            self.max_wavs = [self.min_phot_wav/(1.+utils.max_redshift),
                              1.01*self.max_phot_wav, 10**8]
 
             self.R = [10., 100., 10.]
 
-        elif self.filtlist is None:
-            self.max_wavs = [self.spec_wavs[0]/(1.+max_zred),
+        elif self.filt_list is None:
+            self.max_wavs = [self.spec_wavs[0]/(1.+utils.max_redshift),
                              self.spec_wavs[-1], 10**8]
 
             self.R = [10., 600., 10.]
@@ -218,8 +209,8 @@ class Model_Galaxy:
             if (self.spec_wavs[0] > self.min_phot_wav
                     and self.spec_wavs[-1] < self.max_phot_wav):
 
-                self.max_wavs = [self.min_phot_wav/(1.+max_zred),
-                                 self.spec_wavs[0]/(1.+max_zred),
+                self.max_wavs = [self.min_phot_wav/(1.+utils.max_redshift),
+                                 self.spec_wavs[0]/(1.+utils.max_redshift),
                                  self.spec_wavs[-1],
                                  self.max_phot_wav, 10**8]
 
@@ -228,7 +219,7 @@ class Model_Galaxy:
             elif (self.spec_wavs[0] < self.min_phot_wav
                       and self.spec_wavs[-1] < self.max_phot_wav):
 
-                self.max_wavs = [self.spec_wavs[0]/(1.+max_zred),
+                self.max_wavs = [self.spec_wavs[0]/(1.+utils.max_redshift),
                                  self.spec_wavs[-1],
                                  self.max_phot_wav, 10**8]
 
@@ -237,8 +228,8 @@ class Model_Galaxy:
             if (self.spec_wavs[0] > self.min_phot_wav
                     and self.spec_wavs[-1] > self.max_phot_wav):
 
-                self.max_wavs = [self.min_phot_wav/(1.+max_zred),
-                                 self.spec_wavs[0]/(1.+max_zred),
+                self.max_wavs = [self.min_phot_wav/(1.+utils.max_redshift),
+                                 self.spec_wavs[0]/(1.+utils.max_redshift),
                                  self.spec_wavs[-1], 10**8]
 
                 self.R = [10., 100., 600., 10.]
@@ -267,17 +258,17 @@ class Model_Galaxy:
                                   self.chosen_wavs[self.igm_mask].shape[0]))
 
         # Resample from the raw grids held in the utils file.
-        for i in range(igm_redshifts.shape[0]):
+        for i in range(utils.igm_redshifts.shape[0]):
             self.igm_cont[i, :] = np.interp(self.chosen_wavs[self.igm_mask],
                                             utils.igm_wavs,
                                             utils.igm_grid[i, :])
 
         # Set up igm_lines to contain a grid of transmission values for
         # emission lines from 912A to 1216A as a function of redshift.
-        self.igm_lines = np.zeros((igm_redshifts.shape[0],
+        self.igm_lines = np.zeros((utils.igm_redshifts.shape[0],
                                    utils.line_wavs.shape[0]))
 
-        for i in range(igm_redshifts.shape[0]):
+        for i in range(utils.igm_redshifts.shape[0]):
             self.igm_lines[i, :] = np.interp(utils.line_wavs, utils.igm_wavs,
                                              utils.igm_grid[i, :],
                                              left=0., right=1.)
@@ -287,14 +278,15 @@ class Model_Galaxy:
         of 1. """
 
         dust_type = self.model_comp["dust"]["type"]
+        dust_path = utils.install_dir + "/models/dust/"
 
         if dust_type == "Calzetti":
-            k_lam = np.loadtxt(install_dir + "/tables/dust/Calzetti_2000.txt")
+            k_lam = np.loadtxt(dust_path + "Calzetti_2000.txt")
 
             return np.interp(wavs, k_lam[:, 0], k_lam[:, 1], right=0)
 
         elif dust_type == "Cardelli":
-            k_lam = np.loadtxt(install_dir + "/tables/dust/Cardelli_1989.txt")
+            k_lam = np.loadtxt(dust_path + "Cardelli_1989.txt")
 
             return np.interp(wavs, k_lam[:, 0], k_lam[:, 1], right=0)
 
@@ -308,7 +300,7 @@ class Model_Galaxy:
         """ Loads stellar grid at specified metallicity, and resamples
         it to chosen_wavs. """
 
-        grid = load_stellar_grid(zmet_ind)
+        grid = utils.load_stellar_grid(zmet_ind)
 
         # Resample model grid onto chosen_wavs.
         grid_res = np.zeros((grid.shape[0], self.chosen_wavs.shape[0]))
@@ -355,7 +347,7 @@ class Model_Galaxy:
 
         # Check relevant stellar grids have been loaded.
         for zmet_val in zmet_vals[zmet_wts != 0.]:
-            if zmet_val not in list(self.stellar_grids):
+            if str(zmet_val) not in list(self.stellar_grids):
                 self._load_stellar_grid(zmet_val)
 
         # Create blank arrays for stellar grids.
@@ -376,8 +368,8 @@ class Model_Galaxy:
 
         # Figure out which nebular grids to use and their weights.
         logU = self.model_comp["nebular"]["logU"]
-        logU_vals = [np.min(utils.logU_grid[logU_grid >= logU]),
-                     np.max(utils.logU_grid[logU_grid < logU])]
+        logU_vals = [np.min(utils.logU_grid[utils.logU_grid >= logU]),
+                     np.max(utils.logU_grid[utils.logU_grid < logU])]
 
         logU_wts = [(logU - logU_vals[0])/(logU_vals[1] - logU_vals[0]), 0.]
         logU_wts[1] = 1. - logU_wts[1]
@@ -421,16 +413,16 @@ class Model_Galaxy:
 
         formed_mass = 10**self.model_comp[name]["massformed"]
 
-        self.masses["living"] += living_mass
-        self.masses["formed"] += formed_mass
-        self.masses[name] = {"living": living_mass, "formed": formed_mass}
+        self.mass["total"]["living"] += living_mass
+        self.mass["total"]["formed"] += formed_mass
+        self.mass[name] = {"living": living_mass, "formed": formed_mass}
 
     def _calculate_photometry(self):
         """ Resamples filter curves onto observed frame wavelengths and
         integrates over them to calculate photometric fluxes. """
         redshifted_wavs = self.chosen_wavs*(1.+self.model_comp["redshift"])
 
-        for i in range(len(self.filt_names)):
+        for i in range(len(self.filt_list)):
             self.filt_array[:, i] = np.interp(redshifted_wavs,
                                               self.chosen_wavs,
                                               self.filt_rest[:, i],
@@ -495,8 +487,8 @@ class Model_Galaxy:
         # ceh: Chemical enrichment history object
         self.ceh = chemical_enrichment_history(self.model_comp)
 
-        # masses: stores component and total stellar masses.
-        self.masses = {"formed": 0., "living": 0.}
+        # mass: stores component and total stellar masses.
+        self.mass = {"total": {"formed": 0., "living": 0.}}
 
         # self.spectrum_full: full spectrum sampled on chosen_wavs
         self.spectrum_full = np.zeros(self.chosen_wavs.shape[0])
@@ -605,10 +597,13 @@ class Model_Galaxy:
         redshift = self.model_comp["redshift"]
 
         if redshift > 0.:
-            igm_ind = igm_redshifts[igm_redshifts < redshift].shape[0]
+            mask = (utils.igm_redshifts < redshift)
+            igm_ind = utils.igm_redshifts[mask].shape[0]
 
-            width = (igm_redshifts[igm_ind] - igm_redshifts[igm_ind-1])
-            hi_zred_factor = (igm_redshifts[igm_ind] - redshift)/width
+            width = (utils.igm_redshifts[igm_ind] 
+                     - utils.igm_redshifts[igm_ind-1])
+
+            hi_zred_factor = (utils.igm_redshifts[igm_ind] - redshift)/width
             low_zred_factor = 1. - hi_zred_factor
 
             # interpolate igm transmission from pre-loaded grid
@@ -660,7 +655,8 @@ class Model_Galaxy:
         if redshift != 0.:
 
             # Unit conversion is Mpc to cm.
-            ldist_cm = 3.086*10**24*np.interp(redshift, z_array, ldist_at_z,
+            ldist_cm = 3.086*10**24*np.interp(redshift, utils.z_array,
+                                              utils.ldist_at_z,
                                               left=0, right=0)
 
             # convert to flux at given redshift in L_sol/s/A/cm^2.
@@ -679,7 +675,7 @@ class Model_Galaxy:
             separate_lines *= 3.826*10**33
 
         # Resample filter profiles onto redshifted model wavelengths
-        if self.filtlist is not None:
+        if self.filt_list is not None:
             self.photometry = self._calculate_photometry()
 
         # Generate the output spectrum if requested
@@ -698,7 +694,8 @@ class Model_Galaxy:
                 self.spectrum = np.array([self.spec_wavs, spec_fluxes]).T
 
         # Apply spectral polynomial if requested
-        if "polynomial" in list(self.model_comp):
+        if (("polynomial" in list(self.model_comp))
+                and (self.spec_wavs is not None)):
 
             poly_coefs = []
 
@@ -729,7 +726,7 @@ class Model_Galaxy:
             self.spectrum[:, 1] /= ((const/self.spectrum[:, 0]
                                      / self.spectrum[:, 0]))
 
-        if self.phot_units == "mujy" and self.filtlist is not None:
+        if self.phot_units == "mujy" and self.filt_list is not None:
             self.photometry /= (const/self.eff_wavs/self.eff_wavs)
 
     def get_restframe_UVJ(self):
@@ -737,13 +734,15 @@ class Model_Galaxy:
 
         if self.UVJ_filt_names is None:
 
-            filt_list_path = install_dir + "/filters/UVJ.filtlist"
+            filt_list_path = utils.install_dir + "/filters/UVJ.filt_list"
             self.UVJ_filt_names = np.loadtxt(filt_list_path, dtype="str")
 
             self.UVJ_filt_array = np.zeros((self.chosen_wavs.shape[0], 3))
 
             for i in range(len(self.UVJ_filt_names)):
-                filt_path = install_dir + "/filters/" + self.UVJ_filt_names[i]
+                filt_path = (utils.install_dir + "/filters/"
+                             + self.UVJ_filt_names[i])
+                
                 filter_raw = np.loadtxt(filt_path, usecols=(0, 1))
 
                 self.UVJ_filt_array[:, i] = np.interp(self.chosen_wavs,

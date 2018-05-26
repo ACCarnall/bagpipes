@@ -1,8 +1,8 @@
-include tables/igm/lyman_series_coefs_inoue_2014_table2.txt
-include tables/dust/*.txt
-include tables/nebular/*.txt
-include tables/nebular/bc03_miles/*.fits
-include tables/stellar/bc03_miles/*.fits
+include models/igm/lyman_series_coefs_inoue_2014_table2.txt
+include models/dust/*.txt
+include models/nebular/*.txt
+include models/nebular/bc03_miles/*.fits
+include models/stellar/bc03_miles/*.fits
 include README.rst 
 include LICENSE.txt
 include filters/UVJ.filtlist

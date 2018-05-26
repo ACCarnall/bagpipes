@@ -12,7 +12,7 @@ from .utils import *
 from matplotlib import rc
 rc('text', usetex=True)
 
-def Compare_Fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
+def compare_fits(fit1, fit2, param_names_tolog=[], truths=None, comp_run="."):
 
     colour1 = "darkorange"
     colour1_2 = "navajowhite"

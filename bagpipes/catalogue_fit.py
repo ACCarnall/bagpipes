@@ -11,13 +11,13 @@ from astropy.io import fits
 from subprocess import call
 
 from .utils import *
-from .galaxy import Galaxy
-from .fit import Fit
+from .galaxy import galaxy
+from .fit import fit
 
 
 
 
-class Catalogue_Fit:
+class catalogue_fit:
 
     """ Fit a model to a catalogue of galaxies.
 

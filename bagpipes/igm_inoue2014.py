@@ -11,7 +11,7 @@ from astropy.io import fits
 
 # N    lambdaj   A_LAF_J_1   A_LAF_J_2   A_LAF_J_3   A_DLA_J_1   A_DLA_J_2
 
-coefs = np.loadtxt(install_dir + "/tables/igm/lyman_series_coefs_inoue_2014_table2.txt")
+coefs = np.loadtxt(install_dir + "/models/igm/lyman_series_coefs_inoue_2014_table2.txt")
 
 
 def get_Inoue14_trans(rest_wavs, z_observed):
@@ -125,10 +125,10 @@ def make_table():
 
     hdulist_igm = fits.HDUList(hdus=[fits.PrimaryHDU(), fits.ImageHDU(name="igm_table", data=d_IGM_grid)])
 
-    if os.path.exists(install_dir + "/tables/igm/d_igm_grid_inoue14.fits"):
-        os.system("rm " + install_dir + "/tables/igm/d_igm_grid_inoue14.fits")
+    if os.path.exists(install_dir + "/models/igm/d_igm_grid_inoue14.fits"):
+        os.system("rm " + install_dir + "/models/igm/d_igm_grid_inoue14.fits")
 
-    hdulist_igm.writeto(install_dir + "/tables/igm/d_igm_grid_inoue14.fits")
+    hdulist_igm.writeto(install_dir + "/models/igm/d_igm_grid_inoue14.fits")
 
 
 
