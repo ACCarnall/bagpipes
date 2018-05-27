@@ -49,7 +49,7 @@ latex_names = {"redshift": "z",
                "0": "\\rm{N}0", "1": "\\rm{N}1", "2": "\\rm{N}2",
                "3": "\\rm{N}3", "4": "\\rm{N}4", "5": "\\rm{N}5",
                "6": "\\rm{N}6", "7": "\\rm{N}7", "8": "\\rm{N}8",
-               "9": "\\rm{N}9","10": "\\rm{N}10",
+               "9": "\\rm{N}9", "10": "\\rm{N}10",
                "hypspec": "\\mathcal{H}_\\rm{spec}",
                "hypphot": "\\mathcal{H}_\\rm{phot}",
                "sfr": "\\rm{SFR}",
@@ -77,18 +77,18 @@ latex_comps = {"dblplaw": "dpl",
                "lognormal": "lnorm"
                }
 
-""" Plot functions are used by the other classes to generate quick-look 
+""" Plot functions are used by the other classes to generate quick-look
 plots. Add functions are used to add details to a passed axis, thus they
 can be used to create a variety of plots either by the plot functions
 or by the user. """
 
 
-def plot_sfh(sfh, show=True):
+def plot_sfh(sfh, show=True, style="smooth"):
     """ Make a quick plot of an individual sfh. """
     fig = plt.figure(figsize=(12, 4))
-    ax = plt.subplot(1,1,1)
+    ax = plt.subplot(1, 1, 1)
 
-    add_sfh(sfh, ax)
+    add_sfh(sfh, ax, style=style)
 
     if show:
         plt.show()
@@ -109,8 +109,9 @@ def plot_model_galaxy(model, show=True):
 
     if model.spec_wavs is not None:
         spec_ax = plt.subplot(gs[0, 0])
-        add_spectrum(model.spectrum, spec_ax, 
-                      z_non_zero=model.model_comp["redshift"])
+        add_spectrum(model.spectrum, spec_ax,
+                     z_non_zero=model.model_comp["redshift"])
+
         axes = [spec_ax]
 
     if (model.filt_list is not None and model.spec_wavs is not None):
@@ -170,7 +171,7 @@ def plot_galaxy(galaxy, show=True, polynomial=None):
 
 def plot_fit(fit, show=False, save=True):
     """ Plot the observational data and posterior from a fit object. """
-    
+
     if "polynomial" in list(fit.posterior):
         median_poly = np.median(fit.posterior["polynomial"], axis=0)
         fig, axes = plot_galaxy(fit.galaxy, show=False, polynomial=median_poly)
@@ -186,9 +187,9 @@ def plot_fit(fit, show=False, save=True):
 
     elif fit.galaxy.photometry_exists:
         add_photometry_posterior(fit, axes[0], zorder=2)
-    
+
     if save:
-        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID 
+        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
                     + "_fit.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")
@@ -202,7 +203,7 @@ def plot_fit(fit, show=False, save=True):
 
 def plot_sfh_post(fit, show=True):
         fig = plt.figure(figsize=(12, 4))
-        ax = plt.subplot(1,1,1)
+        ax = plt.subplot(1, 1, 1)
 
         add_sfh_posterior(fit, ax, style="smooth")
 
@@ -213,17 +214,21 @@ def plot_sfh_post(fit, show=True):
         return fig, ax
 
 
-def add_sfh(sfh, ax, zorder=4):
+def add_sfh(sfh, ax, zorder=4, style="smooth"):
     """ Creates a plot of sfr(t) for a given star-formation history. """
 
-    sfh_x, sfh_y = make_hist_arrays(utils.chosen_age_lhs, sfh.sfr)
-
     # Plot the sfh.
-    ax.plot((sfh.age_of_universe - sfh_x*10**-9), sfh_y, color="black")
+    if style in ["smooth", "both"]:
+        sfr = sfh.sfr["total"]
+        ax.plot((sfh.age_of_universe - sfh.ages)*10**-9, sfr, color="black")
+
+    if style in ["step", "both"]:
+        sfr = sfh.weights["total"]/utils.chosen_age_widths
+        sfh_x, sfh_y = make_hist_arrays(utils.chosen_age_lhs, sfr)
+        ax.plot((sfh.age_of_universe - sfh_x)*10**-9, sfh_y, color="black")
 
     # Set limits.
-    ax.set_ylim(0, 1.1*np.max(sfh.sfr))
-    ax.set_xlim(sfh.age_of_universe, 0.)
+    ax.set_xlim(sfh.age_of_universe*10**-9, 0.)
 
     ax2 = ax.twiny()
     ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], utils.z_array,
@@ -235,7 +240,7 @@ def add_sfh(sfh, ax, zorder=4):
     if tex_on:
         ax.set_ylabel("$\\rm{SFR\\ /\\ M_\\odot\\ \\rm{yr}^{-1}}$")
         ax.set_xlabel("$\\rm{Age\\ of\\ Universe\\ /\\ Gyr}$")
-        ax2.set_xlabel("$\rm{Redshift}$")
+        ax2.set_xlabel("$\\rm{Redshift}$")
 
     else:
         ax.set_ylabel("SFR / M_sol yr^-1")
@@ -244,7 +249,7 @@ def add_sfh(sfh, ax, zorder=4):
 
 
 def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True):
-    """ Add a spectrum to the passed axes. Adds errors if they are 
+    """ Add a spectrum to the passed axes. Adds errors if they are
     included in the spectrum object as a third column. """
 
     # Sort out axis limits
@@ -365,9 +370,9 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
 
 
 def add_observed_photometry_linear(galaxy, ax, zorder=4):
-    """ Adds photometric data to the passed axes without doing any 
+    """ Adds photometric data to the passed axes without doing any
     manipulation of the axes or labels. """
-    
+
     ymax = 1.05*np.max(galaxy.photometry[:, 1]+galaxy.photometry[:, 2])
 
     y_scale = int(np.log10(ymax))-1
@@ -416,7 +421,7 @@ def add_photometry_posterior(fit, ax, zorder=4):
     phot_high = np.percentile(fit.posterior["photometry"], 84, axis=0)
 
     for j in range(fit.model.photometry.shape[0]):
-        phot_band = fit.posterior["photometry"][:,j]
+        phot_band = fit.posterior["photometry"][:, j]
         mask = (phot_band > phot_low[j]) & (phot_band < phot_high[j])
         phot_1sig = phot_band[mask]*10**-y_scale
         wav_array = np.zeros(phot_1sig.shape[0]) + log_eff_wavs[j]
@@ -430,7 +435,7 @@ def add_spectrum_posterior(fit, ax, zorder=4):
 
     y_scale = int(np.log10(ymax))-1
 
-    wavs = fit.model.spectrum[:,0]
+    wavs = fit.model.spectrum[:, 0]
 
     spec_post = fit.posterior["spectrum"]
 
@@ -442,7 +447,7 @@ def add_spectrum_posterior(fit, ax, zorder=4):
     spec_high = np.percentile(spec_post, 84, axis=0)*10**-y_scale
 
     ax.plot(wavs, spec_med, color="sandybrown", zorder=zorder, lw=1.5)
-    ax.fill_between(wavs, spec_low, spec_high, color="sandybrown", 
+    ax.fill_between(wavs, spec_low, spec_high, color="sandybrown",
                     zorder=zorder, alpha=0.75, linewidth=0)
 
 
@@ -478,26 +483,26 @@ def add_sfh_posterior(fit, ax, style="step", colorscheme="bw", variable="sfr"):
 
             for j in range(chosen_ages.shape[0]):
 
-                if np.sum(self.posterior["sfh"][j:,i]) != 0.:
-                    ssfr_post[j,i] = np.log10(sfh_post[j,i]
-                                              / np.sum(sfh_post[j:,i]
-                                              * utils.chosen_age_widths[j:]))
+                if np.sum(self.posterior["sfh"][j:, i]) != 0.:
+                    ssfr_post[j, i] = np.log10(sfh_post[j, i]
+                                               / np.sum(sfh_post[j:, i]
+                                               * utils.chosen_age_widths[j:]))
 
                 else:
-                    ssfr_post[j,i] = 0.
+                    ssfr_post[j, i] = 0.
 
         plot_post = ssfr_post
 
     # Change the x and y values to allow plotting as a histogram instead
     # of a smooth function.
     if style == "step":
-    
+
         step_post = np.zeros((plot_post.shape[0],
-                                  2*plot_post.shape[1]))
+                              2*plot_post.shape[1]))
 
         for j in range(plot_post.shape[0]):
-            plot_x, step_post[j,:] = make_hist_arrays(utils.chosen_age_lhs,
-                                                      plot_post[j,:])
+            plot_x, step_post[j, :] = make_hist_arrays(utils.chosen_age_lhs,
+                                                       plot_post[j, :])
 
         plot_post = step_post
 
@@ -507,7 +512,7 @@ def add_sfh_posterior(fit, ax, style="step", colorscheme="bw", variable="sfr"):
 
     # Plot the SFH
     x = age_of_universe - plot_x*10**-9
-    
+
     ax.plot(x, post_high, color=color2, zorder=5)
     ax.plot(x, post_med, color=color1, zorder=6)
     ax.plot(x, post_low, color=color2, zorder=5)
@@ -550,18 +555,18 @@ def add_sfh_posterior(fit, ax, style="step", colorscheme="bw", variable="sfr"):
 
 
 def plot_poly(fit, style="percentiles", show=True):
-    """ Plot the posterior of the polynomial spectral correction. """ 
+    """ Plot the posterior of the polynomial spectral correction. """
 
     fig = plt.figure()
-    ax = plt.subplot(1,1,1)
+    ax = plt.subplot(1, 1, 1)
 
-    wavs = fit.model.spectrum[:,0]
+    wavs = fit.model.spectrum[:, 0]
     poly_post = np.ones_like(fit.posterior["polynomial"]).astype(float)
     poly_post /= fit.posterior["polynomial"]
 
     if style == "individual":
         for i in range(poly_post.shape[0]):
-            plt.plot(wavs, poly_post[i,:], color="gray", alpha=0.05)
+            plt.plot(wavs, poly_post[i, :], color="gray", alpha=0.05)
 
     elif style == "percentiles":
 
@@ -572,7 +577,7 @@ def plot_poly(fit, style="percentiles", show=True):
         ax.plot(wavs, poly_post_low, color="navajowhite", zorder=10)
         ax.plot(wavs, poly_post_med, color="darkorange", zorder=10)
         ax.plot(wavs, poly_post_high, color="navajowhite", zorder=10)
-        ax.fill_between(wavs, poly_post_low, poly_post_high, lw=0, 
+        ax.fill_between(wavs, poly_post_low, poly_post_high, lw=0,
                         color="navajowhite", alpha=0.75, zorder=9)
 
     ax.set_xlim(wavs[0], wavs[-1])
@@ -620,7 +625,6 @@ def fix_param_names(fit_params):
 
             new_param = "$" + new_param + "$"
 
-
         else:
             new_param = fit_param
 
@@ -645,7 +649,7 @@ def plot_corner(fit, show=False, save=True):
             samples[:, i] = np.log10(samples[:, i])
 
             if tex_on:
-                labels[i] = "$\rm{log_{10}}(" + labels[i][1:-1] + ")$"
+                labels[i] = "$\\rm{log_{10}}(" + labels[i][1:-1] + ")$"
 
             else:
                 labels[i] = "log_10(" + labels[i] + ")"
@@ -653,7 +657,6 @@ def plot_corner(fit, show=False, save=True):
     fig = corner.corner(samples, labels=labels, quantiles=[0.16, 0.5, 0.84],
                         show_titles=True, title_kwargs={"fontsize": 13},
                         smooth=2., smooth1d=1.5, bins=50)
-
 
     sfh_ax = fig.add_axes([0.65, 0.59, 0.32, 0.15], zorder=10)
     sfr_ax = fig.add_axes([0.82, 0.82, 0.15, 0.15], zorder=10)
@@ -670,21 +673,23 @@ def plot_corner(fit, show=False, save=True):
     fig.text(0.725, 0.978, "$t_\\rm{form}\\ /\\ \\rm{Gyr}$ = $"
              + str(np.round(np.percentile(fit.posterior["tmw"], 50), 2))
              + "^{+" + str(np.round(np.percentile(fit.posterior["tmw"], 84)
-             - np.percentile(fit.posterior["tmw"], 50), 2)) + "}_{-"
-             + str(np.round(np.percentile(fit.posterior["tmw"], 50)
-             - np.percentile(fit.posterior["tmw"], 16), 2)) + "}$",
+                           - np.percentile(fit.posterior["tmw"], 50), 2))
+             + "}_{-" + str(np.round(np.percentile(fit.posterior["tmw"], 50)
+                            - np.percentile(fit.posterior["tmw"], 16), 2))
+             + "}$",
              horizontalalignment="center", size=14)
 
-    fig.text(0.895, 0.978, "$\\rm{SFR\\ /\ M_\\odot\\ \\rm{yr}^{-1}}$ = $"
+    fig.text(0.895, 0.978, "$\\rm{SFR\\ /\\ M_\\odot\\ \\rm{yr}^{-1}}$ = $"
              + str(np.round(np.percentile(fit.posterior["sfr"], 50), 2))
              + "^{+" + str(np.round(np.percentile(fit.posterior["sfr"], 84)
-             - np.percentile(fit.posterior["sfr"], 50), 2)) + "}_{-"
-             + str(np.round(np.percentile(fit.posterior["sfr"], 50)
-             - np.percentile(fit.posterior["sfr"], 16), 2)) + "}$",
+                           - np.percentile(fit.posterior["sfr"], 50), 2))
+             + "}_{-" + str(np.round(np.percentile(fit.posterior["sfr"], 50)
+                            - np.percentile(fit.posterior["sfr"], 16), 2))
+             + "}$",
              horizontalalignment="center", size=14)
 
     if save:
-        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID 
+        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
                     + "_corner.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")
@@ -694,11 +699,11 @@ def plot_corner(fit, show=False, save=True):
         plt.close(fig)
 
     return fig
-    
+
 
 def plot_1d_posterior(fit, show=False, save=True):
 
-    post_quantities = fit.fit_params + ["sfr", "mwa", "tmw"] 
+    post_quantities = fit.fit_params + ["sfr", "mwa", "tmw"]
     n_plots = len(post_quantities)
     n_rows = int(n_plots//4) + 1
 
@@ -709,8 +714,8 @@ def plot_1d_posterior(fit, show=False, save=True):
     for i in range(n_rows):
         for j in range(4):
             if 4*i + (j+1) <= n_plots:
-                axes.append(plt.subplot(gs[i,j]))
-                plt.setp(axes[-1].get_yticklabels(), visible=False) 
+                axes.append(plt.subplot(gs[i, j]))
+                plt.setp(axes[-1].get_yticklabels(), visible=False)
 
     labels = fix_param_names(post_quantities)
 
@@ -729,10 +734,10 @@ def plot_1d_posterior(fit, show=False, save=True):
         hist1d(samples, axes[i], smooth=True)
         axes[i].set_xlabel(labels[i])
         x_range = samples.max() - samples.min()
-        auto_x_ticks(axes[i], nticks=3)      
+        auto_x_ticks(axes[i], nticks=3)
 
     if save:
-        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID 
+        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
                     + "_1d_posterior.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")
@@ -742,6 +747,7 @@ def plot_1d_posterior(fit, show=False, save=True):
         plt.close(fig)
 
     return fig
+
 
 """ Extra ancilliay functions. """
 
@@ -753,7 +759,7 @@ def hist1d(samples, ax, smooth=False):
 
     if smooth:
         ax.plot((x[:-1] + x[1:])/2., y, color="darkorange")
-        ax.fill_between((x[:-1] + x[1:])/2., np.zeros_like(y), y, 
+        ax.fill_between((x[:-1] + x[1:])/2., np.zeros_like(y), y,
                         color="navajowhite", alpha=0.75)
 
     else:
@@ -766,7 +772,7 @@ def hist1d(samples, ax, smooth=False):
 
     ax.set_ylim(bottom=0)
     ax.set_xlim(samples.min(), samples.max())
-    plt.setp(ax.get_yticklabels(), visible=False) 
+    plt.setp(ax.get_yticklabels(), visible=False)
 
 
 def auto_x_ticks(ax, nticks=5.):
@@ -805,7 +811,7 @@ def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
                           + str(y_scale)
                           + "}\\ erg\\ s^{-1}\\ \\AA^{-1}}$")
 
-        if log_x:    
+        if log_x:
             ax.set_xlabel("$\\rm{log_{10}}\\Big(\\lambda / \\rm{\\AA}"
                           + "\\Big)$")
 
@@ -834,5 +840,3 @@ def make_hist_arrays(x, y):
     hist_y = np.array(zip(y, y)).flatten()
 
     return hist_x, hist_y
-
-

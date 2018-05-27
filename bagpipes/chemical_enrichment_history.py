@@ -3,7 +3,6 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 from . import utils
-from .star_formation_history import component_types
 
 
 class chemical_enrichment_history:
@@ -18,13 +17,17 @@ class chemical_enrichment_history:
         self.zmet_weights = {}
 
         for name in list(self.model_comp):
-            if name in component_types or name[:-1] in component_types:
-                if (("metallicity dist" in list(self.model_comp[name]))
-                        and self.model_comp[name]["metallicity dist"]):
-                    self.zmet_weights[name] = self.exp(self.model_comp[name])
+            if (not name.startswith(("dust", "nebular", "polynomial"))
+                    and isinstance(self.model_comp[name], dict)):
 
-                else:
-                    self.zmet_weights[name] = self.delta(self.model_comp[name])
+                    comp = self.model_comp[name]
+                    if (("metallicity dist" in list(comp))
+                            and comp["metallicity dist"]):
+
+                        self.zmet_weights[name] = self.exp(comp)
+
+                    else:
+                        self.zmet_weights[name] = self.delta(comp)
 
     def delta(self, comp):
         """ Delta function metallicity history. """

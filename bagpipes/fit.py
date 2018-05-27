@@ -79,8 +79,8 @@ class fit:
         self.priors = []
 
         # post_path: where the posterior file should be saved.
-        self.post_path = ("pipes/posterior/" + self.run + "/" + 
-                              self.galaxy.ID + ".h5")
+        self.post_path = ("pipes/posterior/" + self.run + "/"
+                          + self.galaxy.ID + ".h5")
 
         # Populate the previous four lists from fit_instructions
         self._process_fit_instructions()
@@ -155,8 +155,7 @@ class fit:
                     # Checks for component parameters to be fixed.
                     elif isinstance(comp_param, (float, str)):
                         if (comp_key is not "type"
-                                and comp_key[-6:] != "_prior"
-                                and comp_param is not "hubble time"):
+                                and comp_key[-6:] != "_prior"):
 
                             self.fixed_values.append(comp_param)
                             self.fixed_params.append(key + ":" + comp_key)
@@ -232,7 +231,7 @@ class fit:
         else:
             walk = 40
 
-        self.sampler = NestedSampler(self._get_lnprob, self._prior_transform, 
+        self.sampler = NestedSampler(self._get_lnprob, self._prior_transform,
                                      self.ndim, nlive=n_live, bound="multi",
                                      sample="rwalk", walks=walk)
 
@@ -277,8 +276,8 @@ class fit:
 
         if "samples" in list(self.posterior):
             print("\nBagpipes: Posterior already loaded from " + self.post_path
-                   + "\nBagpipes: To start from scratch, delete this "
-                   + "file or change run.\n")
+                  + "\nBagpipes: To start from scratch, delete this "
+                  + "file or change run.\n")
 
             return
 
@@ -290,7 +289,7 @@ class fit:
 
         if sampler == "pmn":
             self._fit_pmn(verbose=verbose, n_live=n_live)
-        
+
         elif sampler == "dynesty":
             self._fit_dynesty(verbose=verbose, n_live=n_live)
 
@@ -325,7 +324,7 @@ class fit:
         print("{:<20}".format("Parameter")
               + "{:>31}".format("Posterior percentiles"))
 
-        print("{:<20}".format(""), 
+        print("{:<20}".format(""),
               "{:>10}".format("16th"),
               "{:>10}".format("50th"),
               "{:>10}".format("84th")
@@ -336,7 +335,7 @@ class fit:
         for par in self.fit_params:
             conf_int = self.posterior["confidence_interval"][par]
 
-            print("{:<20}".format(par), 
+            print("{:<20}".format(par),
                   "{:>10.3f}".format(conf_int[0]),
                   "{:>10.3f}".format(self.posterior["median"][par]),
                   "{:>10.3f}".format(conf_int[1])
@@ -376,7 +375,7 @@ class fit:
         # If the age of any model component is greater than the age of
         # the Universe, return a huge negative value for lnprob.
         # This sucks, there must be a better way.
-        if self.model.sfh.maxage > self.model.sfh.age_of_universe:
+        if self.model.sfh.unphysical:
             return -9.99*10**99
 
         if "hypspec" in list(self.model_comp):
@@ -441,12 +440,27 @@ class fit:
             # finds any dependent parameters, which are set to the
             # values of the parameters they depend on.
             for i in range(len(self.fixed_values)):
-                if isinstance(self.fixed_values[i], str):
+                param = self.fixed_values[i]
+                if isinstance(param, str) and param is not "age_of_universe":
                     split_par = self.fixed_params[i].split(":")
                     split_val = self.fixed_values[i].split(":")
 
                     fixed_val = model_comp[split_val[0]][split_val[1]]
                     model_comp[split_par[0]][split_par[1]] = fixed_val
+
+            # Find any parameters fixed to age of the Universe.
+            for i in range(len(self.fixed_values)):
+                if self.fixed_values[i] is "age_of_universe":
+                    age_at_z = np.interp(model_comp["redshift"],
+                                         utils.z_array, utils.age_at_z)
+
+                    split_par = self.fixed_params[i].split(":")
+
+                    if len(split_par) == 0:
+                        model_comp[split_par[0]] = age_at_z
+
+                    else:
+                        model_comp[split_par[0]][split_par[1]] = age_at_z
 
         return model_comp
 
@@ -455,7 +469,7 @@ class fit:
         re-generated. For all posterior quantities the first index runs
         over the posterior samples. """
 
-        # The posterior can be huge, so select a subsample of models to 
+        # The posterior can be huge, so select a subsample of models to
         # calculate, the number of samples is determined by max_size.
         n_post_full = self.posterior["samples"].shape[0]
 
@@ -525,9 +539,9 @@ class fit:
 
             self.posterior["sfh"][i, :] = self.model.sfh.sfr
             self.posterior["sfr"][i] = self.model.sfh.sfr_100myr
-            self.posterior["mwa"][i] = self.model.sfh.mass_weighted_age
-            self.posterior["tmw"][i] = (self.model.sfh.age_of_universe
-                                        - self.model.sfh.mass_weighted_age)
+            self.posterior["mwa"][i] = 10**-9*self.model.sfh.mass_weighted_age
+            self.posterior["tmw"][i] = (self.model.sfh.age_of_universe*10**-9
+                                        - self.posterior["mwa"][i])
 
             self.posterior["UVJ"][i, :] = self.model.get_restframe_UVJ()
 
@@ -555,7 +569,7 @@ class fit:
             samples = self.posterior[self.fit_params[i]]
             best_param = samples[np.argmax(self.posterior["lnprob"])]
             best_params.append(best_param)
-            
+
         self._get_lnprob(best_params, self.ndim, self.ndim)
 
         min_chisq = 0.
@@ -584,7 +598,7 @@ class fit:
         return plotting.plot_fit(self, show=show)
 
     def plot_corner(self, show=False):
-        """ Make a corner plot showing the posterior distributions of 
+        """ Make a corner plot showing the posterior distributions of
         the fitted parameters. """
         return plotting.plot_corner(self, show=show)
 

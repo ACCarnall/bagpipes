@@ -100,9 +100,11 @@ class model_galaxy:
 
         # sfh_components: List of the SFH components for this model
         self.sfh_components = []
-        for key in list(self.model_comp):
-            if (key in component_types or key[:-1] in component_types):
-                self.sfh_components.append(key)
+        for comp in list(self.model_comp):
+            if (not comp.startswith(("dust", "nebular", "polynomial"))
+                    and isinstance(self.model_comp[comp], dict)):
+
+                self.sfh_components.append(comp)
 
         # Check the model has at least one SFH component.
         if len(self.sfh_components) == 0:
@@ -217,7 +219,7 @@ class model_galaxy:
                 self.R = [10., 100., 600., 100., 10.]
 
             elif (self.spec_wavs[0] < self.min_phot_wav
-                      and self.spec_wavs[-1] < self.max_phot_wav):
+                  and self.spec_wavs[-1] < self.max_phot_wav):
 
                 self.max_wavs = [self.spec_wavs[0]/(1.+utils.max_redshift),
                                  self.spec_wavs[-1],
@@ -512,7 +514,7 @@ class model_galaxy:
         for name in self.sfh_components:
 
             # Get relevant star-formation and chemical-enrichment info.
-            sfh_weights = np.expand_dims(self.sfh.weight_widths[name], axis=1)
+            sfh_weights = np.expand_dims(self.sfh.weight[name], axis=1)
             zmet_weights = self.ceh.zmet_weights[name]
 
             # Interpolate stellar grids in logU and metallicity.
@@ -600,7 +602,7 @@ class model_galaxy:
             mask = (utils.igm_redshifts < redshift)
             igm_ind = utils.igm_redshifts[mask].shape[0]
 
-            width = (utils.igm_redshifts[igm_ind] 
+            width = (utils.igm_redshifts[igm_ind]
                      - utils.igm_redshifts[igm_ind-1])
 
             hi_zred_factor = (utils.igm_redshifts[igm_ind] - redshift)/width
@@ -742,7 +744,7 @@ class model_galaxy:
             for i in range(len(self.UVJ_filt_names)):
                 filt_path = (utils.install_dir + "/filters/"
                              + self.UVJ_filt_names[i])
-                
+
                 filter_raw = np.loadtxt(filt_path, usecols=(0, 1))
 
                 self.UVJ_filt_array[:, i] = np.interp(self.chosen_wavs,

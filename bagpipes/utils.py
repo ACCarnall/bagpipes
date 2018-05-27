@@ -24,8 +24,8 @@ allcloudycontgrids = {}
 if not os.path.exists(install_dir
                       + "/models/igm/d_igm_grid_inoue14.fits"):
 
-    from .igm_inoue2014 import make_table
-    make_table()
+    from . import igm_inoue2014
+    igm_inoue2014.make_table()
 
 igm_grid = fits.open(install_dir
                      + "/models/igm/d_igm_grid_inoue14.fits")[1].data
@@ -56,37 +56,6 @@ max_redshift = 10.
 
 logU_grid = np.arange(-4., -1.99, 0.5)
 
-# Controls the grid of ages that models are sampled onto. Sampling more
-# coarsely in age dramatically speeds up the code. Note, you'll need to
-# regenerate the Cloudy emission line models if you change this.
-log_width = 0.1  # 0.05
-
-len_ages = int((10.21 - 6)/log_width) + 1
-
-if not full_age_sampling:
-    chosen_ages = 10.**(6. + log_width*np.arange(len_ages))
-    chosen_age_lhs = np.zeros(len_ages+1)
-    chosen_age_lhs[1:] = 10.**(6.0 + log_width/2.
-                               + log_width*np.arange(len_ages))
-
-    chosen_age_widths = chosen_age_lhs[1:] - chosen_age_lhs[:-1]
-
-
-def make_dirs():
-    """ Make local Bagpipes directory structure. """
-
-    if not os.path.exists(working_dir + "/pipes"):
-        os.mkdir(working_dir + "/pipes")
-
-    if not os.path.exists(working_dir + "/pipes/plots"):
-        os.mkdir(working_dir + "/pipes/plots")
-
-    if not os.path.exists(working_dir + "/pipes/posterior"):
-        os.mkdir(working_dir + "/pipes/posterior")
-
-    if not os.path.exists(working_dir + "/pipes/cats"):
-        os.mkdir(working_dir + "/pipes/cats")
-
 
 def make_bins(midpoints, make_rhs=False):
     """ A function to take an array of bin midpoints and return an
@@ -109,6 +78,38 @@ def make_bins(midpoints, make_rhs=False):
         bin_widths[:-1] = bin_lhs[1:]-bin_lhs[:-1]
 
     return bin_lhs, bin_widths
+
+
+# Controls the grid of ages that models are sampled onto. Sampling more
+# coarsely in age dramatically speeds up the code. Note, you'll need to
+# regenerate the Cloudy emission line models if you change this.
+log_width = 0.1  # 0.05
+
+if not full_age_sampling:
+    chosen_ages = np.arange(6., np.log10(cosmo.age(0.).value) + 9., log_width)
+    chosen_age_lhs = make_bins(chosen_ages, make_rhs=True)[0]
+    chosen_age_lhs[0] = 0.
+    chosen_age_lhs[-1] = np.log10(cosmo.age(0.).value) + 9.
+
+    chosen_ages = 10**chosen_ages
+    chosen_age_lhs = 10**chosen_age_lhs
+    chosen_age_widths = chosen_age_lhs[1:] - chosen_age_lhs[:-1]
+
+
+def make_dirs():
+    """ Make local Bagpipes directory structure. """
+
+    if not os.path.exists(working_dir + "/pipes"):
+        os.mkdir(working_dir + "/pipes")
+
+    if not os.path.exists(working_dir + "/pipes/plots"):
+        os.mkdir(working_dir + "/pipes/plots")
+
+    if not os.path.exists(working_dir + "/pipes/posterior"):
+        os.mkdir(working_dir + "/pipes/posterior")
+
+    if not os.path.exists(working_dir + "/pipes/cats"):
+        os.mkdir(working_dir + "/pipes/cats")
 
 
 def set_model_type(name):
