@@ -31,10 +31,36 @@ A full description of the options which can be included in ``model_components`` 
 
 .. _getting-observables:
 
-Getting observables
--------------------------------------
+Getting observables - photometry
+--------------------------------
+If we want model photometry, it is necessary to define a filter list. This is a list of paths to filter curves, which should contain a column of wavelengths in angstroms followed by a column of transmission fractions. For example,
 
-**Model spectra**
+.. code:: python
+	
+	import bagpipes as pipes
+	import numpy as np
+
+	uvista_filt_list = ["uvista/CFHT_u.txt",
+                    	    "uvista/CFHT_g.txt",
+                    	    "uvista/CFHT_r.txt",
+                    	    "uvista/CFHT_i+i2.txt",
+                    	    "uvista/CFHT_z.txt",
+                    	    "uvista/subaru_z",
+                    	    "uvista/VISTA_Y.txt",
+                    	    "uvista/VISTA_J.txt",
+                    	    "uvista/VISTA_H.txt",
+                    	    "uvista/VISTA_Ks.txt",
+                    	    "uvista/IRAC1",
+                    	    "uvista/IRAC2"]
+
+	model = pipes.Model_Galaxy(model_components, filt_list=uvista_filt_list)
+
+	model.plot()
+
+Photometry is stored in ``model.photometry``, which is a 1D array of flux values in erg/s/cm^2/A in the same order as the filter curves are specified in the filter list. The output flux units can be converted to microJanskys using the ``Model_Galaxy`` keyword argument ``units_phot="mujy"``. 
+
+Getting observables - spectroscopy
+----------------------------------
 
 We can use the ``model_components`` dictionary above to create a model galaxy as follows:
 
@@ -49,28 +75,11 @@ We can use the ``model_components`` dictionary above to create a model galaxy as
 
 We now have a Bagpipes model galaxy! The final command generates a plot displaying the information we have requested, in this case the spectrum between 2500 -- 7500 Angstroms in the observed frame with sampling of 5 Angstroms. 
 
-The output spectrum is stored as ``model.spectrum`` which is a two column numpy array, containing wavelengths in Angstroms and spectral fluxes in erg/s/cm^2/A by default. The output flux units can be converted to microJanskys using the ``Model_Galaxy`` keyword argument ``out_units_spec="mujy"``.
+The output spectrum is stored as ``model.spectrum`` which is a two column numpy array, containing wavelengths in Angstroms and spectral fluxes in erg/s/cm^2/A by default. The output flux units can be converted to microJanskys using the ``Model_Galaxy`` keyword argument ``units_spec="mujy"``.
 
-**Model photometry**
-
-If instead we want model photometry, it is necessary to define a :ref:`filter list <filter-lists>`. Once this has been set up, we can pass the ``Model_Galaxy`` object a keyword argument called ``filtlist``. 
-
-For example, to use the PanSTARRS filter list set up on the :ref:`filter lists <filter-lists>` page:
-
-.. code:: python
-	
-	import bagpipes as pipes
-	import numpy as np
-
-	model = pipes.Model_Galaxy(model_components, filtlist="PanSTARRS")
-
-	model.plot()
-
-Photometry is stored in ``model.photometry``, which is a 1D array of flux values in erg/s/cm^2/A in the same order as the filter curves are specified in the :ref:`filter list <filter-lists>` file. The output flux units can be converted to microJanskys using the ``Model_Galaxy`` keyword argument ``out_units_phot="mujy"``. 
-
-**Emission line fluxes**
-
-if a ``nebular`` component is added to ``model_components``, emission line fluxes will be stored in the ``model.line_fluxes`` dictionary. The list of available emission features is `here <https://github.com/ACCarnall/bagpipes/blob/master/tables/nebular/cloudy_lines.txt>`_. 
+Getting observables - line fluxes
+---------------------------------
+if a ``nebular`` component is added to ``model_components``, emission line fluxes will be stored in the ``model.line_fluxes`` dictionary. The list of available emission features is `here <https://github.com/ACCarnall/bagpipes/blob/master/models/nebular/cloudy_lines.txt>`_. 
 
 Emission line naming conventions are the same as in Cloudy, the names in the above file are the keys fluxes are stored under in ``model.line_fluxes``. For example, the Lyman alpha flux is under:
 
@@ -80,9 +89,11 @@ Emission line naming conventions are the same as in Cloudy, the names in the abo
 
 Emission line fluxes are returned in units of erg/s/cm^2.
 
-**Note on units at redshift zero**
+Note on units at redshift zero
+------------------------------
 
-The units specified above apply at non-zero redshift. At redshift zero the luminosity distance is zero which would lead to a division by zero error. Therefore at redshift zero the code returns erg/s/A for spectra and photometry, and erg/s for emission line fluxes.
+The units specified above apply at non-zero redshift. At redshift zero the luminosity distance is zero which would lead to a division by zero error. Therefore at redshift zero the code returns erg/s/A for spectroscopy and photometry, and erg/s for emission line fluxes.
+
 
 Updating models
 ---------------
@@ -99,7 +110,7 @@ Creating a new ``Model_Galaxy`` is relatively slow, however changing parameter v
 
 Now all of the outputs described :ref:`above <getting-observables>` have been changed to reflect the new parameters. This kind of example could be useful when building a model spectrum for a simulated galaxy from a list of star particles with different ages and masses.
 
-It should be noted that the ``update`` method is designed to deal with changed parameter values, not adding or removing components of the model.
+It should be noted that the ``update`` method is designed to deal with changing numerical parameter values, not with adding or removing components of the model or changing non-numerical values like the dust type.
 
 .. _model-galaxy-api:
 
@@ -107,7 +118,7 @@ Model_Galaxy API documentation
 ----------------------------------
 
 
-.. autoclass:: bagpipes.Model_Galaxy
+.. autoclass:: bagpipes.model_galaxy
 	:members:
 
 .. _full-list:
@@ -186,8 +197,8 @@ The different types of components available and the extra shape parameters they 
 
 
 	constant = {}              # tophat function between some limits
-	constant["age"] = 1.0   # Time since the constant switched on in Gyr (required)
-	constant["agemin"] = 0.5   # Time since the constant switched off in Gyr (required)
+	constant["age_max"] = 1.0   # Time since the constant switched on in Gyr (required)
+	constant["age_min"] = 0.5   # Time since the constant switched off in Gyr (required)
 
 
 	exponential = {}           # Tau model
@@ -216,66 +227,3 @@ The different types of components available and the extra shape parameters they 
 	# containing the path to a file containing the star formation history, or an array 
 	# containing it is expected. In either case the format is a column of ages in Gyr 
 	# followed by a column of star formation rates in Solar masses per year (required).
-
-
-**Putting it all together**
-
-
-Below is an example script for generating a complex Bagpipes model, plotting its star-formation history and an output spectrum:
-
-.. code:: python
-
-	import numpy as np
-	import bagpipes as pipes
-
-	dust = {}
-	dust["type"] = "Calzetti"
-	dust["Av"] = 0.25
-	dust["eta"] = 2.0
-
-	nebular = {}
-	nebular["logU"] = -3.0
-
-	dblplaw = {}
-	dblplaw["alpha"] = 10.
-	dblplaw["beta"] = 0.5
-	dblplaw["tau"] = 7.0
-	dblplaw["massformed"] = 11.
-	dblplaw["metallicity"] = 1.0
-
-	burst1 = {}
-	burst1["age"] = 5.0
-	burst1["massformed"] = 10.
-	burst1["metallicity"] = 0.2
-
-	burst2 = {}
-	burst2["age"] = 1.0
-	burst2["massformed"] = 9.5
-	burst2["metallicity"] = 0.5
-
-	model_comp = {}
-	model_comp["redshift"] = 0.5
-	model_comp["veldisp"] = 300.
-	model_comp["t_bc"] = 0.01
-	model_comp["nebular"] = nebular
-	model_comp["dust"] = dust
-	model_comp["dblplaw"] = dblplaw
-	model_comp["burst1"] = burst1
-	model_comp["burst2"] = burst2
-
-	model = pipes.Model_Galaxy(model_comp, output_specwavs=np.arange(5000., 11000., 5.))
-
-	model.sfh.plot()
-
-	model.plot()
-
-The resulting plots:
-
-.. image:: images/examplesfh.jpg
-.. image:: images/examplespec.jpg
-
-
-
-
-
-

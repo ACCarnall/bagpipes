@@ -9,7 +9,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='bagpipes', 
+    name='bagpipes',
 
     version='0.1.3',
 
@@ -24,10 +24,12 @@ setup(
     author_email='adamc@roe.ac.uk',
 
     packages=["bagpipes", "models", "filters"],
-    
+
     include_package_data=True,
-    
-    install_requires=['numpy>=1.14.2', "corner", "pymultinest", "matplotlib>=2.2.2", "scipy", "astropy<=2.0.6", "dynesty", "deepdish"],  
+
+    install_requires=["numpy>=1.14.2", "corner", "pymultinest",
+                      "matplotlib>=2.2.2", "scipy", "astropy<=2.0.6",
+                      "dynesty", "deepdish"],
 
     project_urls={
         "GitHub": "https://github.com/ACCarnall/bagpipes",

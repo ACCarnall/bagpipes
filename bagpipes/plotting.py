@@ -39,33 +39,37 @@ mpl.rcParams["ytick.direction"] = "in"
 
 latex_names = {"redshift": "z",
                "metallicity": "Z",
-               "massformed": "\\rm{log_{10}(M",
+               "massformed": "\\mathrm{log_{10}(M",
+               "mass": "\\mathrm{log_{10}(M_*",
                "tau": "\\tau",
                "alpha": "\\alpha",
                "beta": "\\beta",
                "age": "a",
                "Av": "{A_V}",
                "veldisp": "\\sigma_{vel}",
-               "0": "\\rm{N}0", "1": "\\rm{N}1", "2": "\\rm{N}2",
-               "3": "\\rm{N}3", "4": "\\rm{N}4", "5": "\\rm{N}5",
-               "6": "\\rm{N}6", "7": "\\rm{N}7", "8": "\\rm{N}8",
-               "9": "\\rm{N}9", "10": "\\rm{N}10",
-               "hypspec": "\\mathcal{H}_\\rm{spec}",
-               "hypphot": "\\mathcal{H}_\\rm{phot}",
-               "sfr": "\\rm{SFR}",
-               "mwa": "\\rm{a_{mw}}",
-               "tmw": "\\rm{t_{form}}"
+               "0": "\\mathrm{N}0", "1": "\\mathrm{N}1", "2": "\\mathrm{N}2",
+               "3": "\\mathrm{N}3", "4": "\\mathrm{N}4", "5": "\\mathrm{N}5",
+               "6": "\\mathrm{N}6", "7": "\\mathrm{N}7", "8": "\\mathrm{N}8",
+               "9": "\\mathrm{N}9", "10": "\\mathrm{N}10",
+               "hypspec": "\\mathcal{H}_\\mathrm{spec}",
+               "hypphot": "\\mathcal{H}_\\mathrm{phot}",
+               "sfr": "\\mathrm{SFR}",
+               "mwa": "\\mathrm{a_{mw}}",
+               "tmw": "\\mathrm{t_{form}}",
+               "ssfr": "\\mathrm{log_{10}(sSFR",
                }
 
 latex_units = {"metallicity": "Z_{\\odot}",
                "massformed": "M_{\\odot})}",
-               "tau": "\\rm{Gyr}",
-               "age": "\\rm{Gyr}",
-               "Av": "\rm{mag}",
-               "veldisp": "\\rm{km/s}",
-               "sfr": "M_\\odot\\ \\rm{yr}^{-1}",
-               "mwa": "\\rm{Gyr}",
-               "tmw": "\\rm{Gyr}"
+               "mass": "M_{\\odot})}",
+               "tau": "\\mathrm{Gyr}",
+               "age": "\\mathrm{Gyr}",
+               "Av": "\\mathrm{mag}",
+               "veldisp": "\\mathrm{km/s}",
+               "sfr": "\\mathrm{M_\\odot\\ yr}^{-1}",
+               "ssfr": "\\mathrm{yr}^{-1})}",
+               "mwa": "\\mathrm{Gyr}",
+               "tmw": "\\mathrm{Gyr}"
                }
 
 latex_comps = {"dblplaw": "dpl",
@@ -149,7 +153,8 @@ def plot_galaxy(galaxy, show=True, polynomial=None):
             plot_spec[:, 1] /= polynomial
 
         add_spectrum(plot_spec, spec_ax)
-        add_observed_photometry_linear(galaxy, spec_ax)
+        if galaxy.photometry_exists:
+            add_observed_photometry_linear(galaxy, spec_ax)
         axes = [spec_ax]
 
     if galaxy.photometry_exists and galaxy.spectrum_exists:
@@ -229,6 +234,7 @@ def add_sfh(sfh, ax, zorder=4, style="smooth"):
 
     # Set limits.
     ax.set_xlim(sfh.age_of_universe*10**-9, 0.)
+    ax.set_ylim(bottom=0.)
 
     ax2 = ax.twiny()
     ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], utils.z_array,
@@ -238,9 +244,9 @@ def add_sfh(sfh, ax, zorder=4, style="smooth"):
 
     # Add labels.
     if tex_on:
-        ax.set_ylabel("$\\rm{SFR\\ /\\ M_\\odot\\ \\rm{yr}^{-1}}$")
-        ax.set_xlabel("$\\rm{Age\\ of\\ Universe\\ /\\ Gyr}$")
-        ax2.set_xlabel("$\\rm{Redshift}$")
+        ax.set_ylabel("$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$")
+        ax.set_xlabel("$\\mathrm{Age\\ of\\ Universe\\ /\\ Gyr}$")
+        ax2.set_xlabel("$\\mathrm{Redshift}$")
 
     else:
         ax.set_ylabel("SFR / M_sol yr^-1")
@@ -337,7 +343,8 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
     ax.set_xlim((np.log10(galaxy.eff_wavs[0])-0.025),
                 (np.log10(galaxy.eff_wavs[-1])+0.025))
 
-    ymax = 1.05*np.max(galaxy.photometry[:, 1]+galaxy.photometry[:, 2])
+    mask = (galaxy.photometry[:, 1] > 0.)
+    ymax = 1.05*np.max((galaxy.photometry[:, 1]+galaxy.photometry[:, 2])[mask])
 
     y_scale = int(np.log10(ymax))-1
 
@@ -393,7 +400,9 @@ def add_observed_photometry_linear(galaxy, ax, zorder=4):
 
 def add_photometry_posterior(fit, ax, zorder=4):
 
-    ymax = 1.05*np.max(fit.galaxy.photometry[:, 1]+fit.galaxy.photometry[:, 2])
+    mask = (fit.galaxy.photometry[:, 1] > 0.)
+    ymax = 1.05*np.max((fit.galaxy.photometry[:, 1]
+                        + fit.galaxy.photometry[:, 2])[mask])
 
     y_scale = int(np.log10(ymax))-1
 
@@ -451,7 +460,7 @@ def add_spectrum_posterior(fit, ax, zorder=4):
                     zorder=zorder, alpha=0.75, linewidth=0)
 
 
-def add_sfh_posterior(fit, ax, style="step", colorscheme="bw", variable="sfr"):
+def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw", variable="sfr"):
 
     color1 = "black"
     color2 = "gray"
@@ -461,7 +470,6 @@ def add_sfh_posterior(fit, ax, style="step", colorscheme="bw", variable="sfr"):
         color2 = "navajowhite"
 
     sfh_post = fit.posterior["sfh"]
-    plot_x = utils.chosen_ages
 
     # Calculate median redshift and median age of Universe
     if "redshift" in list(fit.posterior):
@@ -474,9 +482,19 @@ def add_sfh_posterior(fit, ax, style="step", colorscheme="bw", variable="sfr"):
 
     # set plot_post to the relevant grid of posterior quantities.
     if variable == "sfr":
-        plot_post = sfh_post
+        if style == "smooth":
+            plot_post = sfh_post
+            x = fit.model.sfh.ages
+    """
+        elif style="step":
+            plot_post = np.zeros((plot_post.shape[0],
+                                  2*plot_post.shape[1]))
 
-    if variable == "ssfr":
+            for j in range(plot_post.shape[0]):
+                x, plot_post[j, :] = make_hist_arrays(utils.chosen_age_lhs,
+                                                      plot_post[j, :])
+    
+        if variable == "ssfr":
         ssfr_post = np.zeros_like(self.posterior["sfh"])
 
         for i in range(self.posterior["sfh"].shape[1]):
@@ -492,26 +510,16 @@ def add_sfh_posterior(fit, ax, style="step", colorscheme="bw", variable="sfr"):
                     ssfr_post[j, i] = 0.
 
         plot_post = ssfr_post
-
+    """
     # Change the x and y values to allow plotting as a histogram instead
     # of a smooth function.
-    if style == "step":
-
-        step_post = np.zeros((plot_post.shape[0],
-                              2*plot_post.shape[1]))
-
-        for j in range(plot_post.shape[0]):
-            plot_x, step_post[j, :] = make_hist_arrays(utils.chosen_age_lhs,
-                                                       plot_post[j, :])
-
-        plot_post = step_post
 
     post_low = np.percentile(plot_post, 16, axis=0)
     post_med = np.percentile(plot_post, 50, axis=0)
     post_high = np.percentile(plot_post, 84, axis=0)
 
     # Plot the SFH
-    x = age_of_universe - plot_x*10**-9
+    x = age_of_universe - x*10**-9
 
     ax.plot(x, post_high, color=color2, zorder=5)
     ax.plot(x, post_med, color=color1, zorder=6)
@@ -535,13 +543,13 @@ def add_sfh_posterior(fit, ax, style="step", colorscheme="bw", variable="sfr"):
 
     if tex_on:
         if variable == "sfr":
-            ax.set_ylabel("$\\rm{SFR\\ /\\ M_\\odot\\ \\rm{yr}^{-1}}$")
+            ax.set_ylabel("$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$")
 
         elif variable == "ssfr":
-            ax.set_ylabel("$\\rm{sSFR\\ /\\ \\rm{yr}^{-1}}$")
+            ax.set_ylabel("$\\mathrm{sSFR\\ /\\ \\mathrm{yr}^{-1}}$")
 
-        ax.set_xlabel("$\\rm{Age\\ of\\ Universe\\ /\\ Gyr}$")
-        ax2.set_xlabel("$\\rm{Redshift}$")
+        ax.set_xlabel("$\\mathrm{Age\\ of\\ Universe\\ /\\ Gyr}$")
+        ax2.set_xlabel("$\\mathrm{Redshift}$")
 
     else:
         if variable == "sfr":
@@ -583,8 +591,8 @@ def plot_poly(fit, style="percentiles", show=True):
     ax.set_xlim(wavs[0], wavs[-1])
 
     if tex_on:
-        ax.set_xlabel("$\\lambda / \\rm{\\AA}$")
-        ax.set_ylabel("$\\rm{Spectrum\\ multiplied\\ by}$")
+        ax.set_xlabel("$\\lambda / \\mathrm{\\AA}$")
+        ax.set_ylabel("$\\mathrm{Spectrum\\ multiplied\\ by}$")
 
     else:
         ax.set_xlabel("lambda / A")
@@ -616,9 +624,9 @@ def fix_param_names(fit_params):
 
             if comp is not None:
                 if comp in list(latex_comps):
-                    new_param += "_\\rm{" + latex_comps[comp] + "}"
+                    new_param += "_\\mathrm{" + latex_comps[comp] + "}"
                 else:
-                    new_param += "_\\rm{" + comp + "}"
+                    new_param += "_\\mathrm{" + comp + "}"
 
             if param in list(latex_units):
                 new_param = new_param + "/" + latex_units[param]
@@ -649,7 +657,7 @@ def plot_corner(fit, show=False, save=True):
             samples[:, i] = np.log10(samples[:, i])
 
             if tex_on:
-                labels[i] = "$\\rm{log_{10}}(" + labels[i][1:-1] + ")$"
+                labels[i] = "$\\mathrm{log_{10}}(" + labels[i][1:-1] + ")$"
 
             else:
                 labels[i] = "log_10(" + labels[i] + ")"
@@ -666,11 +674,11 @@ def plot_corner(fit, show=False, save=True):
     hist1d(fit.posterior["tmw"], tmw_ax)
     hist1d(fit.posterior["sfr"], sfr_ax)
 
-    sfr_ax.set_xlabel("$\\rm{SFR\\ /\\ M_\\odot\\ \\rm{yr}^{-1}}$")
+    sfr_ax.set_xlabel("$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$")
 
-    tmw_ax.set_xlabel("$t_\\rm{form}\\ /\\ \\rm{Gyr}$")
+    tmw_ax.set_xlabel("$t_\\mathrm{form}\\ /\\ \\mathrm{Gyr}$")
 
-    fig.text(0.725, 0.978, "$t_\\rm{form}\\ /\\ \\rm{Gyr}$ = $"
+    fig.text(0.725, 0.978, "$t_\\mathrm{form}\\ /\\ \\mathrm{Gyr}$ = $"
              + str(np.round(np.percentile(fit.posterior["tmw"], 50), 2))
              + "^{+" + str(np.round(np.percentile(fit.posterior["tmw"], 84)
                            - np.percentile(fit.posterior["tmw"], 50), 2))
@@ -679,7 +687,8 @@ def plot_corner(fit, show=False, save=True):
              + "}$",
              horizontalalignment="center", size=14)
 
-    fig.text(0.895, 0.978, "$\\rm{SFR\\ /\\ M_\\odot\\ \\rm{yr}^{-1}}$ = $"
+    fig.text(0.895, 0.978,
+             "$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$ = $"
              + str(np.round(np.percentile(fit.posterior["sfr"], 50), 2))
              + "^{+" + str(np.round(np.percentile(fit.posterior["sfr"], 84)
                            - np.percentile(fit.posterior["sfr"], 50), 2))
@@ -703,7 +712,7 @@ def plot_corner(fit, show=False, save=True):
 
 def plot_1d_posterior(fit, show=False, save=True):
 
-    post_quantities = fit.fit_params + ["sfr", "mwa", "tmw"]
+    post_quantities = fit.fit_params
     n_plots = len(post_quantities)
     n_rows = int(n_plots//4) + 1
 
@@ -726,7 +735,7 @@ def plot_1d_posterior(fit, show=False, save=True):
             samples = np.log10(samples)
 
             if tex_on:
-                labels[i] = "$\\rm{log_{10}}(" + labels[i][1:-1] + ")$"
+                labels[i] = "$\\mathrm{log_{10}}(" + labels[i][1:-1] + ")$"
 
             else:
                 labels[i] = "log_10(" + labels[i] + ")"
@@ -752,7 +761,12 @@ def plot_1d_posterior(fit, show=False, save=True):
 """ Extra ancilliay functions. """
 
 
-def hist1d(samples, ax, smooth=False):
+def hist1d(samples, ax, smooth=False, label=None):
+
+    if label is not None:
+        x_label = fix_param_names([label])
+        ax.set_xlabel(x_label[0])
+
 
     y, x = np.histogram(samples, bins=50, range=(samples.min(), samples.max()))
     y = gaussian_filter(y, 1.5)
@@ -772,6 +786,7 @@ def hist1d(samples, ax, smooth=False):
 
     ax.set_ylim(bottom=0)
     ax.set_xlim(samples.min(), samples.max())
+    auto_x_ticks(ax, nticks=3.)
     plt.setp(ax.get_yticklabels(), visible=False)
 
 
@@ -783,7 +798,11 @@ def auto_x_ticks(ax, nticks=5.):
         tick_locs = np.arange(ax.get_xlim()[0] + spacing/2.*width,
                               ax.get_xlim()[1], spacing*width)
 
-        n_decimals = -int(np.log10(tick_locs.max()))+1
+        if tick_locs.max() < 0:
+            n_decimals = 0
+
+        else:
+            n_decimals = -int(np.log10(tick_locs.max()))+1
 
         for i in range(tick_locs.shape[0]):
             tick_locs[i] = np.round(tick_locs[i], decimals=n_decimals)
@@ -802,21 +821,21 @@ def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
 
     if tex_on:
         if z_non_zero:
-            ax.set_ylabel("$\\rm{f_{\\lambda}}\\ \\rm{/\\ 10^{"
+            ax.set_ylabel("$\\mathrm{f_{\\lambda}}\\ \\mathrm{/\\ 10^{"
                           + str(y_scale)
                           + "}\\ erg\\ s^{-1}\\ cm^{-2}\\ \\AA^{-1}}$")
 
         else:
-            ax.set_ylabel("$\\rm{f_{\\lambda}}\\ \\rm{/\\ 10^{"
+            ax.set_ylabel("$\\mathrm{f_{\\lambda}}\\ \\mathrm{/\\ 10^{"
                           + str(y_scale)
                           + "}\\ erg\\ s^{-1}\\ \\AA^{-1}}$")
 
         if log_x:
-            ax.set_xlabel("$\\rm{log_{10}}\\Big(\\lambda / \\rm{\\AA}"
+            ax.set_xlabel("$\\mathrm{log_{10}}\\Big(\\lambda / \\mathrm{\\AA}"
                           + "\\Big)$")
 
         else:
-            ax.set_xlabel("$\\lambda / \\rm{\\AA}$")
+            ax.set_xlabel("$\\lambda / \\mathrm{\\AA}$")
 
     else:
         if z_non_zero:

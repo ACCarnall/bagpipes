@@ -201,5 +201,5 @@ Often we will want to fit a series of different models to data, changing star-fo
 Fit API documentation
 ---------------------
 
-.. autoclass:: bagpipes.Fit
+.. autoclass:: bagpipes.fit
 	:members:

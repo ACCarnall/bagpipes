@@ -89,7 +89,8 @@ class star_formation_history:
             comp_type = self.comp_types[i]
 
             getattr(self, comp_type)(self.sfr[comp], self.model_comp[comp])
-            print(self.sfr[comp])
+
+            # Normalise to the correct mass.
             self.sfr[comp] /= np.sum(self.sfr[comp]*self.age_widths)
             self.sfr[comp] *= 10**self.model_comp[comp]["massformed"]
             self.sfr["total"] += self.sfr[comp]

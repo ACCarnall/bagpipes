@@ -25,23 +25,25 @@ class model_galaxy:
         A dictionary containing information about the model you wish to
         generate.
 
-    filt_list : str - optional
-        The name of the filt_list: a collection of filter files through
-        which photometric fluxes will be calculated.
+    filt_list : list - optional
+        A list of paths to filter curve files, which should contain a 
+        column of wavelengths in angstroms followed by a column of 
+        transmitted fraction values. Only required if photometric output
+        is desired.
 
     spec_wavs : array - optional
         An array of wavelengths at which spectral fluxes should be
-        returned.
+        returned. Only required of spectroscopic output is desired.
 
     spec_units : str - optional
-        The units the output spectrum and photometry will be returned
-        in. Default is "ergscma" for ergs per second per centimetre
-        squared per angstrom, can be set to "mujy" for microjanskys.
+        The units the output spectrum will be returned in. Default is
+        "ergscma" for ergs per second per centimetre squared per
+        angstrom, can also be set to "mujy" for microjanskys.
 
     phot_units : str - optional
-        The units the output spectrum and photometry will be returned
-        in. Default is "mujy" for microjanskys, can be set to "ergscma"
-        for ergs per second per centimetre squared per angstrom.
+        The units the output spectrum will be returned in. Default is
+        "ergscma" for ergs per second per centimetre squared per
+        angstrom, can also be set to "mujy" for microjanskys.
     """
 
     def __init__(self, model_components, filt_list=None, spec_wavs=None,
@@ -477,9 +479,10 @@ class model_galaxy:
 
         return np.array([self.spec_wavs, spec_fluxes]).T
 
-    def update(self, model_comp):
-        """ Updates the model with new attributes passed in the
-        model_comp dictionary. """
+    def update(self, model_components):
+        """ Updates the model to the new numerical values specified in 
+        the new model_components dictionary. Adding/removing components
+        and changing non-numerical values is not supported. """
 
         self.model_comp = model_comp
 
@@ -514,7 +517,7 @@ class model_galaxy:
         for name in self.sfh_components:
 
             # Get relevant star-formation and chemical-enrichment info.
-            sfh_weights = np.expand_dims(self.sfh.weight[name], axis=1)
+            sfh_weights = np.expand_dims(self.sfh.weights[name], axis=1)
             zmet_weights = self.ceh.zmet_weights[name]
 
             # Interpolate stellar grids in logU and metallicity.
@@ -776,6 +779,6 @@ class model_galaxy:
         return UVJ_ABmag
 
     def plot(self, show=True):
-        """ Plot the model. """
+        """ Make a quick plot of the model spectral outputs. """
 
-        return plotting.plot_model_galaxy(self, show=show)
+        return plotting.plot_model_galaxy(self, show=True)

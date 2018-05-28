@@ -45,7 +45,7 @@ The format of the photometry returned by ``load_data`` should be a 2D array with
 Galaxy API documentation
 ------------------------
 
-.. autoclass:: bagpipes.Galaxy
+.. autoclass:: bagpipes.galaxy
 	:members:
 
 	

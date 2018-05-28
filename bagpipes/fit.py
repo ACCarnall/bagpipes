@@ -321,21 +321,21 @@ class fit:
 
     def _print_posterior(self):
         """ Print the 16th, 50th, 84th percentiles of the posterior. """
-        print("{:<20}".format("Parameter")
+        print("{:<25}".format("Parameter")
               + "{:>31}".format("Posterior percentiles"))
 
-        print("{:<20}".format(""),
+        print("{:<25}".format(""),
               "{:>10}".format("16th"),
               "{:>10}".format("50th"),
               "{:>10}".format("84th")
               )
 
-        print("-"*53)
+        print("-"*58)
 
         for par in self.fit_params:
             conf_int = self.posterior["confidence_interval"][par]
 
-            print("{:<20}".format(par),
+            print("{:<25}".format(par),
                   "{:>10.3f}".format(conf_int[0]),
                   "{:>10.3f}".format(self.posterior["median"][par]),
                   "{:>10.3f}".format(conf_int[1])
@@ -495,7 +495,8 @@ class fit:
             self.posterior["mass"][comp]["living"] = np.zeros(n_post)
             self.posterior["mass"][comp]["formed"] = np.zeros(n_post)
 
-        self.posterior["sfh"] = np.zeros((n_post, utils.chosen_ages.shape[0]))
+        self.posterior["sfh"] = np.zeros((n_post,
+                                          self.model.sfh.ages.shape[0]))
         self.posterior["sfr"] = np.zeros(n_post)
         self.posterior["mwa"] = np.zeros(n_post)
         self.posterior["tmw"] = np.zeros(n_post)
@@ -537,7 +538,7 @@ class fit:
                 post_mass[comp]["living"][i] = model_mass[comp]["living"]
                 post_mass[comp]["formed"][i] = model_mass[comp]["formed"]
 
-            self.posterior["sfh"][i, :] = self.model.sfh.sfr
+            self.posterior["sfh"][i, :] = self.model.sfh.sfr["total"]
             self.posterior["sfr"][i] = self.model.sfh.sfr_100myr
             self.posterior["mwa"][i] = 10**-9*self.model.sfh.mass_weighted_age
             self.posterior["tmw"][i] = (self.model.sfh.age_of_universe*10**-9
