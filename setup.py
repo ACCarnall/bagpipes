@@ -11,7 +11,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='bagpipes',
 
-    version='0.1.3',
+    version='0.2.1',
 
     description='Galaxy spectral fitting',
 
@@ -28,7 +28,7 @@ setup(
     include_package_data=True,
 
     install_requires=["numpy>=1.14.2", "corner", "pymultinest",
-                      "matplotlib>=2.2.2", "scipy", "astropy<=2.0.6",
+                      "matplotlib>=2.2.2", "scipy", "astropy",
                       "dynesty", "deepdish"],
 
     project_urls={

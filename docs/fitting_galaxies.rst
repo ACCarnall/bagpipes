@@ -3,9 +3,11 @@
 Fitting observational data
 ==========================
 
-This section describes fitting observational data with Bagpipes. This involves setting up a ``Fit`` object. The two main arguments passed to ``Fit`` are a ``Galaxy`` object (described in the :ref:`inputting observational data <inputting-observational-data>` section) and the ``fit_instructions`` dictionary, which contains instructions on the model to be fitted to the data.
+This section describes fitting observational data with Bagpipes. This involves setting up a ``fit`` object. The two main arguments passed to ``fit`` are a ``galaxy`` object (described in the :ref:`inputting observational data <inputting-observational-data>` section) and the ``fit_instructions`` dictionary, which contains instructions on the model to be fitted to the data.
 
-API documentation for the ``Fit`` class is provided :ref:`here <fit-api>`.
+Check out the `third iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%203%20-%20Fitting%20photometric%20data%20with%20a%20simple%20model.ipynb>`_ for a quick-start guide to fitting observational data and the `fourth <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%204%20-%20Fitting%20more%20complex%20models%20to%20photometry.ipynb>`_ for some more-advanced options.
+
+API documentation for the ``fit`` class is provided :ref:`here <fit-api>`.
 
 .. _fit-instructions:
 
@@ -19,21 +21,23 @@ For example, the simple model built :ref:`here <model-components>` could be fitt
 .. code:: python
 	
 	burst = {}
-	burst["age"] = (0., 13.)           # Vary the age between 0 and 13 Gyr
-	burst["metallicity"] = (0.01, 5.)  # Vary stellar metallicity between 0 and 5 times Solar
-	burst["massformed"] = (0., 13.)    # Vary the Log_10 of total mass formed from 0 to 13.
+	burst["age"] = (0., 15.)           # Vary the age between 0 and 15 Gyr
+	burst["metallicity"] = (0., 2.5)   # Vary stellar metallicity between 0 and 2.5 times Solar
+	burst["massformed"] = (0., 13.)    # Vary the log_10 of total mass formed from 0 to 13.
 
 	fit_instructions = {}
 	fit_instructions["burst"] = burst         # Add the burst sfh component to the model
-	fit_instructions["redshift"] = (0., 10.)  # Vary bserved redshift between zero and ten
+	fit_instructions["redshift"] = (0., 10.)  # Vary observed redshift between 0 and 10
 
-Note that the age will additionally be constrained by the age of the Universe at the fitted redshift. 
+Note that the code also automatically imposes a limit that no stars can form before the big bang, so the upper limit on the prior on burst["age"] will vary with observed redshift.
 
 Combining this with the simple example from the :ref:`inputting observational data <load-data>` section:
 
 .. code:: python
 
 	import bagpipes as pipes
+
+	eg_filt_list = ["list", "of", "filters"]
 
 	def load_data(ID, filtlist):
 	    # Do some stuff to load up data for the object with the correct ID number
@@ -43,9 +47,9 @@ Combining this with the simple example from the :ref:`inputting observational da
 
 	ID_number = "0001"
 
-	galaxy = pipes.Galaxy(ID_number, load_data)
+	galaxy = pipes.galaxy(ID_number, load_data, filt_list=eg_filt_list)
 
-	fit = pipes.Fit(Galaxy, fit_instructions)
+	fit = pipes.fit(galaxy, fit_instructions)
 
 There is no need to vary all of the parameters in ``fit_instructions``. Parameters can still be fixed to single values just like in ``model_components``. Additionally, parameters can be set to mirror other parameters which are fixed or fitted. For example:
 
@@ -53,7 +57,7 @@ There is no need to vary all of the parameters in ``fit_instructions``. Paramete
 
 	burst1 = {}
 	burst1["age"] = 0.1                 # Fix the age to 0.1 Gyr
-	burst1["metallicity"] = (0.01, 5.)  # Vary stellar metallicity between 0 and 5 times Solar
+	burst1["metallicity"] = (0., 2.5)   # Vary stellar metallicity between 0 and 2.5 times Solar
 	burst1["massformed"] = (0., 13.)    # Vary the Log_10 of total mass formed from 0 to 13
 
 	burst2 = {}
@@ -64,46 +68,46 @@ There is no need to vary all of the parameters in ``fit_instructions``. Paramete
 	fit_instructions = {}
 	fit_instructions["burst1"] = burst1       # Add the burst1 sfh component to the model
 	fit_instructions["burst2"] = burst2       # Add the burst2 sfh component to the model
-	fit_instructions["redshift"] = (0., 10.)  # Vary bserved redshift between zero and ten
+	fit_instructions["redshift"] = (0., 10.)  # Vary observed redshift between 0 and 10
 
 
 Adding priors
 -------------
 
-At the moment, all of the parameters in the above example are fitted with uniform priors by default. We can add further keys to the relevant dictionaries to specify different priors. For example, if we wanted a log_10 prior on stellar metallicity:
+At the moment, all of the parameters in the above example are fitted with uniform priors by default. We can add further keys to the relevant dictionaries to specify different priors. For example, if we wanted the prior on stellar metallicity to be uniform in log_10 of the parameter:
 
 .. code:: python
 	
 	burst = {}
-	burst["age"] = (0., 13.)             # Vary the age between 0 and 13 Gyr.
-	burst["metallicity"] = (0.01, 5.)    # Vary metallicity between 0 and 5 times Solar
-	burst["metallicityprior"] = "log_10" # Impose logarithmic prior over the specified range
-	burst["massformed"] = (0., 13.)      # Vary the Log_10 of total mass formed from 0 to 13.
+	burst["age"] = (0., 13.)               # Vary the age between 0 and 13 Gyr.
+	burst["metallicity"] = (0.01, 5.)      # Vary metallicity between 0 and 5 times Solar
+	burst["metallicity_prior"] = "log_10"  # Impose logarithmic prior over the specified range
+	burst["massformed"] = (0., 13.)        # Vary the log_10 of total mass formed from 0 to 13.
 
 The list of currently available priors is:
 
 .. code:: python
 	
 	component = {}
-	component["parameterprior"] = "uniform"  # Uniform prior
-	component["parameterprior"] = "log_10"   # Uniform in log_10(parameter)
-	component["parameterprior"] = "log_e"    # Uniform in log_e(parameter)
-	component["parameterprior"] = "pow_10"   # Uniform in 10**parameter
-	component["parameterprior"] = "1/x"      # Uniform in 1/parameter
-	component["parameterprior"] = "1/x^2"    # Uniform in 1/parameter**2
+	component["parameter_prior"] = "uniform"  # Uniform prior
+	component["parameter_prior"] = "log_10"   # Uniform in log_10(parameter)
+	component["parameter_prior"] = "log_e"    # Uniform in log_e(parameter)
+	component["parameter_prior"] = "pow_10"   # Uniform in 10**parameter
+	component["parameter_prior"] = "recip"    # Uniform in 1/parameter
+	component["parameter_prior"] = "recipsq"  # Uniform in 1/parameter**2
 
-	component["parameterprior"] = "Gaussian" # Gaussian, also requires:
-	component["parameterpriormu"] = 0.5      # Gaussian mean
-	component["parameterpriorsigma"] = 0.1   # Gaussian standard dev.
+	component["parameter_prior"] = "Gaussian" # Gaussian, also requires:
+	component["parameter_prior_mu"] = 0.5      # Gaussian mean
+	component["parameter_prior_sigma"] = 0.1   # Gaussian standard dev.
 
 The limits specified are still applied when a Gaussian prior is used, for example:
 
 .. code:: python
 
 	fit_instructions["redshift"] = (0., 1.)
-	fit_instructions["redshiftprior"] = "Gaussian"
-	fit_instructions["redshiftpriormu"] = 0.7
-	fit_instructions["redshiftpriorsigma"] = 0.2
+	fit_instructions["redshift_prior"] = "Gaussian"
+	fit_instructions["redshift_prior_mu"] = 0.7
+	fit_instructions["redshift_prior_sigma"] = 0.2
 
 will result in a Gaussian prior on redshift centred on 0.7 with standard deviation 0.2 but which is always constrained to be between 0 and 1.
 
@@ -111,95 +115,80 @@ will result in a Gaussian prior on redshift centred on 0.7 with standard deviati
 Running the sampler
 -------------------
 
-The MultiNest sampler can be run using the ``fit`` method of the ``Fit`` class. Nested sampling is similar to MCMC but differs in a few key ways, for example no initial starting parameters are necessary. The ``Fit`` object set up :ref:`above <fit-instructions>` can be run as follows:
+The Dynesty sampler can be run using the ``fit`` method of the ``fit`` class. Nested sampling is similar to MCMC but differs in a few key ways, for example no initial starting parameters are necessary. The ``fit`` object set up :ref:`above <fit-instructions>` can be run as follows:
 
 .. code:: python
 
-	fit.fit(n_live=200, sampling_efficiency="parameter", verbose=True)
+	fit.fit(n_live=400, verbose=True)
 
-The default parameters of ``n_live=400`` and ``sampling_efficiency="model"`` are safest, but can be changed to those shown above to speed things up for testing. 
-
-The ``verbose`` argument is ``False`` by default, but when set to ``True`` returns the progress of the sampler and final confidence intervals when sampling is complete.
+The ``verbose`` argument is ``False`` by default, but when set to ``True`` returns the progress of the sampler. The time taken scales roughly linearly with n_live. For simple models, 200 is probably enough, but the algorithm is more likely to fail.
 
 
 Obtaining fitting results
 -------------------------
 
-Once fitting is complete, Bagpipes will calculate a large number of posterior quantities. Most of these are stored in the ``Fit.posterior`` dictionary. A few key parameters are stored separately:
+Once fitting is complete, Bagpipes will calculate a large number of posterior quantities. These are stored in the ``fit.posterior`` dictionary, with the first axis of every array running over the equally-weighted posterior samples. The basic compliment of posterior quantities is:
 
 .. code:: python
 
-	Fit.min_chisq               # The minimum chi-squared value found
-	Fit.min_chisq_red           # The minimum reduced chi-squared value found
-	Fit.best_fit_params         # The parameter values corresponding to min_chisq
-	Fit.posterior_median        # Posterior median values of fitting parameters
-	Fit.conf_int                # One parameter 1 sigma confidence intervals
-	Fit.global_log_evidence     # Log_e of the Bayesian evidence
-	Fit.global_log_evidence_err # Error on fit.global_log_evidence 
+	list(fit.posterior)
 
-The ordering of the parameters in these lists can be obtained from the ``Fit.fit_params`` list.
+	['lnprob',
+	 'tmw',
+	 'mwa',
+	 'UVJ',
+	 'samples',
+	 'log_evidence_err',
+	 'log_evidence',
+	 'sfr',
+	 'sfh',
+	 'maximum_likelihood',
+	 'min_chisq_reduced',
+	 'confidence_interval',
+	 'median',
+	 'chosen_samples',
+	 'mass',
+	 'spectrum_full',
+	 'photometry',
+	 'min_chisq']
 
-The ``Fit.posterior`` dictionary contains equally-weighted posterior samples for a large number of quantities. The final dimension of each entry in ``Fit.posterior`` always runs across the posterior samples with shape ``nsamples``.
+Additionally posterior distributions for each fit parameter are stored. More information about using the posterior dictionary is available in the `third iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%203%20-%20Fitting%20photometric%20data%20with%20a%20simple%20model.ipynb>`_.
 
-For example:
 
-.. code:: python
+Saved outputs
+-------------
 
-	post = fit.posterior
+The whole of the posterior dictionary is automatically saved in your working directory on the completion of a fit as a hdf5 file under ``pipes/posterior/<ID>.h5``. 
 
-	post[Fit.fit_params[0]] # 1D array of posterior samples for the first fit parameter.
-
-	post["sfr"] # 1D array of star-formation rate values at time of observation
-
-	post["living_stellar_mass"]["total"] # 1D array of total living stellar mass values
-
-	post["living_stellar_mass"][sfh_component] # living stellar mass values for each component
-
-	post["UVJ"] # 2D array with shape (3, nsamples) of rest-frame U, V, J magnitudes.
-
-	post["photometry"] # 2D array with posterior flux values, only if photometry fitted
-
-	post["spectrum"] # 2D array with posterior flux values, only if spectrum fitted
-
-	post["spectrum_full"] # 2D array with posterior flux values for whole internal model spectrum
-
-This list is not exhaustive, extra posterior quantities can be added by the user modifying the source code, or on request in new versions of the code.
-
-As an example of using this output, to obtain the 1 sigma upper and lower bounds and median value for the current star-formation rate we could write:
-
-.. code:: python
-	
-	print np.percentile(fit.posterior["sfr"], 16)
-	print np.median(fit.posterior["sfr"])
-	print np.percentile(fit.posterior["sfr"], 84)
-
+When the same fit is run again this posterior will be loaded by default, if you want to start over you'll need to delete the saved file or change the run (see below).
 
 
 Making output plots
 -------------------
 
-Bagpipes provides two kinds of output plots, firstly spectral fit plots and secondly `corner plots <https://corner.readthedocs.io/en/latest/>`_.
+Bagpipes provides several kinds of diagnostic plots. By default, these are saved in the ``pipes/plots/`` folder.
 
 These can be generated with:
 
 .. code:: python
 
 	fit.plot_fit()
+	fit.plot_sfh()
+	fit.plot_1d_posterior()
 	fit.plot_corner()
 
-and will be saved in the ``pipes/plots/`` subdirectory of your working directory. These plots are designed for diagnostic purposes, rather than as publication-quality figures.
-
+You may find some of the functions available under pipes.plotting helpful when generating your own custom plots
 
 The run keyword argument
 ------------------------
 
-Often we will want to fit a series of different models to data, changing star-formation histories, parameter limits, priors etc. In order to quickly switch between different fitting runs we can specify the ``run`` keyword argument of ``Fit``. This will cause all outputs in ``pipes/pmn_chains/`` and ``pipes/plots/`` to be saved into a further subdirectory with the name passed as ``run``.
+Often we will want to fit a series of different models to data, changing star-formation histories, parameter limits, priors etc. In order to quickly switch between different fitting runs without deleting output posteriors we can specify the ``run`` keyword argument of ``fit``. This will cause all outputs in ``pipes/posterior/`` and ``pipes/plots/`` to be saved into a further subdirectory with the name passed as ``run``, e.g. ``pipes/posterior/<run>/``.
 
 
 .. _fit-api:
 
-Fit API documentation
----------------------
+API documentation: fit
+----------------------
 
 .. autoclass:: bagpipes.fit
 	:members:

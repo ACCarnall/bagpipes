@@ -22,7 +22,7 @@ try:
         tex_on = False
         mpl.rcParams["text.usetex"] = False
 
-except ImportError:
+except:
     print("Bagpipes: Matplotlib import failed, plotting unavailable.")
 
 from . import utils
@@ -44,7 +44,7 @@ latex_names = {"redshift": "z",
                "tau": "\\tau",
                "alpha": "\\alpha",
                "beta": "\\beta",
-               "age": "a",
+               "age": "\\mathrm{Age}",
                "Av": "{A_V}",
                "veldisp": "\\sigma_{vel}",
                "0": "\\mathrm{N}0", "1": "\\mathrm{N}1", "2": "\\mathrm{N}2",
@@ -54,7 +54,7 @@ latex_names = {"redshift": "z",
                "hypspec": "\\mathcal{H}_\\mathrm{spec}",
                "hypphot": "\\mathcal{H}_\\mathrm{phot}",
                "sfr": "\\mathrm{SFR}",
-               "mwa": "\\mathrm{a_{mw}}",
+               "mwa": "\\mathrm{Age_{MW}}",
                "tmw": "\\mathrm{t_{form}}",
                "ssfr": "\\mathrm{log_{10}(sSFR",
                }
@@ -65,7 +65,7 @@ latex_units = {"metallicity": "Z_{\\odot}",
                "tau": "\\mathrm{Gyr}",
                "age": "\\mathrm{Gyr}",
                "Av": "\\mathrm{mag}",
-               "veldisp": "\\mathrm{km/s}",
+               "veldisp": "\\mathrm{km s^{-1}}",
                "sfr": "\\mathrm{M_\\odot\\ yr}^{-1}",
                "ssfr": "\\mathrm{yr}^{-1})}",
                "mwa": "\\mathrm{Gyr}",
@@ -150,7 +150,7 @@ def plot_galaxy(galaxy, show=True, polynomial=None):
         plot_spec = np.copy(galaxy.spectrum)
 
         if polynomial is not None:
-            plot_spec[:, 1] /= polynomial
+            plot_spec[:, 1] *= polynomial
 
         add_spectrum(plot_spec, spec_ax)
         if galaxy.photometry_exists:
@@ -219,18 +219,20 @@ def plot_sfh_post(fit, show=True):
         return fig, ax
 
 
-def add_sfh(sfh, ax, zorder=4, style="smooth"):
+def add_sfh(sfh, ax, zorder=4, style="smooth", color="black"):
     """ Creates a plot of sfr(t) for a given star-formation history. """
 
     # Plot the sfh.
     if style in ["smooth", "both"]:
         sfr = sfh.sfr["total"]
-        ax.plot((sfh.age_of_universe - sfh.ages)*10**-9, sfr, color="black")
+        ax.plot((sfh.age_of_universe - sfh.ages)*10**-9, sfr,
+                color=color, zorder=zorder)
 
     if style in ["step", "both"]:
         sfr = sfh.weights["total"]/utils.chosen_age_widths
         sfh_x, sfh_y = make_hist_arrays(utils.chosen_age_lhs, sfr)
-        ax.plot((sfh.age_of_universe - sfh_x)*10**-9, sfh_y, color="black")
+        ax.plot((sfh.age_of_universe - sfh_x)*10**-9, sfh_y,
+                color=color, zorder=zorder)
 
     # Set limits.
     ax.set_xlim(sfh.age_of_universe*10**-9, 0.)
@@ -340,8 +342,8 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
     """ Adds photometric data to the passed axes. """
 
     # Sort out axis limits
-    ax.set_xlim((np.log10(galaxy.eff_wavs[0])-0.025),
-                (np.log10(galaxy.eff_wavs[-1])+0.025))
+    ax.set_xlim((np.log10(galaxy.eff_wavs.min())-0.025),
+                (np.log10(galaxy.eff_wavs.max())+0.025))
 
     mask = (galaxy.photometry[:, 1] > 0.)
     ymax = 1.05*np.max((galaxy.photometry[:, 1]+galaxy.photometry[:, 2])[mask])
@@ -449,7 +451,7 @@ def add_spectrum_posterior(fit, ax, zorder=4):
     spec_post = fit.posterior["spectrum"]
 
     if "polynomial" in list(fit.posterior):
-        spec_post /= fit.posterior["polynomial"]
+        spec_post *= fit.posterior["polynomial"]
 
     spec_low = np.percentile(spec_post, 16, axis=0)*10**-y_scale
     spec_med = np.percentile(spec_post, 50, axis=0)*10**-y_scale
@@ -569,8 +571,7 @@ def plot_poly(fit, style="percentiles", show=True):
     ax = plt.subplot(1, 1, 1)
 
     wavs = fit.model.spectrum[:, 0]
-    poly_post = np.ones_like(fit.posterior["polynomial"]).astype(float)
-    poly_post /= fit.posterior["polynomial"]
+    poly_post = fit.posterior["polynomial"]
 
     if style == "individual":
         for i in range(poly_post.shape[0]):
@@ -709,12 +710,17 @@ def plot_corner(fit, show=False, save=True):
 
     return fig
 
+def plot_1d_distributions(fit, fit2=False, show=False, save=True):
+    sfh_quantities = ["sfr", "mass", "ssfr", "mwa"]
+    post_quantities = sfh_quantities + fit.fit_params
 
-def plot_1d_posterior(fit, show=False, save=True):
+    labels = fix_param_names(post_quantities)
 
-    post_quantities = fit.fit_params
     n_plots = len(post_quantities)
-    n_rows = int(n_plots//4) + 1
+    n_rows = int(n_plots//4)
+
+    if n_plots % 4:
+        n_rows += 1
 
     fig = plt.figure(figsize=(12, 3*n_rows))
     gs = mpl.gridspec.GridSpec(n_rows, 4, hspace=0.4, wspace=0.2)
@@ -726,23 +732,58 @@ def plot_1d_posterior(fit, show=False, save=True):
                 axes.append(plt.subplot(gs[i, j]))
                 plt.setp(axes[-1].get_yticklabels(), visible=False)
 
-    labels = fix_param_names(post_quantities)
+    try:
+        dist_dict = fit.prior
+
+    except AttributeError:
+        dist_dict = fit.posterior
+
+    if fit2:
+        try:
+            extra_dist_dict = fit2.prior
+
+        except AttributeError:
+            extra_dist_dict = fit2.posterior
 
     for i in range(len(post_quantities)):
-        samples = fit.posterior[post_quantities[i]]
+        name = post_quantities[i]
+        label = labels[i]
 
-        if i < fit.ndim and fit.priors[i] == "log_10":
+        if name == "mass":
+            samples = np.log10(dist_dict["mass"]["total"]["living"])
+
+            if fit2:
+                extra_samples = np.log10(extra_dist_dict["mass"]["total"]["living"])
+
+        else:
+            samples = dist_dict[name]
+
+            if fit2 and name in fit2.fit_params + sfh_quantities:
+                extra_samples = extra_dist_dict[name]
+
+        # Log parameter samples and labels for parameters with log priors
+        if (i > 4 - fit.ndim and fit.priors[i-4] == "log_10" or name in ["sfr"]):
             samples = np.log10(samples)
+            if fit2 and name in fit2.fit_params + sfh_quantities:
+                extra_samples = np.log10(extra_samples)
+
 
             if tex_on:
-                labels[i] = "$\\mathrm{log_{10}}(" + labels[i][1:-1] + ")$"
+                label = "$\\mathrm{log_{10}}(" + label[1:-1] + ")$"
 
             else:
-                labels[i] = "log_10(" + labels[i] + ")"
+                label = "log_10(" + label + ")"
 
-        hist1d(samples, axes[i], smooth=True)
-        axes[i].set_xlabel(labels[i])
-        x_range = samples.max() - samples.min()
+        hist1d(samples, axes[i], smooth=True, percentiles=not fit2)
+
+        if fit2 and name in fit2.fit_params + sfh_quantities:
+            hist1d(extra_samples, axes[i], smooth=True, color="purple",
+                    percentiles=False, zorder=2)
+
+            axes[i].set_xlim(np.min([samples.min(), extra_samples.min()]),
+                             np.max([samples.max(), extra_samples.max()]))
+
+        axes[i].set_xlabel(label)
         auto_x_ticks(axes[i], nticks=3)
 
     if save:
@@ -755,34 +796,47 @@ def plot_1d_posterior(fit, show=False, save=True):
         plt.show()
         plt.close(fig)
 
-    return fig
+    return fig, axes
 
 
-""" Extra ancilliay functions. """
+def hist1d(samples, ax, smooth=False, label=None,
+           color="orange", percentiles=True, zorder=4):
 
+    if color == "orange":
+        color1 = "darkorange"
+        color2 = "navajowhite"
+        alpha = 0.7
 
-def hist1d(samples, ax, smooth=False, label=None):
+    if color == "purple":
+        color1 = "purple"
+        color2 = "purple"
+        alpha = 0.5
 
     if label is not None:
         x_label = fix_param_names([label])
         ax.set_xlabel(x_label[0])
 
+    y, x = np.histogram(samples, bins=50, density=True,
+                        range=(samples.min(), samples.max()))
 
-    y, x = np.histogram(samples, bins=50, range=(samples.min(), samples.max()))
     y = gaussian_filter(y, 1.5)
 
     if smooth:
-        ax.plot((x[:-1] + x[1:])/2., y, color="darkorange")
-        ax.fill_between((x[:-1] + x[1:])/2., np.zeros_like(y), y,
-                        color="navajowhite", alpha=0.75)
+        x_midp = (x[:-1] + x[1:])/2.
+        ax.plot(x_midp, y, color=color1, zorder=zorder-1)
+        ax.fill_between(x_midp, np.zeros_like(y), y,
+                        color=color2, alpha=alpha, zorder=zorder-2)
+        ax.plot([x_midp[0], x_midp[0]], [0, y[0]], color=color1, zorder=zorder-1)
+        ax.plot([x_midp[-1], x_midp[-1]], [0, y[-1]], color=color1, zorder=zorder-1)
 
     else:
         x_hist, y_hist = make_hist_arrays(x, y)
         ax.plot(x_hist, y_hist, color="black")
 
-    for percentile in [16, 50, 84]:
-        ax.axvline(np.percentile(samples, percentile), linestyle="--",
-                   color="black")
+    if percentiles:
+        for percentile in [16, 50, 84]:
+            ax.axvline(np.percentile(samples, percentile), linestyle="--",
+                       color="black", zorder=zorder)
 
     ax.set_ylim(bottom=0)
     ax.set_xlim(samples.min(), samples.max())
@@ -855,7 +909,7 @@ def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
 
 def make_hist_arrays(x, y):
     """ convert x and y arrays for a line plot to a histogram plot. """
-    hist_x = np.array(zip(x[:-1], x[1:])).flatten()
-    hist_y = np.array(zip(y, y)).flatten()
+    hist_x = np.c_[x[:-1], x[1:]].flatten()
+    hist_y = np.c_[y, y].flatten()
 
     return hist_x, hist_y

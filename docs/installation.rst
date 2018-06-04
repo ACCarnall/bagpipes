@@ -1,7 +1,7 @@
 Installation
 ============
 
-The stellar population models in Bagpipes mean it is too large (~200 MB) to be hosted by PyPI. Instead, the packaged source for the most recent version can be downloaded at this link: `bagpipes-0.1.1 <http://dl.dropboxusercontent.com/s/lp2yef3xksrx6vw/bagpipes-0.1.1.tar.gz?dl=0>`_.
+The stellar population models in Bagpipes mean it is too large (~200 MB) to be hosted by PyPI. Instead, the packaged source for the most recent version can be downloaded here: `bagpipes-0.1.1 <http://dl.dropboxusercontent.com/s/lp2yef3xksrx6vw/bagpipes-0.1.1.tar.gz?dl=0>`_.
 
 Once you've downloaded and unzipped the source, in the main directory run:
 
@@ -23,4 +23,4 @@ If that doesn't work either, you can simply add the top level bagpipes directory
 
 Though in this case you will need to manually install the Python package dependencies. 
 
-If you have any further trouble let me know.
+If you have any trouble let me know.

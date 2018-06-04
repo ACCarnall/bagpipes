@@ -28,9 +28,11 @@ class galaxy:
         formatted as an array containing first a column of fluxes in
         microjanskys and a column of flux errors in the same units.
 
-    filtlist : str
-        The name of the filtlist, must be specified if photometry is to
-        be loaded.
+    filt_list : list - optional
+        A list of paths to filter curve files, which should contain a 
+        column of wavelengths in angstroms followed by a column of 
+        transmitted fraction values. Only required if photometric output
+        is desired.
 
     spectrum_exists : bool
         If you do not have a spectrum for this object, set this to

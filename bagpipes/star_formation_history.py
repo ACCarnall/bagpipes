@@ -8,6 +8,7 @@ from copy import copy, deepcopy
 
 from . import utils
 from . import plotting
+from .chemical_enrichment_history import chemical_enrichment_history
 
 
 def lognorm_equations(p, consts):
@@ -32,17 +33,27 @@ class star_formation_history:
     model_comp : dict
         A dictionary containing information about the star formation
         history you wish to generate.
+
+    log_sampling : float (optional)
+        the log of the age sampling of the SFH, defaults to 0.0025.
     """
 
-    def __init__(self, model_comp):
+    def __init__(self, model_comp, log_sampling=0.0025):
+
+        if utils.model_type not in list(utils.ages):
+            utils.set_model_type(utils.model_type)
 
         self.hubble_time = utils.age_at_z[utils.z_array == 0.]
 
-        self.ages = 10**np.arange(6., np.log10(self.hubble_time)+9., 0.0025)
-
-        self.age_lhs = np.zeros(self.ages.shape[0]+1)
-
+        # This has to be a little bigger than the hubble time or the 
+        # unphysical flag is never set for models at z = 0.
+        log_age_max = np.log10(self.hubble_time)+9. + 2*log_sampling
+        self.ages = np.arange(6., log_age_max, log_sampling)
         self.age_lhs = utils.make_bins(self.ages, make_rhs=True)[0]
+
+        self.ages = 10**self.ages
+        self.age_lhs = 10**self.age_lhs
+
         self.age_lhs[0] = 0.
         self.age_lhs[-1] = 10**9*self.hubble_time
 
@@ -71,6 +82,25 @@ class star_formation_history:
 
         self.update(model_comp)
 
+    def _mass_calculations(self):
+        """ Calculate the living and formed stellar masses for a SFH
+        component, also keeps track of the total for all components. """
+
+        for name in self.sfh_components:
+            living_mass_grid = utils.chosen_live_frac
+            
+            zmet_weights = np.expand_dims(self.ceh.zmet_weights[name], 1)
+            sfh_weights = self.weights[name]
+
+            living_mass_by_age = np.sum(zmet_weights*living_mass_grid, axis=0)
+            living_mass = np.sum(np.squeeze(sfh_weights)*living_mass_by_age)
+
+            formed_mass = 10**self.model_comp[name]["massformed"]
+
+            self.mass["total"]["living"] += living_mass
+            self.mass["total"]["formed"] += formed_mass
+            self.mass[name] = {"living": living_mass, "formed": formed_mass}
+
     def update(self, model_comp):
 
         self.model_comp = model_comp
@@ -79,6 +109,12 @@ class star_formation_history:
 
         self.age_of_universe = 10**9*np.interp(self.model_comp["redshift"],
                                                utils.z_array, utils.age_at_z)
+
+        # ceh: Chemical enrichment history object
+        self.ceh = chemical_enrichment_history(self.model_comp)
+
+        # mass: stores component and total stellar masses.
+        self.mass = {"total": {"formed": 0., "living": 0.}}
 
         self.sfr["total"] = np.zeros_like(self.ages)
         self.weights["total"] = np.zeros_like(utils.chosen_ages)
@@ -109,11 +145,17 @@ class star_formation_history:
 
             self.weights["total"] += self.weights[comp]
 
-        self.sfr_100myr = np.mean(self.sfr["total"][self.ages < 10**8])
+        # Calculate living and formed stellar mass contributions.
+        self._mass_calculations()
 
-        weighted_ages = self.weights["total"]*utils.chosen_ages
+        self.sfr_100myr = np.sum(self.sfr["total"][self.ages < 10**8]
+                                 * self.age_widths[self.ages < 10**8])
+
+        self.sfr_100myr /= self.age_widths[self.ages < 10**8].sum()
+
+        weighted_ages = self.sfr["total"]*self.age_widths*self.ages
         self.mass_weighted_age = np.sum(weighted_ages)
-        self.mass_weighted_age /= np.sum(self.weights["total"])
+        self.mass_weighted_age /= np.sum(self.sfr["total"]*self.age_widths)
 
     def burst(self, sfr, param):
         """ A delta function burst of star-formation. """
@@ -124,7 +166,7 @@ class star_formation_history:
         if age > self.age_of_universe:
             self.unphysical = True
 
-    def const(self, sfr, param):
+    def constant(self, sfr, param):
         """ Constant star-formation between some limits. """
 
         age_max = param["age_max"]*10**9

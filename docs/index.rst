@@ -7,13 +7,13 @@ Source and installation
 
 See the `installation <installation.html>`_ page for information on how to download the latest Bagpipes distribution.
 
-Bagpipes is developed at GitHub at `github.com/ACCarnall/bagpipes <https://github.com/ACCarnall/bagpipes>`_.
+Bagpipes is developed at GitHub, view the source `here <https://github.com/ACCarnall/bagpipes>`_.
 
 
 Getting started
 ---------------
 
-The best place to get started with the code is by looking at the `iPython notebook examples <https://github.com/ACCarnall/bagpipes/tree/master/examples>`_.
+The best place to get started with the code is by looking at the `iPython notebook examples <https://github.com/ACCarnall/bagpipes/tree/master/examples>`_. It's a good idea to tackle them in order as the later examples build on the earlier ones.
 
 
 Acknowledgements
@@ -40,5 +40,4 @@ Just a few of the excellent projects Bagpipes relies on are:
    model_galaxies.rst
    loading_galaxies.rst
    fitting_galaxies.rst
-   worked_example_1.rst
 

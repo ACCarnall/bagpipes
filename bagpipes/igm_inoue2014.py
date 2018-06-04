@@ -214,7 +214,7 @@ def get_Inoue14_trans(rest_wavs, z_obs):
 def make_table():
     """ Make up the igm absorption table used by bagpipes. """
 
-    print("BAGPIPES: Generating IGM absorption table, this may take a few"
+    print("BAGPIPES: Generating IGM absorption table, this may take a few "
           + "moments the first time you run the code.")
 
     z_array = np.arange(0.0, 10.01, 0.01)

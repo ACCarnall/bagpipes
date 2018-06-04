@@ -88,11 +88,13 @@ log_width = 0.1  # 0.05
 if not full_age_sampling:
     chosen_ages = np.arange(6., np.log10(cosmo.age(0.).value) + 9., log_width)
     chosen_age_lhs = make_bins(chosen_ages, make_rhs=True)[0]
-    chosen_age_lhs[0] = 0.
-    chosen_age_lhs[-1] = np.log10(cosmo.age(0.).value) + 9.
 
     chosen_ages = 10**chosen_ages
     chosen_age_lhs = 10**chosen_age_lhs
+
+    chosen_age_lhs[0] = 0.
+    chosen_age_lhs[-1] = 10**9*cosmo.age(0.).value
+
     chosen_age_widths = chosen_age_lhs[1:] - chosen_age_lhs[:-1]
 
 
@@ -260,6 +262,3 @@ def load_cloudy_grid(zmet_val, logU):
             sys.exit("Bagpipes: Cloudy and stellar grids have different ages.")
 
     return cloudy_cont_grid, cloudy_line_grid
-
-
-set_model_type(model_type)

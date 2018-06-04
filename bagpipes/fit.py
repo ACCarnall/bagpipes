@@ -12,12 +12,6 @@ from scipy.special import erf, erfinv
 from dynesty import NestedSampler
 from dynesty.utils import resample_equal, simulate_run
 
-try:
-    import pymultinest as pmn
-
-except ImportError:
-    pass
-
 from . import utils
 from . import priors
 from . import plotting
@@ -25,39 +19,24 @@ from . import plotting
 from .model_galaxy import model_galaxy
 
 
-class fit:
-    """ Fit a model to the data contained in a galaxy object.
+
+class fit_info_parser:
+    """ A class which provides an interface between the fit_instructions
+    and model_components dictionaries and samplers.
 
     Parameters
     ----------
-
-    galaxy : bagpipes.galaxy
-        A galaxy object containing the photomeric and/or spectroscopic
-        data you wish to fit.
 
     fit_instructions : dict
         A dictionary containing the details of the model to be fitted
         to the data.
 
-    run : string - optional
-        The subfolder into which outputs will be saved, useful e.g. for
-        fitting more than one model configuration to the same data.
-
     """
 
-    def __init__(self, galaxy, fit_instructions, run="."):
-
-        utils.make_dirs()
+    def __init__(self, fit_instructions):
 
         # Model: contains a model galaxy
         self.model = None
-
-        # run: the name of the set of fits this fit belongs to, used to
-        # set the location of saved output within the pipes directory.
-        self.run = run
-
-        # galaxy: galaxy object, contains the data to be fitted.
-        self.galaxy = galaxy
 
         # fit_instructions: details of the model to be fitted.
         self.fit_info = deepcopy(fit_instructions)
@@ -78,50 +57,8 @@ class fit:
         # priors: A list of the prior on each fitted parameter.
         self.priors = []
 
-        # post_path: where the posterior file should be saved.
-        self.post_path = ("pipes/posterior/" + self.run + "/"
-                          + self.galaxy.ID + ".h5")
-
         # Populate the previous four lists from fit_instructions
         self._process_fit_instructions()
-
-        # posterior: Will be used to store posterior samples.
-        self.posterior = {}
-
-        # If there is already a saved posterior distribution load it.
-        if os.path.exists(self.post_path):
-            print("\nBagpipes: Existing posterior distribution loaded.\n")
-            self.posterior = deepdish.io.load(self.post_path)
-            self._print_posterior()
-            post_med = [self.posterior["median"][p] for p in self.fit_params]
-            self._get_model(post_med)
-
-        # Set up directories to contain the outputs.
-        if self.run is not ".":
-            if not os.path.exists("pipes/posterior/" + self.run):
-                os.mkdir("pipes/posterior/" + self.run)
-
-            if not os.path.exists("pipes/plots/" + self.run):
-                os.mkdir("pipes/plots/" + self.run)
-
-        # Set up variables which will be used when calculating lnprob.
-        self.K_phot, self.K_spec = 0., 0.
-        self.N_spec, self.N_phot = 0., 0.
-        self.hyp_spec, self.hyp_phot = 1., 1.
-        self.chisq_spec, self.chisq_phot = 0., 0.
-
-        # Calculate constant factors to be added to lnprob.
-        if self.galaxy.spectrum_exists:
-            log_error_factors = np.log(2*np.pi*self.galaxy.spectrum[:, 2]**2)
-            self.K_spec = -0.5*np.sum(log_error_factors)
-            self.N_spec = self.galaxy.spectrum.shape[0]
-            self.inv_sigma_sq_spec = 1./self.galaxy.spectrum[:, 2]**2
-
-        if self.galaxy.photometry_exists:
-            log_error_factors = np.log(2*np.pi*self.galaxy.photometry[:, 2]**2)
-            self.K_phot = -0.5*np.sum(log_error_factors)
-            self.N_phot = self.galaxy.photometry.shape[0]
-            self.inv_sigma_sq_phot = 1./self.galaxy.photometry[:, 2]**2
 
     def _process_fit_instructions(self):
         """ Sets up the class by generating relevant variables from the
@@ -194,8 +131,171 @@ class fit:
             utils.max_redshift = self.fixed_values[index] + 0.05
         """
 
+    def _prior_transform(self, cube, ndim=0, nparam=0):
+        """ Transforms from the unit cube to prior volume using the
+        functions in the priors file. """
+
+        for i in range(self.ndim):
+
+            hyper_params = {}
+
+            for key in self.fixed_params:
+
+                key_start = self.fit_params[i] + "_prior_"
+
+                if key.startswith(key_start):
+                    key_end = key[len(key_start):]
+                    index = self.fixed_params.index(key)
+                    hyper_params[key_end] = self.fixed_values[index]
+
+            prior_func = getattr(priors, self.priors[i])
+            cube[i] = prior_func(cube[i], self.fit_limits[i],
+                                 hyper_params=hyper_params)
+
+        return cube
+
+    def _get_model_comp(self, param):
+        """ Turns a parameter vector into a model_comp dict. """
+
+        # Generate a model_comp dict and insert parameter values.
+        model_comp = deepcopy(self.fit_info)
+
+        for i in range(len(self.fit_params)):
+            split = self.fit_params[i].split(":")
+            if len(split) == 1:
+                model_comp[self.fit_params[i]] = param[i]
+
+            elif len(split) == 2:
+                model_comp[split[0]][split[1]] = param[i]
+
+        # finds any dependent parameters, which are set to the
+        # values of the parameters they depend on.
+        for i in range(len(self.fixed_values)):
+            param = self.fixed_values[i]
+            if isinstance(param, str) and param is not "age_of_universe":
+                split_par = self.fixed_params[i].split(":")
+                split_val = self.fixed_values[i].split(":")
+
+                fixed_val = model_comp[split_val[0]][split_val[1]]
+                model_comp[split_par[0]][split_par[1]] = fixed_val
+
+        # Find any parameters fixed to age of the Universe.
+        for i in range(len(self.fixed_values)):
+            if self.fixed_values[i] is "age_of_universe":
+                age_at_z = np.interp(model_comp["redshift"],
+                                     utils.z_array, utils.age_at_z)
+
+                split_par = self.fixed_params[i].split(":")
+
+                if len(split_par) == 0:
+                    model_comp[split_par[0]] = age_at_z
+
+                else:
+                    model_comp[split_par[0]][split_par[1]] = age_at_z
+
+        return model_comp
+
+    def _get_model(self, param):
+        """ Generates a model object with the current parameters. """
+
+        self.model_comp = self._get_model_comp(param)
+
+        if self.model is None:
+            if self.galaxy.spectrum_exists:
+                self.model = model_galaxy(self.model_comp,
+                                          self.galaxy.filt_list,
+                                          spec_wavs=self.galaxy.spectrum[:, 0])
+
+            else:
+                self.model = model_galaxy(self.model_comp,
+                                          self.galaxy.filt_list)
+
+        else:
+            self.model.update(self.model_comp)
+
+
+class fit(fit_info_parser):
+    """ Fit a model to the data contained in a galaxy object.
+
+    Parameters
+    ----------
+
+    galaxy : bagpipes.galaxy
+        A galaxy object containing the photomeric and/or spectroscopic
+        data you wish to fit.
+
+    fit_instructions : dict
+        A dictionary containing the details of the model to be fitted
+        to the data.
+
+    run : string - optional
+        The subfolder into which outputs will be saved, useful e.g. for
+        fitting more than one model configuration to the same data.
+
+    """
+
+    def __init__(self, galaxy, fit_instructions, run="."):
+
+        fit_info_parser.__init__(self, fit_instructions)
+
+        utils.make_dirs()
+
+        # run: the name of the set of fits this fit belongs to, used to
+        # set the location of saved output within the pipes directory.
+        self.run = run
+
+        # galaxy: galaxy object, contains the data to be fitted.
+        self.galaxy = galaxy
+
+        # post_path: where the posterior file should be saved.
+        self.post_path = ("pipes/posterior/" + self.run + "/"
+                          + self.galaxy.ID + ".h5")
+
+        # posterior: Will be used to store posterior samples.
+        self.posterior = {}
+
+        # If there is already a saved posterior distribution load it.
+        if os.path.exists(self.post_path):
+            print("\nBagpipes: Existing posterior distribution loaded for"
+                  + " object " + self.galaxy.ID + ".\n")
+
+            self.posterior = deepdish.io.load(self.post_path)
+            self._print_posterior()
+            post_med = [self.posterior["median"][p] for p in self.fit_params]
+            self._get_model(post_med)
+
+        # Set up directories to contain the outputs.
+        if self.run is not ".":
+            if not os.path.exists("pipes/posterior/" + self.run):
+                os.mkdir("pipes/posterior/" + self.run)
+
+            if not os.path.exists("pipes/plots/" + self.run):
+                os.mkdir("pipes/plots/" + self.run)
+
+        # Set up variables which will be used when calculating lnprob.
+        self.K_phot, self.K_spec = 0., 0.
+        self.N_spec, self.N_phot = 0., 0.
+        self.hyp_spec, self.hyp_phot = 1., 1.
+        self.chisq_spec, self.chisq_phot = 0., 0.
+
+        # Calculate constant factors to be added to lnprob.
+        if self.galaxy.spectrum_exists:
+            log_error_factors = np.log(2*np.pi*self.galaxy.spectrum[:, 2]**2)
+            self.K_spec = -0.5*np.sum(log_error_factors)
+            self.N_spec = self.galaxy.spectrum.shape[0]
+            self.inv_sigma_sq_spec = 1./self.galaxy.spectrum[:, 2]**2
+
+        if self.galaxy.photometry_exists:
+            log_error_factors = np.log(2*np.pi*self.galaxy.photometry[:, 2]**2)
+            self.K_phot = -0.5*np.sum(log_error_factors)
+            self.N_phot = self.galaxy.photometry.shape[0]
+            self.inv_sigma_sq_phot = 1./self.galaxy.photometry[:, 2]**2
+
     def _fit_pmn(self, verbose=False, n_live=400):
         """ Run the pymultinest sampler. """
+
+        import pymultinest as pmn
+
         name = "pipes/posterior/" + self.run + "/" + self.galaxy.ID + "-"
 
         pmn.run(self._get_lnprob, self._prior_transform, self.ndim,
@@ -223,10 +323,10 @@ class fit:
     def _fit_dynesty(self, verbose=False, n_live=400):
         """ Run the dynesty sampler. """
         if self.ndim <= 5:
-            walk = 15
+            walk = 20
 
         elif self.ndim <= 10:
-            walk = 20
+            walk = 25
 
         else:
             walk = 40
@@ -234,6 +334,7 @@ class fit:
         self.sampler = NestedSampler(self._get_lnprob, self._prior_transform,
                                      self.ndim, nlive=n_live, bound="multi",
                                      sample="rwalk", walks=walk)
+
 
         self.sampler.run_nested(dlogz=0.01, print_progress=verbose)
 
@@ -254,7 +355,8 @@ class fit:
         self.posterior["log_evidence"] = self.sampler.results.logz[-1]
         self.posterior["log_evidence_err"] = np.std(ev_arr)
 
-    def fit(self, verbose=False, n_live=400, sampler="dynesty"):
+    def fit(self, verbose=False, n_live=400,
+            sampler="dynesty", time_calls=False):
         """ Fit the specified model to the input galaxy data using the
         dynesty or MultiNest algorithms.
 
@@ -272,7 +374,15 @@ class fit:
             Defaults to "dynesty" to use the Dynesty Python sampler.
             Can also be set to "pmn" to use PyMultiNest, however this
             requires the MultiNest Fortran libraries to be installed.
+
+        time_calls : bool - optional
+            If True, prints the time taken for each likelihood call.
         """
+        if time_calls:
+            self.time_calls = True
+        else:
+            self.time_calls = False
+
 
         if "samples" in list(self.posterior):
             print("\nBagpipes: Posterior already loaded from " + self.post_path
@@ -343,38 +453,17 @@ class fit:
 
         print("\n")
 
-    def _prior_transform(self, cube, ndim=0, nparam=0):
-        """ Transforms from the unit cube to prior volume using the
-        functions in the priors file. """
-
-        for i in range(self.ndim):
-
-            hyper_params = {}
-
-            for key in self.fixed_params:
-
-                key_start = self.fit_params[i] + "_prior_"
-
-                if key.startswith(key_start):
-                    key_end = key[len(key_start):]
-                    index = self.fixed_params.index(key)
-                    hyper_params[key_end] = self.fixed_values[index]
-
-            prior_func = getattr(priors, self.priors[i])
-            cube[i] = prior_func(cube[i], self.fit_limits[i],
-                                 hyper_params=hyper_params)
-
-        return cube
-
     def _get_lnprob(self, x, ndim=0, nparam=0):
         """ Returns the log-probability for a given model sfh and
         parameter vector x. """
 
+        if self.time_calls:
+            time0 = time.time()
+
         self._get_model(x)
 
         # If the age of any model component is greater than the age of
-        # the Universe, return a huge negative value for lnprob.
-        # This sucks, there must be a better way.
+        # the Universe, return zero probability.
         if self.model.sfh.unphysical:
             return -9.99*10**99
 
@@ -398,71 +487,14 @@ class fit:
                   - 0.5*self.hyp_phot*self.chisq_phot
                   - 0.5*self.hyp_spec*self.chisq_spec)
 
+        # Catch any failures to generate a model and return zero prob.
+        if np.isnan(lnprob):
+            return -9.99*10**99
+
+        if self.time_calls:
+            print(time.time() - time0)
+
         return lnprob
-
-    def _get_model(self, param):
-        """ Generates a model object with the current parameters. """
-
-        self.model_comp = self._get_model_comp(param)
-
-        if self.model is None:
-            if self.galaxy.spectrum_exists:
-                self.model = model_galaxy(self.model_comp,
-                                          self.galaxy.filt_list,
-                                          spec_wavs=self.galaxy.spectrum[:, 0])
-
-            else:
-                self.model = model_galaxy(self.model_comp,
-                                          self.galaxy.filt_list)
-
-        else:
-            self.model.update(self.model_comp)
-
-    def _get_model_comp(self, param):
-        """ Turns a parameter vector into a model_comp dict. """
-
-        # Why was this necessary again?
-        if isinstance(param, dict):
-            model_comp = param
-
-        # Generate a model_comp dict and insert parameter values.
-        else:
-            model_comp = deepcopy(self.fit_info)
-
-            for i in range(len(self.fit_params)):
-                split = self.fit_params[i].split(":")
-                if len(split) == 1:
-                    model_comp[self.fit_params[i]] = param[i]
-
-                elif len(split) == 2:
-                    model_comp[split[0]][split[1]] = param[i]
-
-            # finds any dependent parameters, which are set to the
-            # values of the parameters they depend on.
-            for i in range(len(self.fixed_values)):
-                param = self.fixed_values[i]
-                if isinstance(param, str) and param is not "age_of_universe":
-                    split_par = self.fixed_params[i].split(":")
-                    split_val = self.fixed_values[i].split(":")
-
-                    fixed_val = model_comp[split_val[0]][split_val[1]]
-                    model_comp[split_par[0]][split_par[1]] = fixed_val
-
-            # Find any parameters fixed to age of the Universe.
-            for i in range(len(self.fixed_values)):
-                if self.fixed_values[i] is "age_of_universe":
-                    age_at_z = np.interp(model_comp["redshift"],
-                                         utils.z_array, utils.age_at_z)
-
-                    split_par = self.fixed_params[i].split(":")
-
-                    if len(split_par) == 0:
-                        model_comp[split_par[0]] = age_at_z
-
-                    else:
-                        model_comp[split_par[0]][split_par[1]] = age_at_z
-
-        return model_comp
 
     def _get_post_info(self, max_size=500):
         """ Calculates posterior quantities which require models to be
@@ -498,6 +530,7 @@ class fit:
         self.posterior["sfh"] = np.zeros((n_post,
                                           self.model.sfh.ages.shape[0]))
         self.posterior["sfr"] = np.zeros(n_post)
+        self.posterior["ssfr"] = np.zeros(n_post)
         self.posterior["mwa"] = np.zeros(n_post)
         self.posterior["tmw"] = np.zeros(n_post)
         self.posterior["UVJ"] = np.zeros((n_post, 3))
@@ -529,7 +562,7 @@ class fit:
 
             self.posterior["lnprob"][i] = lnprob
 
-            model_mass = self.model.mass
+            model_mass = self.model.sfh.mass
             post_mass = self.posterior["mass"]
 
             post_mass["total"]["living"][i] = model_mass["total"]["living"]
@@ -561,6 +594,9 @@ class fit:
 
             if self.model.polynomial is not None:
                 self.posterior["polynomial"][i, :] = self.model.polynomial
+
+        self.posterior["ssfr"] = np.log10(self.posterior["sfr"]
+                                          / post_mass["total"]["living"])
 
         # Extract parameters associated with the maximum likelihood solution.
         self.posterior["maximum_likelihood"] = {}
@@ -618,4 +654,5 @@ class fit:
         return plotting.plot_poly(self, style=style, show=show)
 
     def plot_1d_posterior(self, show=False, save=True):
-        plotting.plot_1d_posterior(self, show=False, save=True)
+        plotting.plot_1d_distributions(self, show=show, save=save)
+

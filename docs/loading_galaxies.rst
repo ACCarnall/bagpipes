@@ -3,16 +3,18 @@
 Inputting observational data
 ============================
 
-This section will introduce you to loading observational data into Bagpipes. Observational data is stored in the ``Galaxy`` object. The most important argument passed to ``Galaxy`` is the ``load_data`` function, which you will need to write to access your data files and return observational data.
+This section will introduce you to loading observational data into Bagpipes. Observational data is stored in the ``galaxy`` object. The most important argument passed to ``galaxy`` is the ``load_data`` function, which you will need to write to access your data files and return observational data.
 
-API documentation for the ``Galaxy`` class is provided :ref:`here <galaxy-api>`.
+Check out the `second iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%202%20-%20Loading%20observational%20data.ipynb>`_ for a quick-start guide to loading observational data.
+
+API documentation for the ``galaxy`` class is provided :ref:`here <galaxy-api>`.
 
 .. _load-data:
 
 The load_data function
 ----------------------
 
-The ``load_data`` function should take an ID number and filtlist (both passed as strings) and return observed spectroscopic and/or photometric data in the correct format and units.
+The ``load_data`` function should take an ID string and return observed spectroscopic and/or photometric data in the correct format and units (see below).
 
 For example:
 
@@ -20,7 +22,9 @@ For example:
 
 	import bagpipes as pipes
 
-	def load_data(ID, filtlist):
+	eg_filt_list = ["list", "of", "filters"]
+
+	def load_data(ID):
 	    # Do some stuff to load up data for the object with the correct ID number
 
 	    return spectrum, photometry
@@ -28,22 +32,22 @@ For example:
 
 	ID_number = "0001"
 
-	galaxy = pipes.Galaxy(ID_number, load_data)
+	galaxy = pipes.galaxy(ID_number, load_data, filt_list=eg_filt_list)
 
 	galaxy.plot()
 
 This will plot the data returned by the ``load_data`` function.
 
-By default, Bagpipes expects spectroscopic and photometric data to be returned by ``load_data`` in that order. If you do not have both, you must pass a keyword argument to ``Galaxy``, either ``spectrum_exists=False`` or ``photometry_exists=False``.
+By default, Bagpipes expects spectroscopic and photometric data to be returned by ``load_data`` in that order. If you do not have both, you must pass a keyword argument to ``galaxy``, either ``spectrum_exists=False`` or ``photometry_exists=False``.
 
-The format of the spectrum returned by ``load_data`` should be a 2D array with three columns: wavelengths in Angstroms, fluxes in erg/s/cm^2/A and flux errors in the same units. These will be stored in ``Galaxy.spectrum``.
+The format of the spectrum returned by ``load_data`` should be a 2D array with three columns: wavelengths in Angstroms, fluxes in erg/s/cm^2/A and flux errors in the same units. These will be stored in ``galaxy.spectrum``.
 
-The format of the photometry returned by ``load_data`` should be a 2D array with a column of fluxes in microJanskys and a column of flux errors in the same units. If you are inputting photometry you should set up a :ref:`filter list <filter-lists>` and pass its name to ``Galaxy`` with the ``filtlist`` keyword argument. Bagpipes will calculate effective wavelengths for each filter and store these along with the input data in ``Galaxy.photometry``.
+The format of the photometry returned by ``load_data`` should be a 2D array with a column of fluxes in microJanskys and a column of flux errors in the same units. The filters in your filter list should be in the same order as the fluxes returned by ``load_data``. Bagpipes will calculate effective wavelengths for each filter and store these along with the input data in ``galaxy.photometry``.
 
 .. _galaxy-api:
 
-Galaxy API documentation
-------------------------
+API documentation: galaxy
+-------------------------
 
 .. autoclass:: bagpipes.galaxy
 	:members:

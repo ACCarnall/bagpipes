@@ -7,7 +7,6 @@ from numpy.polynomial.chebyshev import chebval as cheb
 
 from . import utils
 from .star_formation_history import *
-from .chemical_enrichment_history import *
 from . import plotting
 
 # Ignore division by zero and overflow warnings
@@ -48,6 +47,9 @@ class model_galaxy:
 
     def __init__(self, model_components, filt_list=None, spec_wavs=None,
                  spec_units="ergscma", phot_units="ergscma"):
+
+        if utils.model_type not in list(utils.ages):
+            utils.set_model_type(utils.model_type)
 
         if spec_wavs is None and filt_list is None:
             sys.exit("Bagpipes: Specify either filt_list or spec_wavs.")
@@ -405,22 +407,6 @@ class model_galaxy:
 
         return nebular_grid, line_grid
 
-    def _mass_calculations(self, name, sfh_weights, zmet_weights):
-        """ Calculate the living and formed stellar masses for a SFH
-        component, also keeps track of the total for all components. """
-
-        living_mass_grid = utils.chosen_live_frac
-        zmet_weights = np.expand_dims(zmet_weights, 1)
-
-        living_mass_by_age = np.sum(zmet_weights*living_mass_grid, axis=0)
-        living_mass = np.sum(np.squeeze(sfh_weights)*living_mass_by_age)
-
-        formed_mass = 10**self.model_comp[name]["massformed"]
-
-        self.mass["total"]["living"] += living_mass
-        self.mass["total"]["formed"] += formed_mass
-        self.mass[name] = {"living": living_mass, "formed": formed_mass}
-
     def _calculate_photometry(self):
         """ Resamples filter curves onto observed frame wavelengths and
         integrates over them to calculate photometric fluxes. """
@@ -484,16 +470,10 @@ class model_galaxy:
         the new model_components dictionary. Adding/removing components
         and changing non-numerical values is not supported. """
 
-        self.model_comp = model_comp
+        self.model_comp = model_components
 
         # sfh: Star formation history object
         self.sfh = star_formation_history(self.model_comp)
-
-        # ceh: Chemical enrichment history object
-        self.ceh = chemical_enrichment_history(self.model_comp)
-
-        # mass: stores component and total stellar masses.
-        self.mass = {"total": {"formed": 0., "living": 0.}}
 
         # self.spectrum_full: full spectrum sampled on chosen_wavs
         self.spectrum_full = np.zeros(self.chosen_wavs.shape[0])
@@ -518,16 +498,13 @@ class model_galaxy:
 
             # Get relevant star-formation and chemical-enrichment info.
             sfh_weights = np.expand_dims(self.sfh.weights[name], axis=1)
-            zmet_weights = self.ceh.zmet_weights[name]
+            zmet_weights = self.sfh.ceh.zmet_weights[name]
 
             # Interpolate stellar grids in logU and metallicity.
             grid = self._combine_stellar_grids(zmet_weights)
 
             if self.nebular_on:
                 nebular_grid, line_grid = self._combine_neb_grids(zmet_weights)
-
-            # Calculate living and formed stellar mass contributions.
-            self._mass_calculations(name, sfh_weights, zmet_weights)
 
             # nlines: no of ages affected by nebular emission
             # frac_bc: affected fraction of the final affected age
@@ -639,7 +616,7 @@ class model_galaxy:
             hc_div_k = (6.626*10**-34)*(3*10**8)/(1.38*10**-23)
             exponent = hc_div_k/temp/(self.chosen_wavs*10**-10)
 
-            gb_fnu = np.zeros(wavs.shape[0])
+            gb_fnu = np.zeros_like(self.chosen_wavs)
 
             # Therefore only actually evaluate the exponential if
             # greybody_factor is less than 300, otherwise greybody flux
@@ -649,9 +626,11 @@ class model_galaxy:
             c_div_wavs = (3*10**8)/(self.chosen_wavs[mask]*10**-10)
             gb_fnu[mask] = c_div_wavs**(3+beta)/(np.exp(exponent[mask]) - 1.)
 
-            dust_emission = gb_fnu*wavs**2  # convert to f_lambda
+            # convert to f_lambda
+            dust_emission = gb_fnu*(self.chosen_wavs*10**-10)**2 
+            # normailse 
             dust_emission /= np.trapz(dust_emission, x=self.chosen_wavs)
-            dust_emission *= total_dust_flux
+            dust_emission *= dust_flux
 
             self.spectrum_full += dust_emission
 
@@ -714,7 +693,7 @@ class model_galaxy:
 
             self.polynomial = cheb(points, poly_coefs)
 
-            self.spectrum[:, 1] *= self.polynomial
+            self.spectrum[:, 1] /= self.polynomial
 
         else:
             self.polynomial = None

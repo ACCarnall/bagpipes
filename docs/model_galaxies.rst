@@ -3,9 +3,11 @@
 Making model galaxies
 =====================
 
-Model galaxies in Bagpipes are created using the ``Model_Galaxy`` class. The most important argument passed to ``Model_Galaxy`` is the ``model_components`` dictionary, which contains all the physical parameters of the model. 
+Model galaxies in Bagpipes are created using the ``model_galaxy`` class. The most important argument passed to ``model_galaxy`` is the ``model_components`` dictionary, which contains all the physical parameters of the model. 
 
-API documentation for ``Model_Galaxy`` is provided :ref:`here <model-galaxy-api>`.
+Check out the `first iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%201%20-%20Making%20model%20galaxies.ipynb>`_ for a quick-start guide to making model galaxies.
+
+API documentation for ``model_galaxy`` is provided :ref:`here <model-galaxy-api>`.
 
 .. _model-components:
 
@@ -29,11 +31,10 @@ A simple example ``model_components`` dictionary describing a galaxy at redshift
 
 A full description of the options which can be included in ``model_components`` to build up the complexity of a model is given :ref:`here <full-list>`.
 
-.. _getting-observables:
 
 Getting observables - photometry
 --------------------------------
-If we want model photometry, it is necessary to define a filter list. This is a list of paths to filter curves, which should contain a column of wavelengths in angstroms followed by a column of transmission fractions. For example,
+We're now almost ready to make our model galaxy. If we want model photometry it is necessary to define a filter list. This is a list of paths to filter curves, which should contain a column of wavelengths in angstroms followed by a column of transmitted fractions, for example:
 
 .. code:: python
 	
@@ -53,29 +54,29 @@ If we want model photometry, it is necessary to define a filter list. This is a 
                     	    "uvista/IRAC1",
                     	    "uvista/IRAC2"]
 
-	model = pipes.Model_Galaxy(model_components, filt_list=uvista_filt_list)
+	model = pipes.model_galaxy(model_components, filt_list=uvista_filt_list)
 
 	model.plot()
 
-Photometry is stored in ``model.photometry``, which is a 1D array of flux values in erg/s/cm^2/A in the same order as the filter curves are specified in the filter list. The output flux units can be converted to microJanskys using the ``Model_Galaxy`` keyword argument ``units_phot="mujy"``. 
+We now have a Bagpipes model galaxy! The final command generates a plot displaying the information we have requested. 
+
+Photometry is stored in ``model.photometry``, which is a 1D array of flux values in erg/s/cm^2/A in the same order as the filter curves are specified in the filter list. The output flux units can be converted to microJanskys using the ``model_galaxy`` keyword argument ``phot_units="mujy"``. 
 
 Getting observables - spectroscopy
 ----------------------------------
 
-We can use the ``model_components`` dictionary above to create a model galaxy as follows:
+The process of obtaining model spectroscopy is simpler, just pass an array containing wavelength values in Angstroms at which the spectrum should be evaluated as the ``spec_wavs`` keyword argument.
 
 .. code:: python
 	
 	import bagpipes as pipes
 	import numpy as np
 
-	model = pipes.Model_Galaxy(model_components, output_specwavs=np.arange(2500., 7500., 5.))
+	model = pipes.model_galaxy(model_components, spec_wavs=np.arange(2500., 7500., 5.))
 
 	model.plot()
 
-We now have a Bagpipes model galaxy! The final command generates a plot displaying the information we have requested, in this case the spectrum between 2500 -- 7500 Angstroms in the observed frame with sampling of 5 Angstroms. 
-
-The output spectrum is stored as ``model.spectrum`` which is a two column numpy array, containing wavelengths in Angstroms and spectral fluxes in erg/s/cm^2/A by default. The output flux units can be converted to microJanskys using the ``Model_Galaxy`` keyword argument ``units_spec="mujy"``.
+The output spectrum is stored as ``model.spectrum`` which is a two column numpy array, containing wavelengths in Angstroms and spectral fluxes in erg/s/cm^2/A by default. The output flux units can be converted to microJanskys using the ``model_galaxy`` keyword argument ``spec_units="mujy"``.
 
 Getting observables - line fluxes
 ---------------------------------
@@ -98,7 +99,7 @@ The units specified above apply at non-zero redshift. At redshift zero the lumin
 Updating models
 ---------------
 
-Creating a new ``Model_Galaxy`` is relatively slow, however changing parameter values in ``model_components`` and calling the ``update`` method of ``Model_Galaxy`` extremely rapidly updates the output spectrum/photometry/emission lines. For example, if you wanted to change the age of the burst in the above example to 0.5 Gyr and mass formed to 10\ :sup:`10.5` Solar masses you would type the following:
+Creating a new ``model_galaxy`` is relatively slow, however changing parameter values in ``model_components`` and calling the ``update`` method of ``model_galaxy`` extremely rapidly updates the output spectrum/photometry/emission lines. For example, if you wanted to change the age of the burst in the above example to 0.5 Gyr and mass formed to 10\ :sup:`10.5` Solar masses you would type the following:
 
 .. code:: python
 
@@ -108,14 +109,14 @@ Creating a new ``Model_Galaxy`` is relatively slow, however changing parameter v
 
 	model.update(model_components)
 
-Now all of the outputs described :ref:`above <getting-observables>` have been changed to reflect the new parameters. This kind of example could be useful when building a model spectrum for a simulated galaxy from a list of star particles with different ages and masses.
+Now all of the outputs described above have been changed to reflect the new parameters. This kind of example could be useful when building a model spectrum for a simulated galaxy from a list of star particles with different ages and masses.
 
 It should be noted that the ``update`` method is designed to deal with changing numerical parameter values, not with adding or removing components of the model or changing non-numerical values like the dust type.
 
 .. _model-galaxy-api:
 
-Model_Galaxy API documentation
-----------------------------------
+API documentation: model_galaxy 
+-------------------------------
 
 
 .. autoclass:: bagpipes.model_galaxy
@@ -126,7 +127,7 @@ Model_Galaxy API documentation
 All model_components options
 ----------------------------
 
-All of the physical parameters of a model are passed to ``Model_Galaxy`` within the ``model_components`` dictionary. The example :ref:`above <model-components>` is the simplest possible ``model_components`` dictionary. The rest of this page takes you through the options you can use to build up the complexity of your model.
+All of the physical parameters of a model are passed to ``model_galaxy`` within the ``model_components`` dictionary. The example :ref:`above <model-components>` is the simplest possible ``model_components`` dictionary. The rest of this page takes you through the options you can use to build up the complexity of your model.
 
 To understand the implementation of each of the options described below please consult Section 3 of `Carnall et al. 2017 <https://arxiv.org/abs/1712.04452>`_. The numerical values given in this section are just placeholders.
 
@@ -225,5 +226,5 @@ The different types of components available and the extra shape parameters they 
 	custom = {}                # A custom array of star formation rate values.
 	custom["history"] = sfhist_array or "sfhist.txt"  # In this case, either a string 
 	# containing the path to a file containing the star formation history, or an array 
-	# containing it is expected. In either case the format is a column of ages in Gyr 
+	# containing it is expected. In either case the format is a column of ages in years 
 	# followed by a column of star formation rates in Solar masses per year (required).

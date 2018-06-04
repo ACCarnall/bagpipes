@@ -9,7 +9,8 @@ from astropy.io import fits
 from . import utils
 from .model_galaxy import model_galaxy
 
-cloudy_data_path = os.environ["CLOUDY_DATA_PATH"]
+if "CLOUDY_DATA_PATH" in list(os.environ):
+  cloudy_data_path = os.environ["CLOUDY_DATA_PATH"]
 
 age_lim = 3.*10**7
 
