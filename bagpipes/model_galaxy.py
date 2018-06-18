@@ -591,7 +591,8 @@ class model_galaxy:
                 width = (utils.igm_redshifts[igm_ind]
                          - utils.igm_redshifts[igm_ind-1])
 
-                low_zred_factor = (utils.igm_redshifts[igm_ind] - redshift)/width
+                igm_z = utils.igm_redshifts[igm_ind]
+                low_zred_factor = (igm_z - redshift)/width
                 hi_zred_factor = 1. - low_zred_factor
 
             # interpolate igm transmission from pre-loaded grid
@@ -605,8 +606,6 @@ class model_galaxy:
                                    + self.igm_lines[igm_ind, :]*hi_zred_factor)
 
                 separate_lines *= igm_trans_lines
-
-        print(self.spectrum_full)
 
         # Add dust emission if dust keyword "temp" is specified.
         if self.dust_on and "temp" in list(self.model_comp["dust"]):

@@ -399,7 +399,8 @@ def add_observed_photometry_linear(galaxy, ax, zorder=4):
     """ Adds photometric data to the passed axes without doing any
     manipulation of the axes or labels. """
 
-    ymax = 1.05*np.max(galaxy.photometry[:, 1]+galaxy.photometry[:, 2])
+    mask = (galaxy.photometry[:, 1] > 0.)
+    ymax = 1.05*np.max((galaxy.photometry[:, 1]+galaxy.photometry[:, 2])[mask])
 
     y_scale = int(np.log10(ymax))-1
 
