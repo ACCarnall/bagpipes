@@ -284,7 +284,7 @@ class model_galaxy:
         of 1. """
 
         dust_type = self.model_comp["dust"]["type"]
-        dust_path = utils.install_dir + "/models/dust/"
+        dust_path = utils.install_dir + "/pipes_models/dust/"
 
         if dust_type == "Calzetti":
             k_lam = np.loadtxt(dust_path + "Calzetti_2000.txt")
@@ -582,11 +582,17 @@ class model_galaxy:
             mask = (utils.igm_redshifts < redshift)
             igm_ind = utils.igm_redshifts[mask].shape[0]
 
-            width = (utils.igm_redshifts[igm_ind]
-                     - utils.igm_redshifts[igm_ind-1])
+            if igm_ind == utils.igm_redshifts.shape[0]:
+                igm_ind -= 1
+                hi_zred_factor = 1.
+                low_zred_factor = 0.
 
-            hi_zred_factor = (utils.igm_redshifts[igm_ind] - redshift)/width
-            low_zred_factor = 1. - hi_zred_factor
+            else:
+                width = (utils.igm_redshifts[igm_ind]
+                         - utils.igm_redshifts[igm_ind-1])
+
+                low_zred_factor = (utils.igm_redshifts[igm_ind] - redshift)/width
+                hi_zred_factor = 1. - low_zred_factor
 
             # interpolate igm transmission from pre-loaded grid
             igm_trans = (self.igm_cont[igm_ind-1, :]*low_zred_factor
@@ -599,6 +605,8 @@ class model_galaxy:
                                    + self.igm_lines[igm_ind, :]*hi_zred_factor)
 
                 separate_lines *= igm_trans_lines
+
+        print(self.spectrum_full)
 
         # Add dust emission if dust keyword "temp" is specified.
         if self.dust_on and "temp" in list(self.model_comp["dust"]):
@@ -718,13 +726,13 @@ class model_galaxy:
 
         if self.UVJ_filt_names is None:
 
-            filt_list_path = utils.install_dir + "/filters/UVJ.filt_list"
+            filt_list_path = utils.install_dir + "/pipes_filters/UVJ.filt_list"
             self.UVJ_filt_names = np.loadtxt(filt_list_path, dtype="str")
 
             self.UVJ_filt_array = np.zeros((self.chosen_wavs.shape[0], 3))
 
             for i in range(len(self.UVJ_filt_names)):
-                filt_path = (utils.install_dir + "/filters/"
+                filt_path = (utils.install_dir + "/pipes_filters/"
                              + self.UVJ_filt_names[i])
 
                 filter_raw = np.loadtxt(filt_path, usecols=(0, 1))

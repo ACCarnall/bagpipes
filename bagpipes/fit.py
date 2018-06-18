@@ -303,8 +303,7 @@ class fit(fit_info_parser):
                 sampling_efficiency="model", n_live_points=n_live,
                 outputfiles_basename=name)
 
-        a = pmn.Analyzer(n_params=self.ndim, outputfiles_basename=name,
-                         verbose=False)
+        a = pmn.Analyzer(n_params=self.ndim, outputfiles_basename=name)
 
         s = a.get_stats()
 
@@ -382,7 +381,6 @@ class fit(fit_info_parser):
             self.time_calls = True
         else:
             self.time_calls = False
-
 
         if "samples" in list(self.posterior):
             print("\nBagpipes: Posterior already loaded from " + self.post_path
@@ -632,18 +630,18 @@ class fit(fit_info_parser):
 
     def plot_fit(self, show=False, save=True):
         """ Make a plot of the input data and fitted posteriors. """
-        return plotting.plot_fit(self, show=show)
+        return plotting.plot_fit(self, show=show, save=save)
 
-    def plot_corner(self, show=False):
+    def plot_corner(self, show=False, save=True):
         """ Make a corner plot showing the posterior distributions of
         the fitted parameters. """
-        return plotting.plot_corner(self, show=show)
+        return plotting.plot_corner(self, show=show, save=save)
 
-    def plot_sfh(self, show=True):
+    def plot_sfh(self, show=False, save=True):
         """ Make a plot of the star-formation history posterior. """
-        return plotting.plot_sfh_post(self, show=show)
+        return plotting.plot_sfh_post(self, show=show, save=save)
 
-    def plot_poly(self, style="percentiles", show=True):
+    def plot_poly(self, show=False, save=True):
         """ Make a plot showing the posterior distribution for the
         fitted polynomial. """
 
@@ -651,8 +649,9 @@ class fit(fit_info_parser):
             print("Bagpipes: No polynomial to plot.")
             return
 
-        return plotting.plot_poly(self, style=style, show=show)
+        return plotting.plot_poly(self, show=show, save=save)
 
     def plot_1d_posterior(self, show=False, save=True):
+        """ Make a plot of the 1d posterior distributions. """
         plotting.plot_1d_distributions(self, show=show, save=save)
 

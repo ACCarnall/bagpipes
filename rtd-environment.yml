@@ -10,4 +10,6 @@ dependencies:
       - corner
       - pymultinest
       - dynesty
+      - msgpack
       - deepdish
+

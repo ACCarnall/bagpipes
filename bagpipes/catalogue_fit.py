@@ -10,6 +10,7 @@ from astropy.io import fits
 from subprocess import call
 
 from . import utils
+from . import plotting
 from .galaxy import galaxy
 from .fit import fit
 
@@ -58,10 +59,12 @@ class catalogue_fit:
         fitted. Same length as Catalogue_IDs.
 
     fix_redshifts : bool or float (optional)
-        Whether to fix the redshifts to the values specified in
-        catalogue_redshifts, if True, redshifts are fixed, if a float,
-        the redshifts will be allowed to vary within this range centred
-        on the value given in catalogue_redshifts for that object.
+        If False (default), whatever instructions given in the input 
+        fit_instructions for redshift will be applied. if True, 
+        redshifts are fixed to the values specified in 
+        catalogue_redshifts, if a float the redshift will be varied 
+        within this range either side of the value specified in 
+        catalogue_redshifts.
 
     make_plots : bool (optional)
         If True, spectral and corner plots will be made for each object.
@@ -85,13 +88,15 @@ class catalogue_fit:
         self.photometry_exists = photometry_exists
         self.filt_list = filt_list
 
-        self.n_objects = catalogue_IDs.shape[0]
+        self.n_objects = len(catalogue_IDs)
+
+        utils.make_dirs()
 
         if not os.path.exists(utils.working_dir + "/pipes/cats/" + self.run):
             os.mkdir(utils.working_dir + "/pipes/cats/" + self.run)
 
         np.savetxt(utils.working_dir + "/pipes/cats/" + self.run + "/all_IDs",
-                   self.IDs)
+                   self.IDs, fmt="%s")
 
     def fit(self, verbose=False, n_live=400, sampler="dynesty"):
         """ Run through the catalogue, only fitting objects which have
@@ -108,17 +113,17 @@ class catalogue_fit:
 
             for i in range(self.n_objects):
 
-                if self.fix_redshifts:
+                if isinstance(self.fix_redshifts, float):
+                    z_range = (self.redshifts[i]-self.fix_redshifts,
+                               self.redshifts[i]+self.fix_redshifts)
+
+                    self.fit_instructions["redshift"] = z_range
+
+                elif self.fix_redshifts:
                     self.fit_instructions["redshift"] = self.redshifts[i]
 
-                elif isinstance(self.fix_redshifts, float):
-                    z_range = (self.redshifts[i]-self.fix_redshifts/2.,
-                               self.redshifts[i]+self.fix_redshifts/2.)
-
-                    fit_instructions["redshift"] = z_range
-
                 if not os.path.exists(utils.working_dir + "/pipes/cats/"
-                                      + self.run+ "/" + str(int(self.IDs[i]))
+                                      + self.run+ "/" + str(self.IDs[i])
                                       + ".lock"):
 
                     if os.path.exists(utils.working_dir + "/pipes/cats/"
@@ -127,11 +132,11 @@ class catalogue_fit:
                         sys.exit("Kill command received")
 
                     np.savetxt(utils.working_dir + "/pipes/cats/" + self.run
-                               + "/"+ str(int(self.IDs[i])) + ".lock",
+                               + "/"+ str(self.IDs[i]) + ".lock",
                                np.array([0.]))
 
 
-                    current_galaxy = galaxy(str(int(self.IDs[i])),
+                    current_galaxy = galaxy(str(self.IDs[i]),
                                  self.load_data, filt_list=self.filt_list,
                                  spectrum_exists=self.spectrum_exists,
                                  photometry_exists=self.photometry_exists)
@@ -147,6 +152,7 @@ class catalogue_fit:
                         current_fit.plot_fit()
                         current_fit.plot_corner()
                         current_fit.plot_1d_posterior()
+                        current_fit.plot_sfh()
 
                         if "polynomial" in self.fit_instructions.keys():
                             current_fit.plot_poly()
@@ -221,7 +227,7 @@ class catalogue_fit:
                         photcat[n, 0] = current_fit.galaxy.ID
                         photcat[n, 1:1+bands] = current_galaxy.photometry[:, 1]
                         median_phot = np.percentile(post["photometry"],
-                                                    50, axis=1)
+                                                    50, axis=0)
                         photcat[n, 1+bands:] = median_phot
 
                     """ Set up the header for the output catalogue. """
@@ -270,7 +276,7 @@ class catalogue_fit:
 def merge_cat(run, mode="merge"):
     """ Compile all the sub-catalogues into one output catalogue,
     optionally stop all running processes and delete incomplete object
-    posteriors. """
+    posteriors with the "clean" mode. """
 
     if mode == "clean":
         call(["touch", utils.working_dir + "/pipes/cats/" + run + "/kill"])
@@ -422,5 +428,5 @@ def merge_cat(run, mode="merge"):
 
 def clean_cat(run):
     """ Run compile_cat with the clean option enabled to kill running
-    processes and delete . """
+    processes and delete progress for uncompleted objects. """
     merge_cat(run, mode="clean")

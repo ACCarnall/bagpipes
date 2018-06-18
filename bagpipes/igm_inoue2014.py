@@ -7,7 +7,7 @@ import os
 from astropy.io import fits
 
 install_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
-igm_dir = install_dir + "/models/igm/"
+igm_dir = install_dir + "/pipes_models/igm/"
 
 coefs = np.loadtxt(igm_dir + "lyman_series_coefs_inoue_2014_table2.txt")
 

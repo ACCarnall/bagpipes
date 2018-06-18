@@ -201,25 +201,39 @@ def plot_fit(fit, show=False, save=True):
 
     if show:
         plt.show()
-        plt.close(fig)
+    
+    plt.close(fig)
 
     return fig, axes
 
 
-def plot_sfh_post(fit, show=True):
-        fig = plt.figure(figsize=(12, 4))
-        ax = plt.subplot(1, 1, 1)
+def plot_sfh_post(fit, show=False, save=True):
+    fig = plt.figure(figsize=(12, 4))
+    axes = plt.subplot(1, 1, 1)
 
-        add_sfh_posterior(fit, ax, style="smooth")
+    add_sfh_posterior(fit, axes, style="smooth")
 
-        if show:
-            plt.show()
-            plt.close(fig)
+    if save:
+        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
+                    + "_sfh.pdf")
 
-        return fig, ax
+        plt.savefig(plotpath, bbox_inches="tight")
+
+    if save:
+        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
+                    + "_sfh.pdf")
+
+        plt.savefig(plotpath, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    
+    plt.close(fig)
+
+    return fig, axes
 
 
-def add_sfh(sfh, ax, zorder=4, style="smooth", color="black"):
+def add_sfh(sfh, ax, zorder=4, style="smooth", color="black", add_z_axis=True):
     """ Creates a plot of sfr(t) for a given star-formation history. """
 
     # Plot the sfh.
@@ -238,22 +252,25 @@ def add_sfh(sfh, ax, zorder=4, style="smooth", color="black"):
     ax.set_xlim(sfh.age_of_universe*10**-9, 0.)
     ax.set_ylim(bottom=0.)
 
-    ax2 = ax.twiny()
-    ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], utils.z_array,
-                   utils.age_at_z))
-    ax2.set_xticklabels(["$0$", "$0.5$", "$1$", "$2$", "$4$", "$10$"])
-    ax2.set_xlim(ax.get_xlim())
+    if add_z_axis:
+        ax2 = ax.twiny()
+        ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], utils.z_array,
+                       utils.age_at_z))
+        ax2.set_xticklabels(["$0$", "$0.5$", "$1$", "$2$", "$4$", "$10$"])
+        ax2.set_xlim(ax.get_xlim())
 
     # Add labels.
     if tex_on:
         ax.set_ylabel("$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$")
         ax.set_xlabel("$\\mathrm{Age\\ of\\ Universe\\ /\\ Gyr}$")
-        ax2.set_xlabel("$\\mathrm{Redshift}$")
+        if add_z_axis:
+            ax2.set_xlabel("$\\mathrm{Redshift}$")
 
     else:
         ax.set_ylabel("SFR / M_sol yr^-1")
         ax.set_xlabel("Age of Universe / Gyr")
-        ax2.set_xlabel("Redshift")
+        if add_z_axis:
+            ax2.set_xlabel("Redshift")
 
 
 def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True):
@@ -360,7 +377,7 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
                 color="black")
 
     ax.scatter(np.log10(galaxy.photometry[:, 0]),
-               galaxy.photometry[:, 1]*10**-y_scale, color="blue", s=75,
+               galaxy.photometry[:, 1]*10**-y_scale, color="blue", s=60,
                zorder=zorder, linewidth=1, facecolor="blue", edgecolor="black")
 
     # Sort out x tick locations
@@ -462,7 +479,8 @@ def add_spectrum_posterior(fit, ax, zorder=4):
                     zorder=zorder, alpha=0.75, linewidth=0)
 
 
-def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw", variable="sfr"):
+def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw",
+                      variable="sfr", add_z_axis=True):
 
     color1 = "black"
     color2 = "gray"
@@ -487,32 +505,7 @@ def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw", variable="sfr")
         if style == "smooth":
             plot_post = sfh_post
             x = fit.model.sfh.ages
-    """
-        elif style="step":
-            plot_post = np.zeros((plot_post.shape[0],
-                                  2*plot_post.shape[1]))
 
-            for j in range(plot_post.shape[0]):
-                x, plot_post[j, :] = make_hist_arrays(utils.chosen_age_lhs,
-                                                      plot_post[j, :])
-    
-        if variable == "ssfr":
-        ssfr_post = np.zeros_like(self.posterior["sfh"])
-
-        for i in range(self.posterior["sfh"].shape[1]):
-
-            for j in range(chosen_ages.shape[0]):
-
-                if np.sum(self.posterior["sfh"][j:, i]) != 0.:
-                    ssfr_post[j, i] = np.log10(sfh_post[j, i]
-                                               / np.sum(sfh_post[j:, i]
-                                               * utils.chosen_age_widths[j:]))
-
-                else:
-                    ssfr_post[j, i] = 0.
-
-        plot_post = ssfr_post
-    """
     # Change the x and y values to allow plotting as a histogram instead
     # of a smooth function.
 
@@ -537,11 +530,12 @@ def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw", variable="sfr")
 
     ax.set_xlim(age_of_universe, 0)
 
-    ax2 = ax.twiny()
-    ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], utils.z_array,
-                   utils.age_at_z))
-    ax2.set_xticklabels(["$0$", "$0.5$", "$1$", "$2$", "$4$", "$10$"])
-    ax2.set_xlim(ax.get_xlim())
+    if add_z_axis:
+        ax2 = ax.twiny()
+        ax2.set_xticks(np.interp([0, 0.5, 1, 2, 4, 10], utils.z_array,
+                       utils.age_at_z))
+        ax2.set_xticklabels(["$0$", "$0.5$", "$1$", "$2$", "$4$", "$10$"])
+        ax2.set_xlim(ax.get_xlim())
 
     if tex_on:
         if variable == "sfr":
@@ -551,7 +545,8 @@ def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw", variable="sfr")
             ax.set_ylabel("$\\mathrm{sSFR\\ /\\ \\mathrm{yr}^{-1}}$")
 
         ax.set_xlabel("$\\mathrm{Age\\ of\\ Universe\\ /\\ Gyr}$")
-        ax2.set_xlabel("$\\mathrm{Redshift}$")
+        if add_z_axis:
+            ax2.set_xlabel("$\\mathrm{Redshift}$")
 
     else:
         if variable == "sfr":
@@ -561,10 +556,11 @@ def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw", variable="sfr")
             ax.set_ylabel("sSFR / yr^-1")
 
         ax.set_xlabel("Age of Universe / Gyr")
-        ax2.set_xlabel("Redshift")
+        if add_z_axis:
+            ax2.set_xlabel("Redshift")
 
 
-def plot_poly(fit, style="percentiles", show=True):
+def plot_poly(fit, style="percentiles", save=True, show=False):
     """ Plot the posterior of the polynomial spectral correction. """
 
     fig = plt.figure()
@@ -599,9 +595,16 @@ def plot_poly(fit, style="percentiles", show=True):
         ax.set_xlabel("lambda / A")
         ax.set_ylabel("Spectrum multiplied by")
 
+    if save:
+        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
+                    + "_poly.pdf")
+
+        plt.savefig(plotpath, bbox_inches="tight")
+
     if show:
         plt.show()
-        plt.close(fig)
+    
+    plt.close(fig)
 
     return fig, ax
 
@@ -642,7 +645,7 @@ def fix_param_names(fit_params):
     return new_params
 
 
-def plot_corner(fit, show=False, save=True):
+def plot_corner(fit, show=False, save=True, bins=25):
     """ Make a corner plot of the fitted parameters. """
 
     samples = copy.copy(fit.posterior["samples"])
@@ -665,15 +668,15 @@ def plot_corner(fit, show=False, save=True):
 
     fig = corner.corner(samples, labels=labels, quantiles=[0.16, 0.5, 0.84],
                         show_titles=True, title_kwargs={"fontsize": 13},
-                        smooth=2., smooth1d=1.5, bins=50)
+                        smooth=1., smooth1d=1., bins=bins)
 
     sfh_ax = fig.add_axes([0.65, 0.59, 0.32, 0.15], zorder=10)
     sfr_ax = fig.add_axes([0.82, 0.82, 0.15, 0.15], zorder=10)
     tmw_ax = fig.add_axes([0.65, 0.82, 0.15, 0.15], zorder=10)
 
     add_sfh_posterior(fit, sfh_ax)
-    hist1d(fit.posterior["tmw"], tmw_ax)
-    hist1d(fit.posterior["sfr"], sfr_ax)
+    hist1d(fit.posterior["tmw"], tmw_ax, bins=bins)
+    hist1d(fit.posterior["sfr"], sfr_ax, bins=bins)
 
     sfr_ax.set_xlabel("$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$")
 
@@ -706,7 +709,8 @@ def plot_corner(fit, show=False, save=True):
 
     if show:
         plt.show()
-        plt.close(fig)
+    
+    plt.close(fig)
 
     return fig
 
@@ -794,13 +798,14 @@ def plot_1d_distributions(fit, fit2=False, show=False, save=True):
 
     if show:
         plt.show()
-        plt.close(fig)
+    
+    plt.close(fig)
 
     return fig, axes
 
 
-def hist1d(samples, ax, smooth=False, label=None,
-           color="orange", percentiles=True, zorder=4):
+def hist1d(samples, ax, smooth=False, label=None, color="orange",
+           percentiles=True, zorder=4, bins=50):
 
     if color == "orange":
         color1 = "darkorange"
@@ -810,13 +815,18 @@ def hist1d(samples, ax, smooth=False, label=None,
     if color == "purple":
         color1 = "purple"
         color2 = "purple"
-        alpha = 0.5
+        alpha = 0.4
+
+    if color == "blue":
+        color1 = "blue"
+        color2 = "dodgerblue"
+        alpha = 0.6
 
     if label is not None:
         x_label = fix_param_names([label])
         ax.set_xlabel(x_label[0])
 
-    y, x = np.histogram(samples, bins=50, density=True,
+    y, x = np.histogram(samples, bins=bins, density=True,
                         range=(samples.min(), samples.max()))
 
     y = gaussian_filter(y, 1.5)
@@ -836,7 +846,7 @@ def hist1d(samples, ax, smooth=False, label=None,
     if percentiles:
         for percentile in [16, 50, 84]:
             ax.axvline(np.percentile(samples, percentile), linestyle="--",
-                       color="black", zorder=zorder)
+                       color="black", zorder=zorder, lw=3)
 
     ax.set_ylim(bottom=0)
     ax.set_xlim(samples.min(), samples.max())

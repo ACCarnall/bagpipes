@@ -8,9 +8,15 @@ from astropy.io import fits
 
 from . import load_models
 
+model_type = "bc03_miles"
+full_age_sampling = False
+max_redshift = 10.
+
+logU_grid = np.arange(-4., -1.99, 0.5)
+
 from astropy.cosmology import FlatLambdaCDM
 cosmo = FlatLambdaCDM(H0=70., Om0=0.3)
-z_array = np.arange(0., 10., 0.01)
+z_array = np.arange(0., max_redshift, 0.01)
 age_at_z = cosmo.age(z_array).value
 ldist_at_z = cosmo.luminosity_distance(z_array).value
 
@@ -22,21 +28,21 @@ allcloudylinegrids = {}
 allcloudycontgrids = {}
 
 if not os.path.exists(install_dir
-                      + "/models/igm/d_igm_grid_inoue14.fits"):
+                      + "/pipes_models/igm/d_igm_grid_inoue14.fits"):
 
     from . import igm_inoue2014
     igm_inoue2014.make_table()
 
 igm_grid = fits.open(install_dir
-                     + "/models/igm/d_igm_grid_inoue14.fits")[1].data
+                     + "/pipes_models/igm/d_igm_grid_inoue14.fits")[1].data
 
 igm_redshifts = np.arange(0.0, 10.01, 0.01)
 igm_wavs = np.arange(1.0, 1225.01, 1.0)
 
 # line_labels: array of emission line labels
 # line_wavs: array of emission line wavelengths
-label_path = install_dir + "/models/nebular/cloudy_lines.txt"
-wavs_path = install_dir + "/models/nebular/cloudy_linewavs.txt"
+label_path = install_dir + "/pipes_models/nebular/cloudy_lines.txt"
+wavs_path = install_dir + "/pipes_models/nebular/cloudy_linewavs.txt"
 line_names = np.loadtxt(label_path, dtype="str", delimiter="\t")
 line_wavs = np.loadtxt(wavs_path)
 
@@ -49,12 +55,6 @@ age_widths = {}
 zmet_vals = {}
 zmet_lims = {}
 live_frac = {}
-
-model_type = "bc03_miles"
-full_age_sampling = False
-max_redshift = 10.
-
-logU_grid = np.arange(-4., -1.99, 0.5)
 
 
 def make_bins(midpoints, make_rhs=False):
@@ -239,7 +239,7 @@ def load_cloudy_grid(zmet_val, logU):
 
     key = str(zmet_val) + str(logU)
 
-    path = install_dir + "/models/nebular/" + model_type + "/"
+    path = install_dir + "/pipes_models/nebular/" + model_type + "/"
     linepath = path + model_type + "_nebular_line_grids.fits"
     contpath = path + model_type + "_nebular_cont_grids.fits"
 

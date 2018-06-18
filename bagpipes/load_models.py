@@ -6,7 +6,7 @@ import os
 
 install_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
 
-bc03_miles_path = install_dir + "/models/stellar/bc03_miles/"
+bc03_miles_path = install_dir + "/pipes_models/stellar/bc03_miles/"
 
 
 def bc03_miles():
