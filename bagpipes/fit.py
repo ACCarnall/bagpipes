@@ -74,7 +74,7 @@ class fit_info_parser:
                 self.fit_params.append(key)
 
             # Checks for global parameters to be fixed.
-            elif isinstance(param, float):
+            elif isinstance(param, (float, int)):
                 self.fixed_values.append(param)
                 self.fixed_params.append(key)
 
@@ -90,7 +90,7 @@ class fit_info_parser:
                         self.fit_params.append(key + ":" + comp_key)
 
                     # Checks for component parameters to be fixed.
-                    elif isinstance(comp_param, (float, str)):
+                    elif isinstance(comp_param, (float, int, str)):
                         if (comp_key is not "type"
                                 and comp_key[-6:] != "_prior"):
 
@@ -564,7 +564,7 @@ class fit(fit_info_parser):
             post_mass = self.posterior["mass"]
 
             post_mass["total"]["living"][i] = model_mass["total"]["living"]
-            post_mass["total"]["formed"][i] = model_mass["total"]["living"]
+            post_mass["total"]["formed"][i] = model_mass["total"]["formed"]
             for comp in self.model.sfh_components:
                 post_mass[comp]["living"][i] = model_mass[comp]["living"]
                 post_mass[comp]["formed"][i] = model_mass[comp]["formed"]

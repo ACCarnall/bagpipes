@@ -10,32 +10,12 @@ from scipy.ndimage import gaussian_filter
 try:
     import matplotlib as mpl
     import matplotlib.pyplot as plt
-
-    if find_executable("latex"):
-        mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-        mpl.rc('text', usetex=True)
-
-        tex_on = True
-        mpl.rcParams["text.usetex"] = True
-
-    else:
-        tex_on = False
-        mpl.rcParams["text.usetex"] = False
+    tex_on = find_executable("latex")
 
 except:
     print("Bagpipes: Matplotlib import failed, plotting unavailable.")
 
 from . import utils
-
-mpl.rcParams["lines.linewidth"] = 2.
-mpl.rcParams["axes.linewidth"] = 1.5
-mpl.rcParams["axes.labelsize"] = 18.
-mpl.rcParams["xtick.top"] = True
-mpl.rcParams["xtick.labelsize"] = 14
-mpl.rcParams["xtick.direction"] = "in"
-mpl.rcParams["ytick.right"] = True
-mpl.rcParams["ytick.labelsize"] = 14
-mpl.rcParams["ytick.direction"] = "in"
 
 latex_names = {"redshift": "z",
                "metallicity": "Z",
@@ -47,10 +27,17 @@ latex_names = {"redshift": "z",
                "age": "\\mathrm{Age}",
                "Av": "{A_V}",
                "veldisp": "\\sigma_{vel}",
-               "0": "\\mathrm{N}0", "1": "\\mathrm{N}1", "2": "\\mathrm{N}2",
-               "3": "\\mathrm{N}3", "4": "\\mathrm{N}4", "5": "\\mathrm{N}5",
-               "6": "\\mathrm{N}6", "7": "\\mathrm{N}7", "8": "\\mathrm{N}8",
-               "9": "\\mathrm{N}9", "10": "\\mathrm{N}10",
+               "0": "\\mathrm{N}0",
+               "1": "\\mathrm{N}1",
+               "2": "\\mathrm{N}2",
+               "3": "\\mathrm{N}3",
+               "4": "\\mathrm{N}4",
+               "5": "\\mathrm{N}5",
+               "6": "\\mathrm{N}6",
+               "7": "\\mathrm{N}7",
+               "8": "\\mathrm{N}8",
+               "9": "\\mathrm{N}9",
+               "10": "\\mathrm{N}10",
                "hypspec": "\\mathcal{H}_\\mathrm{spec}",
                "hypphot": "\\mathcal{H}_\\mathrm{phot}",
                "sfr": "\\mathrm{SFR}",
@@ -81,6 +68,27 @@ latex_comps = {"dblplaw": "dpl",
                "lognormal": "lnorm"
                }
 
+
+def update_rcParams():
+    mpl.rcParams["lines.linewidth"] = 2.
+    mpl.rcParams["axes.linewidth"] = 1.5
+    mpl.rcParams["axes.labelsize"] = 18.
+    mpl.rcParams["xtick.top"] = True
+    mpl.rcParams["xtick.labelsize"] = 14
+    mpl.rcParams["xtick.direction"] = "in"
+    mpl.rcParams["ytick.right"] = True
+    mpl.rcParams["ytick.labelsize"] = 14
+    mpl.rcParams["ytick.direction"] = "in"
+
+    if tex_on:
+        mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+        mpl.rc('text', usetex=True)
+        mpl.rcParams["text.usetex"] = True
+
+    else:
+        mpl.rcParams["text.usetex"] = False
+
+
 """ Plot functions are used by the other classes to generate quick-look
 plots. Add functions are used to add details to a passed axis, thus they
 can be used to create a variety of plots either by the plot functions
@@ -89,6 +97,7 @@ or by the user. """
 
 def plot_sfh(sfh, show=True, style="smooth"):
     """ Make a quick plot of an individual sfh. """
+    update_rcParams()
     fig = plt.figure(figsize=(12, 4))
     ax = plt.subplot(1, 1, 1)
 
@@ -103,6 +112,7 @@ def plot_sfh(sfh, show=True, style="smooth"):
 
 def plot_model_galaxy(model, show=True):
     """ Make a quick plot of an individual model galaxy. """
+    update_rcParams()
     naxes = 1
 
     if (model.filt_list is not None and model.spec_wavs is not None):
@@ -137,6 +147,7 @@ def plot_model_galaxy(model, show=True):
 
 def plot_galaxy(galaxy, show=True, polynomial=None):
     """ Make a quick plot of the data loaded into a galaxy object. """
+    update_rcParams()
     naxes = 1
 
     if (galaxy.photometry_exists and galaxy.spectrum_exists):
@@ -176,6 +187,7 @@ def plot_galaxy(galaxy, show=True, polynomial=None):
 
 def plot_fit(fit, show=False, save=True):
     """ Plot the observational data and posterior from a fit object. """
+    update_rcParams()
 
     if "polynomial" in list(fit.posterior):
         median_poly = np.median(fit.posterior["polynomial"], axis=0)
@@ -208,6 +220,7 @@ def plot_fit(fit, show=False, save=True):
 
 
 def plot_sfh_post(fit, show=False, save=True):
+    update_rcParams()
     fig = plt.figure(figsize=(12, 4))
     axes = plt.subplot(1, 1, 1)
 
@@ -222,6 +235,216 @@ def plot_sfh_post(fit, show=False, save=True):
     if save:
         plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
                     + "_sfh.pdf")
+
+        plt.savefig(plotpath, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    
+    plt.close(fig)
+
+    return fig, axes
+
+
+def plot_poly(fit, style="percentiles", save=True, show=False):
+    """ Plot the posterior of the polynomial spectral correction. """
+    update_rcParams()
+    fig = plt.figure()
+    ax = plt.subplot(1, 1, 1)
+
+    wavs = fit.model.spectrum[:, 0]
+    poly_post = fit.posterior["polynomial"]
+
+    if style == "individual":
+        for i in range(poly_post.shape[0]):
+            plt.plot(wavs, poly_post[i, :], color="gray", alpha=0.05)
+
+    elif style == "percentiles":
+
+        poly_post_low = np.percentile(poly_post, 16, axis=0)
+        poly_post_med = np.percentile(poly_post, 50, axis=0)
+        poly_post_high = np.percentile(poly_post, 84, axis=0)
+
+        ax.plot(wavs, poly_post_low, color="navajowhite", zorder=10)
+        ax.plot(wavs, poly_post_med, color="darkorange", zorder=10)
+        ax.plot(wavs, poly_post_high, color="navajowhite", zorder=10)
+        ax.fill_between(wavs, poly_post_low, poly_post_high, lw=0,
+                        color="navajowhite", alpha=0.75, zorder=9)
+
+    ax.set_xlim(wavs[0], wavs[-1])
+
+    if tex_on:
+        ax.set_xlabel("$\\lambda / \\mathrm{\\AA}$")
+        ax.set_ylabel("$\\mathrm{Spectrum\\ multiplied\\ by}$")
+
+    else:
+        ax.set_xlabel("lambda / A")
+        ax.set_ylabel("Spectrum multiplied by")
+
+    if save:
+        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
+                    + "_poly.pdf")
+
+        plt.savefig(plotpath, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    
+    plt.close(fig)
+
+    return fig, ax
+
+
+def plot_corner(fit, show=False, save=True, bins=25):
+    """ Make a corner plot of the fitted parameters. """
+    update_rcParams()
+    samples = copy.copy(fit.posterior["samples"])
+
+    if tex_on:
+        labels = fix_param_names(fit.fit_params)
+
+    else:
+        labels = fit.fit_params
+
+    for i in range(fit.ndim):
+        if fit.priors[i] == "log_10":
+            samples[:, i] = np.log10(samples[:, i])
+
+            if tex_on:
+                labels[i] = "$\\mathrm{log_{10}}(" + labels[i][1:-1] + ")$"
+
+            else:
+                labels[i] = "log_10(" + labels[i] + ")"
+
+    fig = corner.corner(samples, labels=labels, quantiles=[0.16, 0.5, 0.84],
+                        show_titles=True, title_kwargs={"fontsize": 13},
+                        smooth=1., smooth1d=1., bins=bins)
+
+    sfh_ax = fig.add_axes([0.65, 0.59, 0.32, 0.15], zorder=10)
+    sfr_ax = fig.add_axes([0.82, 0.82, 0.15, 0.15], zorder=10)
+    tmw_ax = fig.add_axes([0.65, 0.82, 0.15, 0.15], zorder=10)
+
+    add_sfh_posterior(fit, sfh_ax)
+    hist1d(fit.posterior["tmw"], tmw_ax, bins=bins)
+    hist1d(fit.posterior["sfr"], sfr_ax, bins=bins)
+
+    sfr_ax.set_xlabel("$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$")
+
+    tmw_ax.set_xlabel("$t_\\mathrm{form}\\ /\\ \\mathrm{Gyr}$")
+
+    fig.text(0.725, 0.978, "$t_\\mathrm{form}\\ /\\ \\mathrm{Gyr}$ = $"
+             + str(np.round(np.percentile(fit.posterior["tmw"], 50), 2))
+             + "^{+" + str(np.round(np.percentile(fit.posterior["tmw"], 84)
+                           - np.percentile(fit.posterior["tmw"], 50), 2))
+             + "}_{-" + str(np.round(np.percentile(fit.posterior["tmw"], 50)
+                            - np.percentile(fit.posterior["tmw"], 16), 2))
+             + "}$",
+             horizontalalignment="center", size=14)
+
+    fig.text(0.895, 0.978,
+             "$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$ = $"
+             + str(np.round(np.percentile(fit.posterior["sfr"], 50), 2))
+             + "^{+" + str(np.round(np.percentile(fit.posterior["sfr"], 84)
+                           - np.percentile(fit.posterior["sfr"], 50), 2))
+             + "}_{-" + str(np.round(np.percentile(fit.posterior["sfr"], 50)
+                            - np.percentile(fit.posterior["sfr"], 16), 2))
+             + "}$",
+             horizontalalignment="center", size=14)
+
+    if save:
+        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
+                    + "_corner.pdf")
+
+        plt.savefig(plotpath, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    
+    plt.close(fig)
+
+    return fig
+
+
+def plot_1d_distributions(fit, fit2=False, show=False, save=True):
+    update_rcParams()
+    sfh_quantities = ["sfr", "mass", "ssfr", "mwa"]
+    post_quantities = sfh_quantities + fit.fit_params
+
+    labels = fix_param_names(post_quantities)
+
+    n_plots = len(post_quantities)
+    n_rows = int(n_plots//4)
+
+    if n_plots % 4:
+        n_rows += 1
+
+    fig = plt.figure(figsize=(12, 3*n_rows))
+    gs = mpl.gridspec.GridSpec(n_rows, 4, hspace=0.4, wspace=0.2)
+
+    axes = []
+    for i in range(n_rows):
+        for j in range(4):
+            if 4*i + (j+1) <= n_plots:
+                axes.append(plt.subplot(gs[i, j]))
+                plt.setp(axes[-1].get_yticklabels(), visible=False)
+
+    try:
+        dist_dict = fit.prior
+
+    except AttributeError:
+        dist_dict = fit.posterior
+
+    if fit2:
+        try:
+            extra_dist_dict = fit2.prior
+
+        except AttributeError:
+            extra_dist_dict = fit2.posterior
+
+    for i in range(len(post_quantities)):
+        name = post_quantities[i]
+        label = labels[i]
+
+        if name == "mass":
+            samples = np.log10(dist_dict["mass"]["total"]["living"])
+
+            if fit2:
+                extra_samples = np.log10(extra_dist_dict["mass"]["total"]["living"])
+
+        else:
+            samples = dist_dict[name]
+
+            if fit2 and name in fit2.fit_params + sfh_quantities:
+                extra_samples = extra_dist_dict[name]
+
+        # Log parameter samples and labels for parameters with log priors
+        if (i > 4 - fit.ndim and fit.priors[i-4] == "log_10" or name in ["sfr"]):
+            samples = np.log10(samples)
+            if fit2 and name in fit2.fit_params + sfh_quantities:
+                extra_samples = np.log10(extra_samples)
+
+
+            if tex_on:
+                label = "$\\mathrm{log_{10}}(" + label[1:-1] + ")$"
+
+            else:
+                label = "log_10(" + label + ")"
+
+        hist1d(samples, axes[i], smooth=True, percentiles=not fit2)
+
+        if fit2 and name in fit2.fit_params + sfh_quantities:
+            hist1d(extra_samples, axes[i], smooth=True, color="purple",
+                    percentiles=False, zorder=2)
+
+            axes[i].set_xlim(np.min([samples.min(), extra_samples.min()]),
+                             np.max([samples.max(), extra_samples.max()]))
+
+        axes[i].set_xlabel(label)
+        auto_x_ticks(axes[i], nticks=3)
+
+    if save:
+        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
+                    + "_1d_posterior.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")
 
@@ -561,248 +784,12 @@ def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw",
             ax2.set_xlabel("Redshift")
 
 
-def plot_poly(fit, style="percentiles", save=True, show=False):
-    """ Plot the posterior of the polynomial spectral correction. """
-
-    fig = plt.figure()
-    ax = plt.subplot(1, 1, 1)
-
-    wavs = fit.model.spectrum[:, 0]
-    poly_post = fit.posterior["polynomial"]
-
-    if style == "individual":
-        for i in range(poly_post.shape[0]):
-            plt.plot(wavs, poly_post[i, :], color="gray", alpha=0.05)
-
-    elif style == "percentiles":
-
-        poly_post_low = np.percentile(poly_post, 16, axis=0)
-        poly_post_med = np.percentile(poly_post, 50, axis=0)
-        poly_post_high = np.percentile(poly_post, 84, axis=0)
-
-        ax.plot(wavs, poly_post_low, color="navajowhite", zorder=10)
-        ax.plot(wavs, poly_post_med, color="darkorange", zorder=10)
-        ax.plot(wavs, poly_post_high, color="navajowhite", zorder=10)
-        ax.fill_between(wavs, poly_post_low, poly_post_high, lw=0,
-                        color="navajowhite", alpha=0.75, zorder=9)
-
-    ax.set_xlim(wavs[0], wavs[-1])
-
-    if tex_on:
-        ax.set_xlabel("$\\lambda / \\mathrm{\\AA}$")
-        ax.set_ylabel("$\\mathrm{Spectrum\\ multiplied\\ by}$")
-
-    else:
-        ax.set_xlabel("lambda / A")
-        ax.set_ylabel("Spectrum multiplied by")
-
-    if save:
-        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
-                    + "_poly.pdf")
-
-        plt.savefig(plotpath, bbox_inches="tight")
-
-    if show:
-        plt.show()
-    
-    plt.close(fig)
-
-    return fig, ax
-
-
-def fix_param_names(fit_params):
-    new_params = []
-
-    for fit_param in fit_params:
-        split = fit_param.split(":")
-
-        if len(split) == 1:
-            comp = None
-            param = split[0]
-
-        if len(split) == 2:
-            comp = split[0]
-            param = split[1]
-
-        if param in list(latex_names):
-            new_param = latex_names[param]
-
-            if comp is not None:
-                if comp in list(latex_comps):
-                    new_param += "_\\mathrm{" + latex_comps[comp] + "}"
-                else:
-                    new_param += "_\\mathrm{" + comp + "}"
-
-            if param in list(latex_units):
-                new_param = new_param + "/" + latex_units[param]
-
-            new_param = "$" + new_param + "$"
-
-        else:
-            new_param = fit_param
-
-        new_params.append(new_param)
-
-    return new_params
-
-
-def plot_corner(fit, show=False, save=True, bins=25):
-    """ Make a corner plot of the fitted parameters. """
-
-    samples = copy.copy(fit.posterior["samples"])
-
-    if tex_on:
-        labels = fix_param_names(fit.fit_params)
-
-    else:
-        labels = fit.fit_params
-
-    for i in range(fit.ndim):
-        if fit.priors[i] == "log_10":
-            samples[:, i] = np.log10(samples[:, i])
-
-            if tex_on:
-                labels[i] = "$\\mathrm{log_{10}}(" + labels[i][1:-1] + ")$"
-
-            else:
-                labels[i] = "log_10(" + labels[i] + ")"
-
-    fig = corner.corner(samples, labels=labels, quantiles=[0.16, 0.5, 0.84],
-                        show_titles=True, title_kwargs={"fontsize": 13},
-                        smooth=1., smooth1d=1., bins=bins)
-
-    sfh_ax = fig.add_axes([0.65, 0.59, 0.32, 0.15], zorder=10)
-    sfr_ax = fig.add_axes([0.82, 0.82, 0.15, 0.15], zorder=10)
-    tmw_ax = fig.add_axes([0.65, 0.82, 0.15, 0.15], zorder=10)
-
-    add_sfh_posterior(fit, sfh_ax)
-    hist1d(fit.posterior["tmw"], tmw_ax, bins=bins)
-    hist1d(fit.posterior["sfr"], sfr_ax, bins=bins)
-
-    sfr_ax.set_xlabel("$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$")
-
-    tmw_ax.set_xlabel("$t_\\mathrm{form}\\ /\\ \\mathrm{Gyr}$")
-
-    fig.text(0.725, 0.978, "$t_\\mathrm{form}\\ /\\ \\mathrm{Gyr}$ = $"
-             + str(np.round(np.percentile(fit.posterior["tmw"], 50), 2))
-             + "^{+" + str(np.round(np.percentile(fit.posterior["tmw"], 84)
-                           - np.percentile(fit.posterior["tmw"], 50), 2))
-             + "}_{-" + str(np.round(np.percentile(fit.posterior["tmw"], 50)
-                            - np.percentile(fit.posterior["tmw"], 16), 2))
-             + "}$",
-             horizontalalignment="center", size=14)
-
-    fig.text(0.895, 0.978,
-             "$\\mathrm{SFR\\ /\\ M_\\odot\\ \\mathrm{yr}^{-1}}$ = $"
-             + str(np.round(np.percentile(fit.posterior["sfr"], 50), 2))
-             + "^{+" + str(np.round(np.percentile(fit.posterior["sfr"], 84)
-                           - np.percentile(fit.posterior["sfr"], 50), 2))
-             + "}_{-" + str(np.round(np.percentile(fit.posterior["sfr"], 50)
-                            - np.percentile(fit.posterior["sfr"], 16), 2))
-             + "}$",
-             horizontalalignment="center", size=14)
-
-    if save:
-        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
-                    + "_corner.pdf")
-
-        plt.savefig(plotpath, bbox_inches="tight")
-
-    if show:
-        plt.show()
-    
-    plt.close(fig)
-
-    return fig
-
-def plot_1d_distributions(fit, fit2=False, show=False, save=True):
-    sfh_quantities = ["sfr", "mass", "ssfr", "mwa"]
-    post_quantities = sfh_quantities + fit.fit_params
-
-    labels = fix_param_names(post_quantities)
-
-    n_plots = len(post_quantities)
-    n_rows = int(n_plots//4)
-
-    if n_plots % 4:
-        n_rows += 1
-
-    fig = plt.figure(figsize=(12, 3*n_rows))
-    gs = mpl.gridspec.GridSpec(n_rows, 4, hspace=0.4, wspace=0.2)
-
-    axes = []
-    for i in range(n_rows):
-        for j in range(4):
-            if 4*i + (j+1) <= n_plots:
-                axes.append(plt.subplot(gs[i, j]))
-                plt.setp(axes[-1].get_yticklabels(), visible=False)
-
-    try:
-        dist_dict = fit.prior
-
-    except AttributeError:
-        dist_dict = fit.posterior
-
-    if fit2:
-        try:
-            extra_dist_dict = fit2.prior
-
-        except AttributeError:
-            extra_dist_dict = fit2.posterior
-
-    for i in range(len(post_quantities)):
-        name = post_quantities[i]
-        label = labels[i]
-
-        if name == "mass":
-            samples = np.log10(dist_dict["mass"]["total"]["living"])
-
-            if fit2:
-                extra_samples = np.log10(extra_dist_dict["mass"]["total"]["living"])
-
-        else:
-            samples = dist_dict[name]
-
-            if fit2 and name in fit2.fit_params + sfh_quantities:
-                extra_samples = extra_dist_dict[name]
-
-        # Log parameter samples and labels for parameters with log priors
-        if (i > 4 - fit.ndim and fit.priors[i-4] == "log_10" or name in ["sfr"]):
-            samples = np.log10(samples)
-            if fit2 and name in fit2.fit_params + sfh_quantities:
-                extra_samples = np.log10(extra_samples)
-
-
-            if tex_on:
-                label = "$\\mathrm{log_{10}}(" + label[1:-1] + ")$"
-
-            else:
-                label = "log_10(" + label + ")"
-
-        hist1d(samples, axes[i], smooth=True, percentiles=not fit2)
-
-        if fit2 and name in fit2.fit_params + sfh_quantities:
-            hist1d(extra_samples, axes[i], smooth=True, color="purple",
-                    percentiles=False, zorder=2)
-
-            axes[i].set_xlim(np.min([samples.min(), extra_samples.min()]),
-                             np.max([samples.max(), extra_samples.max()]))
-
-        axes[i].set_xlabel(label)
-        auto_x_ticks(axes[i], nticks=3)
-
-    if save:
-        plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
-                    + "_1d_posterior.pdf")
-
-        plt.savefig(plotpath, bbox_inches="tight")
-
-    if show:
-        plt.show()
-    
-    plt.close(fig)
-
-    return fig, axes
+def make_hist_arrays(x, y):
+    """ convert x and y arrays for a line plot to a histogram plot. """
+    hist_x = np.c_[x[:-1], x[1:]].flatten()
+    hist_y = np.c_[y, y].flatten()
+
+    return hist_x, hist_y
 
 
 def hist1d(samples, ax, smooth=False, label=None, color="orange",
@@ -882,6 +869,42 @@ def auto_x_ticks(ax, nticks=5.):
         ax.set_xticks(tick_locs)
 
 
+def fix_param_names(fit_params):
+    new_params = []
+
+    for fit_param in fit_params:
+        split = fit_param.split(":")
+
+        if len(split) == 1:
+            comp = None
+            param = split[0]
+
+        if len(split) == 2:
+            comp = split[0]
+            param = split[1]
+
+        if param in list(latex_names):
+            new_param = latex_names[param]
+
+            if comp is not None:
+                if comp in list(latex_comps):
+                    new_param += "_\\mathrm{" + latex_comps[comp] + "}"
+                else:
+                    new_param += "_\\mathrm{" + comp + "}"
+
+            if param in list(latex_units):
+                new_param = new_param + "/" + latex_units[param]
+
+            new_param = "$" + new_param + "$"
+
+        else:
+            new_param = fit_param
+
+        new_params.append(new_param)
+
+    return new_params
+
+
 def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
 
     if tex_on:
@@ -916,11 +939,3 @@ def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
 
         else:
             ax.set_xlabel("lambda / A")
-
-
-def make_hist_arrays(x, y):
-    """ convert x and y arrays for a line plot to a histogram plot. """
-    hist_x = np.c_[x[:-1], x[1:]].flatten()
-    hist_y = np.c_[y, y].flatten()
-
-    return hist_x, hist_y

@@ -8,6 +8,7 @@ from .fit import fit_info_parser
 from .star_formation_history import star_formation_history
 
 from . import plotting
+from . import utils
 
 
 class check_prior(fit_info_parser):
@@ -21,19 +22,12 @@ class check_prior(fit_info_parser):
         # name: string to appear in plots identifying this prior
         self.name = name
 
+        self.draw_sfh()
         self._set_up_prior_dict()
 
         for i in range(self.n_draws):
 
-            unphysical = True
-
-            while unphysical:
-                cube = np.random.rand(self.ndim)
-                param = self._prior_transform(cube)
-
-                self.model_comp = self._get_model_comp(param)
-                self.sfh = star_formation_history(self.model_comp)
-                unphysical = self.sfh.unphysical
+            self.draw_sfh()
 
             for name in self.fit_params:
                 split = name.split(":")
@@ -46,6 +40,9 @@ class check_prior(fit_info_parser):
 
             self.prior["sfr"][i] = self.sfh.sfr_100myr
             self.prior["mwa"][i] = 10**-9*self.sfh.mass_weighted_age
+            
+            if "redshift" in self.fixed_params:
+                self.prior["sfh"][i, :] = self.sfh.sfr["total"]
 
             mtot = self.sfh.mass["total"]
             self.prior["mass"]["total"]["formed"][i] = mtot["formed"]
@@ -63,10 +60,25 @@ class check_prior(fit_info_parser):
         self.prior["mwa"] = np.zeros(self.n_draws)
         self.prior["sfr"] = np.zeros(self.n_draws)
 
+        if "redshift" in self.fixed_params:
+            self.prior["sfh"] = np.zeros((self.n_draws,
+                                          self.sfh.ages.shape[0]))
+
         self.prior["mass"] = {}
         self.prior["mass"]["total"] = {}
         self.prior["mass"]["total"]["living"] = np.zeros(self.n_draws)
         self.prior["mass"]["total"]["formed"] = np.zeros(self.n_draws)
+
+    def draw_sfh(self):
+        unphysical = True
+
+        while unphysical:
+            cube = np.random.rand(self.ndim)
+            param = self._prior_transform(cube)
+
+            self.model_comp = self._get_model_comp(param)
+            self.sfh = star_formation_history(self.model_comp)
+            unphysical = self.sfh.unphysical
 
     def plot_1d(self, show=True, save=False):
         plotting.plot_1d_distributions(self, show=show, save=save)

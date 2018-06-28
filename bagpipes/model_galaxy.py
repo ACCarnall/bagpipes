@@ -374,6 +374,14 @@ class model_galaxy:
 
         # Figure out which nebular grids to use and their weights.
         logU = self.model_comp["nebular"]["logU"]
+
+        if (logU < utils.logU_grid[0]) or (logU > utils.logU_grid[-1]):
+            sys.exit("Bagpipes: logU outside of the nebular grid range")
+
+        # Deal with logU exactly equal to smallest value in the grid
+        elif logU == utils.logU_grid[0]:
+            logU += 10**-10
+
         logU_vals = [np.min(utils.logU_grid[utils.logU_grid >= logU]),
                      np.max(utils.logU_grid[utils.logU_grid < logU])]
 
