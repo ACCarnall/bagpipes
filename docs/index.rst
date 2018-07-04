@@ -40,4 +40,5 @@ Just a few of the excellent projects Bagpipes relies on are:
    model_galaxies.rst
    loading_galaxies.rst
    fitting_galaxies.rst
+   fitting_catalogues.rst
 

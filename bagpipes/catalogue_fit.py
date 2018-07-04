@@ -22,7 +22,7 @@ class catalogue_fit:
     Parameters
     ----------
 
-    Catalogue_IDs : list
+    cat_IDs : list
         A list of ID numbers for galaxies in the catalogue
 
     fit_instructions : dict
@@ -30,16 +30,13 @@ class catalogue_fit:
         the data.
 
     load_data : function
-        Function which takes ID, filt_list as its two arguments and
-        returns the model spectrum and photometry. Spectrum should come
-        first and be an array with a column of wavelengths in Angstroms,
-        a column of fluxes in erg/s/cm^2/A and a column of flux errors
-        in the same units. Photometry should come second and be an array
-        with a column of fluxes in microjanskys and a column of flux
-        errors in the same units.
-
-    filt_list : list (optional)
-        The filt_list for the catalogue.
+        Function which takes ID as an argument and returns the model
+        spectrum and photometry. Spectrum should come first and be an
+        array with a column of wavelengths in Angstroms, a column of
+        fluxes in erg/s/cm^2/A and a column of flux errors in the same 
+        units. Photometry should come second and be an array with a 
+        column of fluxes in microjanskys and a column of flux errors 
+        in the same units.
 
     spectrum_exists : bool(optional)
         If the objects do not have spectral data, set this to False.
@@ -47,48 +44,57 @@ class catalogue_fit:
 
     photometry_exists : bool (optional)
         If the objects do not have photometric data for, set this to
-        False. In this case, load_data should only return a
-        spectrum.
+        False. In this case, load_data should only return a spectrum.
 
     run : string (optional)
         The subfolder into which outputs will be saved, useful e.g. for
         fitting more than one model configuration to the same data.
 
-    catalogue_redshifts : list (optional)
+    cat_filt_list : list (optional)
+        The filt_list, or list of filt_lists for the catalogue.
+
+    vary_filt_list : bool (optional)
+        If True, changes the filter list for each object. When True,
+        each entry in cat_filt_list is expected to be a different filter
+        list corresponding to each object in the catalogue.
+
+    cat_redshifts : list (optional)
         A list of redshift values associated with the objects to be
         fitted. Same length as Catalogue_IDs.
 
     fix_redshifts : bool or float (optional)
         If False (default), whatever instructions given in the input 
         fit_instructions for redshift will be applied. if True, 
-        redshifts are fixed to the values specified in 
-        catalogue_redshifts, if a float the redshift will be varied 
-        within this range either side of the value specified in 
-        catalogue_redshifts.
+        redshifts are fixed to the values specified in  cat_redshifts.
+        If a float the redshift will be varied  within this range either
+        side of the value specified in cat_redshifts.
 
     make_plots : bool (optional)
         If True, spectral and corner plots will be made for each object.
 
     """
 
-    def __init__(self, catalogue_IDs, fit_instructions, load_data,
-                 filt_list=None, spectrum_exists=True,
-                 photometry_exists=True, run=".", catalogue_redshifts=None,
+    def __init__(self, cat_IDs, fit_instructions, load_data,
+                 spectrum_exists=True, photometry_exists=True, run=".",
+                 cat_filt_list=None, vary_filt_list=False, cat_redshifts=None,
                  fix_redshifts=False, save_phot=False, make_plots=False):
 
-        self.run = run
-        self.IDs = catalogue_IDs
-        self.save_phot = save_phot
-        self.make_plots = make_plots
-        self.fix_redshifts = fix_redshifts
-        self.load_data = load_data
-        self.redshifts = catalogue_redshifts
-        self.spectrum_exists = spectrum_exists
+        self.IDs = cat_IDs
         self.fit_instructions = fit_instructions
-        self.photometry_exists = photometry_exists
-        self.filt_list = filt_list
+        self.load_data = load_data
 
-        self.n_objects = len(catalogue_IDs)
+        self.spectrum_exists = spectrum_exists
+        self.photometry_exists = photometry_exists
+        self.run = run
+        self.cat_filt_list = cat_filt_list
+        self.vary_filt_list = vary_filt_list
+        self.redshifts = cat_redshifts
+        self.fix_redshifts = fix_redshifts
+
+        self.make_plots = make_plots
+        self.save_phot = save_phot
+
+        self.n_objects = len(self.IDs)
 
         utils.make_dirs()
 
@@ -135,6 +141,11 @@ class catalogue_fit:
                                + "/"+ str(self.IDs[i]) + ".lock",
                                np.array([0.]))
 
+                    if self.vary_filt_list:
+                        self.filt_list = self.cat_filt_list[i]
+
+                    else:
+                        self.filt_list = self.cat_filt_list
 
                     current_galaxy = galaxy(str(self.IDs[i]),
                                  self.load_data, filt_list=self.filt_list,
@@ -151,7 +162,7 @@ class catalogue_fit:
                     if self.make_plots:
                         current_fit.plot_fit()
                         current_fit.plot_corner()
-                        current_fit.plot_1d_posterior()
+                        #current_fit.plot_1d_posterior()
                         current_fit.plot_sfh()
 
                         if "polynomial" in self.fit_instructions.keys():
@@ -176,7 +187,11 @@ class catalogue_fit:
                                        + self.run + "/" + self.run 
                                        + "_phot.txt"+ str(time0), photcat)
 
-                    outcat[n, 0] = current_fit.galaxy.ID
+                    try:
+                        outcat[n, 0] = current_fit.galaxy.ID
+
+                    except ValueError:
+                        outcat[n, 0] = i
 
                     post = current_fit.posterior
 
@@ -323,10 +338,15 @@ def merge_cat(run, mode="merge"):
     header_list = header[2:-1].split()
     f.close()
 
-    all_IDs = np.loadtxt(utils.working_dir + "/pipes/cats/" + run + "/all_IDs")
+    all_IDs = np.loadtxt(utils.working_dir + "/pipes/cats/"
+                         + run + "/all_IDs", dtype=str)
 
     outcat_final = np.zeros((all_IDs.shape[0], outcats["0"].shape[1]))
-    outcat_final[:, 0] = all_IDs
+    try:
+        outcat_final[:, 0] = all_IDs
+
+    except ValueError:
+        outcat_final[:, 0] = np.arange(outcat_final.shape[0])
 
     if merge_phot:
         outphotcat_final = np.zeros((all_IDs.shape[0],
@@ -422,8 +442,7 @@ def merge_cat(run, mode="merge"):
           "objects completed.")
 
     if mode == "clean":
-        print("Bagpipes: Running processes will be killed and partially"
-              + " completed objects reset.")
+        print("Bagpipes: Partially completed objects reset.")
 
 
 def clean_cat(run):

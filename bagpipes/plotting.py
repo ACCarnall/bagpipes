@@ -145,10 +145,11 @@ def plot_model_galaxy(model, show=True):
     return fig, axes
 
 
-def plot_galaxy(galaxy, show=True, polynomial=None):
+def plot_galaxy(galaxy, show=True, polynomial=None, return_y_scale=False):
     """ Make a quick plot of the data loaded into a galaxy object. """
     update_rcParams()
     naxes = 1
+    y_scale = []
 
     if (galaxy.photometry_exists and galaxy.spectrum_exists):
         naxes = 2
@@ -163,24 +164,32 @@ def plot_galaxy(galaxy, show=True, polynomial=None):
         if polynomial is not None:
             plot_spec[:, 1] *= polynomial
 
-        add_spectrum(plot_spec, spec_ax)
+        y_scale_spec = add_spectrum(plot_spec, spec_ax)
         if galaxy.photometry_exists:
-            add_observed_photometry_linear(galaxy, spec_ax)
+            add_observed_photometry_linear(galaxy, spec_ax,
+                                           y_scale=y_scale_spec)
+
         axes = [spec_ax]
+        y_scale = [y_scale_spec]
 
     if galaxy.photometry_exists and galaxy.spectrum_exists:
         phot_ax = plt.subplot(gs[1, 0])
-        add_observed_photometry(galaxy, phot_ax)
+        y_scale_phot = add_observed_photometry(galaxy, phot_ax)
+        y_scale.append(y_scale_phot)
         axes.append(phot_ax)
 
     elif galaxy.photometry_exists:
         phot_ax = plt.subplot(gs[0, 0])
-        add_observed_photometry(galaxy, phot_ax)
+        y_scale_phot = add_observed_photometry(galaxy, phot_ax)
+        y_scale = [y_scale_phot]
         axes = [phot_ax]
 
     if show:
         plt.show()
         plt.close(fig)
+
+    if return_y_scale:
+        return fig, axes, y_scale
 
     return fig, axes
 
@@ -191,19 +200,22 @@ def plot_fit(fit, show=False, save=True):
 
     if "polynomial" in list(fit.posterior):
         median_poly = np.median(fit.posterior["polynomial"], axis=0)
-        fig, axes = plot_galaxy(fit.galaxy, show=False, polynomial=median_poly)
+        fig, axes, y_scale = plot_galaxy(fit.galaxy, show=False,
+                                        polynomial=median_poly,
+                                        return_y_scale=True)
 
     else:
-        fig, axes = plot_galaxy(fit.galaxy, show=False)
+        fig, axes, y_scale = plot_galaxy(fit.galaxy, show=False,
+                                         return_y_scale=True)
 
     if fit.galaxy.spectrum_exists:
-        add_spectrum_posterior(fit, axes[0], zorder=6)
+        add_spectrum_posterior(fit, axes[0], zorder=6, y_scale=y_scale[0])
 
     if fit.galaxy.photometry_exists and fit.galaxy.spectrum_exists:
-        add_photometry_posterior(fit, axes[1], zorder=2)
+        add_photometry_posterior(fit, axes[1], zorder=2, y_scale=y_scale[1])
 
     elif fit.galaxy.photometry_exists:
-        add_photometry_posterior(fit, axes[0], zorder=2)
+        add_photometry_posterior(fit, axes[0], zorder=2, y_scale=y_scale[0])
 
     if save:
         plotpath = ("pipes/plots/" + fit.run + "/" + fit.galaxy.ID
@@ -533,7 +545,7 @@ def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True):
     # Sort out axis labels.
     auto_axis_label(ax, y_scale, z_non_zero=z_non_zero)
 
-    return ax
+    return y_scale
 
 
 def add_model_photometry(model, ax, x_ticks=None, zorder=4):
@@ -615,17 +627,18 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
 
     auto_axis_label(ax, y_scale, log_x=True)
 
-    return ax
+    return y_scale
 
 
-def add_observed_photometry_linear(galaxy, ax, zorder=4):
+def add_observed_photometry_linear(galaxy, ax, zorder=4, y_scale=None):
     """ Adds photometric data to the passed axes without doing any
     manipulation of the axes or labels. """
 
     mask = (galaxy.photometry[:, 1] > 0.)
     ymax = 1.05*np.max((galaxy.photometry[:, 1]+galaxy.photometry[:, 2])[mask])
 
-    y_scale = int(np.log10(ymax))-1
+    if not y_scale:
+        y_scale = int(np.log10(ymax))-1
 
     # Plot the data
     ax.errorbar(galaxy.photometry[:, 0],
@@ -641,13 +654,14 @@ def add_observed_photometry_linear(galaxy, ax, zorder=4):
     return ax
 
 
-def add_photometry_posterior(fit, ax, zorder=4):
+def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
 
     mask = (fit.galaxy.photometry[:, 1] > 0.)
     ymax = 1.05*np.max((fit.galaxy.photometry[:, 1]
                         + fit.galaxy.photometry[:, 2])[mask])
 
-    y_scale = int(np.log10(ymax))-1
+    if not y_scale:
+        y_scale = int(np.log10(ymax))-1
 
     if "redshift" in list(fit.posterior):
         redshift = fit.posterior["median"]["redshift"]
@@ -681,18 +695,16 @@ def add_photometry_posterior(fit, ax, zorder=4):
                    zorder=zorder, alpha=0.05, s=100, rasterized=True)
 
 
-def add_spectrum_posterior(fit, ax, zorder=4):
+def add_spectrum_posterior(fit, ax, zorder=4, y_scale=None):
 
     ymax = 1.05*np.max(fit.galaxy.spectrum[:, 1])
 
-    y_scale = int(np.log10(ymax))-1
+    if not y_scale:
+        y_scale = int(np.log10(ymax))-1
 
     wavs = fit.model.spectrum[:, 0]
 
     spec_post = fit.posterior["spectrum"]
-
-    if "polynomial" in list(fit.posterior):
-        spec_post *= fit.posterior["polynomial"]
 
     spec_low = np.percentile(spec_post, 16, axis=0)*10**-y_scale
     spec_med = np.percentile(spec_post, 50, axis=0)*10**-y_scale

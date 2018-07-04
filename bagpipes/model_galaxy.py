@@ -3,7 +3,7 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 import sys
 
-from numpy.polynomial.chebyshev import chebval as cheb
+from numpy.polynomial.chebyshev import chebval
 
 from . import utils
 from .star_formation_history import *
@@ -691,27 +691,6 @@ class model_galaxy:
                                         left=0, right=0)
 
                 self.spectrum = np.array([self.spec_wavs, spec_fluxes]).T
-
-        # Apply spectral polynomial if requested
-        if (("polynomial" in list(self.model_comp))
-                and (self.spec_wavs is not None)):
-
-            poly_coefs = []
-
-            poly_dict = self.model_comp["polynomial"]
-
-            while str(len(poly_coefs)) in list(poly_dict):
-                poly_coefs.append(poly_dict[str(len(poly_coefs))])
-
-            points = ((self.spec_wavs - self.spec_wavs[0])
-                      / (self.spec_wavs[-1] - self.spec_wavs[0]))
-
-            self.polynomial = cheb(points, poly_coefs)
-
-            self.spectrum[:, 1] /= self.polynomial
-
-        else:
-            self.polynomial = None
 
         # line_fluxes: dict of output line fluxes in erg/s/cm^2 or erg/s
         # at redshift zero.

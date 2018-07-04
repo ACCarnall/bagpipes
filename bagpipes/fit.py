@@ -11,13 +11,13 @@ from copy import deepcopy, copy
 from scipy.special import erf, erfinv
 from dynesty import NestedSampler
 from dynesty.utils import resample_equal, simulate_run
+from numpy.polynomial.chebyshev import chebval, chebfit
 
 from . import utils
 from . import priors
 from . import plotting
 
 from .model_galaxy import model_galaxy
-
 
 
 class fit_info_parser:
@@ -213,6 +213,30 @@ class fit_info_parser:
         else:
             self.model.update(self.model_comp)
 
+        if "polynomial" in list(self.model_comp):
+            self._get_poly()
+
+    def _get_poly(self):
+
+        x = np.copy(self.model.spec_wavs)
+        width = (x[-1] - x[0])
+        x -= x[0] + width/2
+        x /= width/2
+
+        if self.model_comp["polynomial"]["type"] == "bayesian":
+            coefs = []
+            poly_dict = self.model_comp["polynomial"]
+
+            while str(len(coefs)) in list(poly_dict):
+                coefs.append(poly_dict[str(len(coefs))])
+
+        elif self.model_comp["polynomial"]["type"] == "max_like":
+            y = self.model.spectrum[:, 1]/self.galaxy.spectrum[:, 1]
+            n = int(self.fit_info["polynomial"]["order"])
+            coefs = chebfit(x, y, n, w=self.inv_sigma_spec)
+        
+        self.polynomial = chebval(x, coefs)        
+
 
 class fit(fit_info_parser):
     """ Fit a model to the data contained in a galaxy object.
@@ -254,6 +278,26 @@ class fit(fit_info_parser):
         # posterior: Will be used to store posterior samples.
         self.posterior = {}
 
+        # Set up variables which will be used when calculating lnprob.
+        self.K_phot, self.K_spec = 0., 0.
+        self.N_spec, self.N_phot = 0., 0.
+        self.hyp_spec, self.hyp_phot = 1., 1.
+        self.chisq_spec, self.chisq_phot = 0., 0.
+
+        # Calculate constant factors to be added to lnprob.
+        if self.galaxy.spectrum_exists:
+            log_error_factors = np.log(2*np.pi*self.galaxy.spectrum[:, 2]**2)
+            self.K_spec = -0.5*np.sum(log_error_factors)
+            self.N_spec = self.galaxy.spectrum.shape[0]
+            self.inv_sigma_sq_spec = 1./self.galaxy.spectrum[:, 2]**2
+            self.inv_sigma_spec = 1./self.galaxy.spectrum[:, 2]
+
+        if self.galaxy.photometry_exists:
+            log_error_factors = np.log(2*np.pi*self.galaxy.photometry[:, 2]**2)
+            self.K_phot = -0.5*np.sum(log_error_factors)
+            self.N_phot = self.galaxy.photometry.shape[0]
+            self.inv_sigma_sq_phot = 1./self.galaxy.photometry[:, 2]**2
+
         # If there is already a saved posterior distribution load it.
         if os.path.exists(self.post_path):
             print("\nBagpipes: Existing posterior distribution loaded for"
@@ -271,25 +315,6 @@ class fit(fit_info_parser):
 
             if not os.path.exists("pipes/plots/" + self.run):
                 os.mkdir("pipes/plots/" + self.run)
-
-        # Set up variables which will be used when calculating lnprob.
-        self.K_phot, self.K_spec = 0., 0.
-        self.N_spec, self.N_phot = 0., 0.
-        self.hyp_spec, self.hyp_phot = 1., 1.
-        self.chisq_spec, self.chisq_phot = 0., 0.
-
-        # Calculate constant factors to be added to lnprob.
-        if self.galaxy.spectrum_exists:
-            log_error_factors = np.log(2*np.pi*self.galaxy.spectrum[:, 2]**2)
-            self.K_spec = -0.5*np.sum(log_error_factors)
-            self.N_spec = self.galaxy.spectrum.shape[0]
-            self.inv_sigma_sq_spec = 1./self.galaxy.spectrum[:, 2]**2
-
-        if self.galaxy.photometry_exists:
-            log_error_factors = np.log(2*np.pi*self.galaxy.photometry[:, 2]**2)
-            self.K_phot = -0.5*np.sum(log_error_factors)
-            self.N_phot = self.galaxy.photometry.shape[0]
-            self.inv_sigma_sq_phot = 1./self.galaxy.photometry[:, 2]**2
 
     def _fit_pmn(self, verbose=False, n_live=400):
         """ Run the pymultinest sampler. """
@@ -389,9 +414,9 @@ class fit(fit_info_parser):
 
             return
 
-        samp_names = {"pmn": "PyMultiNest", "dynesty": "Dynesty"}
+        sampler_names = {"pmn": "PyMultiNest", "dynesty": "Dynesty"}
         print("\nBagpipes: fitting object " + self.galaxy.ID
-              + " with " + samp_names[sampler] + "\n")
+              + " with " + sampler_names[sampler] + "\n")
 
         start_time = time.time()
 
@@ -472,7 +497,13 @@ class fit(fit_info_parser):
             self.hyp_phot = self.model_comp["hypphot"]
 
         if self.galaxy.spectrum_exists:
-            diff = (self.galaxy.spectrum[:, 1] - self.model.spectrum[:, 1])
+            if "polynomial" in self.fit_info:
+                diff = (self.galaxy.spectrum[:, 1]
+                        - self.model.spectrum[:, 1]/self.polynomial)
+
+            else:
+                diff = (self.galaxy.spectrum[:, 1] - self.model.spectrum[:, 1])
+
             self.chisq_spec = np.sum(diff**2*self.inv_sigma_sq_spec)
 
         if self.galaxy.photometry_exists:
@@ -544,7 +575,7 @@ class fit(fit_info_parser):
             len_spec = self.model.spectrum.shape[0]
             self.posterior["spectrum"] = np.zeros((n_post, len_spec))
 
-        if self.model.polynomial is not None:
+        if "polynomial" in list(self.fit_info):
             self.posterior["polynomial"] = np.zeros((n_post, len_spec))
 
         if self.model.nebular_on:
@@ -590,8 +621,8 @@ class fit(fit_info_parser):
             if self.galaxy.spectrum_exists:
                 self.posterior["spectrum"][i, :] = self.model.spectrum[:, 1]
 
-            if self.model.polynomial is not None:
-                self.posterior["polynomial"][i, :] = self.model.polynomial
+            if "polynomial" in list(self.fit_info):
+                self.posterior["polynomial"][i, :] = self.polynomial
 
         self.posterior["ssfr"] = np.log10(self.posterior["sfr"]
                                           / post_mass["total"]["living"])
