@@ -162,7 +162,7 @@ class catalogue_fit:
                     if self.make_plots:
                         current_fit.plot_fit()
                         current_fit.plot_corner()
-                        #current_fit.plot_1d_posterior()
+                        current_fit.plot_1d_posterior()
                         current_fit.plot_sfh()
 
                         if "polynomial" in self.fit_instructions.keys():

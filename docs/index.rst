@@ -5,9 +5,12 @@ Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation is
 Source and installation
 -----------------------
 
-See the `installation <installation.html>`_ page for information on how to download the latest Bagpipes distribution.
+Bagpipes can be installed with pip:
 
-Bagpipes is developed at GitHub, view the source `here <https://github.com/ACCarnall/bagpipes>`_.
+.. code::
+    pip install bagpipes
+
+Bagpipes is developed at GitHub, view the source `here <https://github.com/ACCarnall/bagpipes>`_. An important note is that the code will not run from simply cloning the GitHub repository. This is because the large model grid files aren't included. The default pip installation comes with the BC03 models used in Carnall et al. (2017). If you'd like to use other models with bagpipes please contact me directly.
 
 
 Getting started
@@ -35,7 +38,6 @@ Just a few of the excellent projects Bagpipes relies on are:
    :maxdepth: 2
    :hidden:
 
-   installation.rst
    getting_started.rst
    model_galaxies.rst
    loading_galaxies.rst

@@ -9,5 +9,5 @@ include pipes_filters/UVJ/Generic-Bessell.V.dat
 include pipes_filters/UVJ/Keck-NIRC2.J.dat
 include pipes_models/nebular/bc03_miles/*.fits
 include pipes_models/stellar/bc03_miles/*.fits
-include pipes_models/nebular/bpass_bin/*.fits
-include pipes_models/stellar/bpass_bin/*.fits
+#include pipes_models/nebular/bpass_bin/*.fits
+#include pipes_models/stellar/bpass_bin/*.fits

@@ -418,10 +418,12 @@ def plot_1d_distributions(fit, fit2=False, show=False, save=True):
         label = labels[i]
 
         if name == "mass":
-            samples = np.log10(dist_dict["mass"]["total"]["living"])
+            living_mass = dist_dict["mass"]["total"]["living"]
+            samples = np.log10(living_mass)
 
             if fit2:
-                extra_samples = np.log10(extra_dist_dict["mass"]["total"]["living"])
+                extra_living_mass = extra_dist_dict["mass"]["total"]["living"]
+                extra_samples = np.log10(extra_living_mass)
 
         else:
             samples = dist_dict[name]
@@ -430,11 +432,11 @@ def plot_1d_distributions(fit, fit2=False, show=False, save=True):
                 extra_samples = extra_dist_dict[name]
 
         # Log parameter samples and labels for parameters with log priors
-        if (i > 4 - fit.ndim and fit.priors[i-4] == "log_10" or name in ["sfr"]):
+        if (i > 4 and fit.priors[i-4] == "log_10") or name == "sfr":
             samples = np.log10(samples)
+
             if fit2 and name in fit2.fit_params + sfh_quantities:
                 extra_samples = np.log10(extra_samples)
-
 
             if tex_on:
                 label = "$\\mathrm{log_{10}}(" + label[1:-1] + ")$"
@@ -442,7 +444,8 @@ def plot_1d_distributions(fit, fit2=False, show=False, save=True):
             else:
                 label = "log_10(" + label + ")"
 
-        hist1d(samples, axes[i], smooth=True, percentiles=not fit2)
+        hist1d(samples[np.invert(np.isnan(samples))], axes[i],
+               smooth=True, percentiles=not fit2)
 
         if fit2 and name in fit2.fit_params + sfh_quantities:
             hist1d(extra_samples, axes[i], smooth=True, color="purple",
@@ -836,8 +839,11 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         ax.plot(x_midp, y, color=color1, zorder=zorder-1)
         ax.fill_between(x_midp, np.zeros_like(y), y,
                         color=color2, alpha=alpha, zorder=zorder-2)
-        ax.plot([x_midp[0], x_midp[0]], [0, y[0]], color=color1, zorder=zorder-1)
-        ax.plot([x_midp[-1], x_midp[-1]], [0, y[-1]], color=color1, zorder=zorder-1)
+        ax.plot([x_midp[0], x_midp[0]], [0, y[0]],
+                color=color1, zorder=zorder-1)
+
+        ax.plot([x_midp[-1], x_midp[-1]], [0, y[-1]],
+                color=color1, zorder=zorder-1)
 
     else:
         x_hist, y_hist = make_hist_arrays(x, y)
