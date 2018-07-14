@@ -6,7 +6,7 @@ Getting Started
 The best place to get started with the code is by looking at the `iPython notebook examples <https://github.com/ACCarnall/bagpipes/tree/master/examples>`_. It's a good idea to tackle them in order as the later examples build on the earlier ones.
 
 
-The rest of this documentation provides a complete reference guide. It's a good idea to look through the pages in order, as later ones build on earlier concepts.
+The rest of this documentation provides a reference guide. It's a good idea to look through the pages in order, as later ones build on earlier concepts.
 
 Bagpipes is structured around three core classes:
 
