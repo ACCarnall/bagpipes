@@ -11,7 +11,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='bagpipes',
 
-    version='0.3.1',
+    version='0.4.0',
 
     description='Galaxy spectral fitting',
 
@@ -29,7 +29,7 @@ setup(
 
     install_requires=["numpy>=1.14.2", "corner", "pymultinest",
                       "matplotlib>=2.2.2", "scipy", "astropy",
-                      "dynesty", "msgpack", "deepdish"],
+                      "dynesty", "msgpack", "deepdish", "pandas"],
 
     project_urls={
         "readthedocs": "https://bagpipes.readthedocs.io",

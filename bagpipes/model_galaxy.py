@@ -25,8 +25,8 @@ class model_galaxy:
         generate.
 
     filt_list : list - optional
-        A list of paths to filter curve files, which should contain a 
-        column of wavelengths in angstroms followed by a column of 
+        A list of paths to filter curve files, which should contain a
+        column of wavelengths in angstroms followed by a column of
         transmitted fraction values. Only required if photometric output
         is desired.
 
@@ -474,7 +474,7 @@ class model_galaxy:
         return np.array([self.spec_wavs, spec_fluxes]).T
 
     def update(self, model_components):
-        """ Updates the model to the new numerical values specified in 
+        """ Updates the model to the new numerical values specified in
         the new model_components dictionary. Adding/removing components
         and changing non-numerical values is not supported. """
 
@@ -642,8 +642,8 @@ class model_galaxy:
             gb_fnu[mask] = c_div_wavs**(3+beta)/(np.exp(exponent[mask]) - 1.)
 
             # convert to f_lambda
-            dust_emission = gb_fnu*(self.chosen_wavs*10**-10)**2 
-            # normailse 
+            dust_emission = gb_fnu*(self.chosen_wavs*10**-10)**2
+            # normailse
             dust_emission /= np.trapz(dust_emission, x=self.chosen_wavs)
             dust_emission *= dust_flux
 

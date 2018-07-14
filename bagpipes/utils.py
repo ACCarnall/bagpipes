@@ -5,6 +5,7 @@ import os
 import sys
 
 from astropy.io import fits
+from astropy.cosmology import FlatLambdaCDM
 
 from . import load_models
 
@@ -14,7 +15,6 @@ max_redshift = 10.
 
 logU_grid = np.arange(-4., -1.99, 0.5)
 
-from astropy.cosmology import FlatLambdaCDM
 cosmo = FlatLambdaCDM(H0=70., Om0=0.3)
 z_array = np.arange(0., max_redshift, 0.01)
 age_at_z = cosmo.age(z_array).value

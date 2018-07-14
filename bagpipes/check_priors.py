@@ -40,7 +40,7 @@ class check_prior(fit_info_parser):
 
             self.prior["sfr"][i] = self.sfh.sfr_100myr
             self.prior["mwa"][i] = 10**-9*self.sfh.mass_weighted_age
-            
+
             if "redshift" in self.fixed_params:
                 self.prior["sfh"][i, :] = self.sfh.sfr["total"]
 

@@ -12,4 +12,5 @@ dependencies:
       - dynesty
       - msgpack
       - deepdish
+      - pandas
 

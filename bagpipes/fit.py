@@ -75,6 +75,7 @@ class fit_info_parser:
 
             # Checks for global parameters to be fixed.
             elif isinstance(param, (float, int)):
+
                 self.fixed_values.append(param)
                 self.fixed_params.append(key)
 
@@ -91,9 +92,8 @@ class fit_info_parser:
 
                     # Checks for component parameters to be fixed.
                     elif isinstance(comp_param, (float, int, str)):
-                        if (comp_key is not "type"
-                                and comp_key[-6:] != "_prior"):
-
+                        protected = [p in comp_key for p in ["type", "_prior"]]
+                        if not any(protected):
                             self.fixed_values.append(comp_param)
                             self.fixed_params.append(key + ":" + comp_key)
 
@@ -172,10 +172,10 @@ class fit_info_parser:
         # values of the parameters they depend on.
         for i in range(len(self.fixed_values)):
             param = self.fixed_values[i]
-            if isinstance(param, str) and param is not "age_of_universe":
+            if isinstance(param, str) and param not in ["age_of_universe"]:
                 split_par = self.fixed_params[i].split(":")
                 split_val = self.fixed_values[i].split(":")
-
+                print(split_par, split_val[0], type(split_val[0]))
                 fixed_val = model_comp[split_val[0]][split_val[1]]
                 model_comp[split_par[0]][split_par[1]] = fixed_val
 
@@ -234,8 +234,8 @@ class fit_info_parser:
             y = self.model.spectrum[:, 1]/self.galaxy.spectrum[:, 1]
             n = int(self.fit_info["polynomial"]["order"])
             coefs = chebfit(x, y, n, w=self.inv_sigma_spec)
-        
-        self.polynomial = chebval(x, coefs)        
+
+        self.polynomial = chebval(x, coefs)
 
 
 class fit(fit_info_parser):
@@ -256,11 +256,13 @@ class fit(fit_info_parser):
         The subfolder into which outputs will be saved, useful e.g. for
         fitting more than one model configuration to the same data.
 
+    time_calls: bool - optional
+        Defaults to False, if True prints the time taken for each like-
+        lihood call.
+
     """
 
-    def __init__(self, galaxy, fit_instructions, run="."):
-
-        fit_info_parser.__init__(self, fit_instructions)
+    def __init__(self, galaxy, fit_instructions, run=".", time_calls=False):
 
         utils.make_dirs()
 
@@ -271,12 +273,12 @@ class fit(fit_info_parser):
         # galaxy: galaxy object, contains the data to be fitted.
         self.galaxy = galaxy
 
+        # time_calls, whether to time the _get_lnprob function.
+        self.time_calls = time_calls
+
         # post_path: where the posterior file should be saved.
         self.post_path = ("pipes/posterior/" + self.run + "/"
                           + self.galaxy.ID + ".h5")
-
-        # posterior: Will be used to store posterior samples.
-        self.posterior = {}
 
         # Set up variables which will be used when calculating lnprob.
         self.K_phot, self.K_spec = 0., 0.
@@ -300,13 +302,22 @@ class fit(fit_info_parser):
 
         # If there is already a saved posterior distribution load it.
         if os.path.exists(self.post_path):
-            print("\nBagpipes: Existing posterior distribution loaded for"
-                  + " object " + self.galaxy.ID + ".\n")
+            print("\nBagpipes: Existing posterior distribution and fit "
+                  + "instructions loaded for object " + self.galaxy.ID + ".\n")
 
             self.posterior = deepdish.io.load(self.post_path)
+            fit_info_parser.__init__(self, self.posterior["fit_instructions"])
+
             self._print_posterior()
-            post_med = [self.posterior["median"][p] for p in self.fit_params]
-            self._get_model(post_med)
+            median = [self.posterior["median"][p] for p in self.fit_params]
+            self._get_model(median)
+            self._get_post_info()
+
+        else:
+            fit_info_parser.__init__(self, fit_instructions)
+
+            self.posterior = {}
+            self.posterior["fit_instructions"] = self.fit_info
 
         # Set up directories to contain the outputs.
         if self.run is not ".":
@@ -359,7 +370,6 @@ class fit(fit_info_parser):
                                      self.ndim, nlive=n_live, bound="multi",
                                      sample="rwalk", walks=walk)
 
-
         self.sampler.run_nested(dlogz=0.01, print_progress=verbose)
 
         weights = np.exp(self.sampler.results.logwt
@@ -380,7 +390,7 @@ class fit(fit_info_parser):
         self.posterior["log_evidence_err"] = np.std(ev_arr)
 
     def fit(self, verbose=False, n_live=400,
-            sampler="dynesty", time_calls=False):
+            sampler="dynesty", calc_post=True):
         """ Fit the specified model to the input galaxy data using the
         dynesty or MultiNest algorithms.
 
@@ -401,15 +411,16 @@ class fit(fit_info_parser):
 
         time_calls : bool - optional
             If True, prints the time taken for each likelihood call.
+
+        calc_post: bool - optional
+            If True (default), calculates a bunch of useful posterior
+            quantities. These are needed for making plots, but things
+            can be speeded up by setting this to False.
         """
-        if time_calls:
-            self.time_calls = True
-        else:
-            self.time_calls = False
 
         if "samples" in list(self.posterior):
-            print("\nBagpipes: Posterior already loaded from " + self.post_path
-                  + "\nBagpipes: To start from scratch, delete this "
+            print("\nBagpipes: Posterior already loaded from "
+                  + self.post_path + ". To start from scratch, delete this "
                   + "file or change run.\n")
 
             return
@@ -432,9 +443,6 @@ class fit(fit_info_parser):
 
         for j in range(len(self.fit_params)):
             param = self.fit_params[j]
-            param_samples = self.posterior["samples"][:, j]
-
-            self.posterior[param] = param_samples
 
             post_median = np.median(self.posterior["samples"][:, j])
             conf_int = [np.percentile(self.posterior["samples"][:, j], 16),
@@ -448,7 +456,12 @@ class fit(fit_info_parser):
         print("\nBagpipes: fitting complete in " + str("%.1f" % runtime)
               + " seconds.\n")
 
-        self._get_post_info()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            deepdish.io.save(self.post_path, self.posterior)
+
+        if calc_post:
+            self._get_post_info()
 
         self._print_posterior()
 
@@ -529,6 +542,10 @@ class fit(fit_info_parser):
         """ Calculates posterior quantities which require models to be
         re-generated. For all posterior quantities the first index runs
         over the posterior samples. """
+
+        for j in range(len(self.fit_params)):
+            param_samples = self.posterior["samples"][:, j]
+            self.posterior[self.fit_params[j]] = param_samples
 
         # The posterior can be huge, so select a subsample of models to
         # calculate, the number of samples is determined by max_size.
@@ -632,7 +649,7 @@ class fit(fit_info_parser):
         best_params = []
 
         for i in range(self.ndim):
-            samples = self.posterior[self.fit_params[i]]
+            samples = self.posterior["samples"][:, i]
             best_param = samples[np.argmax(self.posterior["lnprob"])]
             best_params.append(best_param)
 
@@ -654,10 +671,6 @@ class fit(fit_info_parser):
 
         self.posterior["min_chisq"] = min_chisq
         self.posterior["min_chisq_reduced"] = min_chisq_red
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            deepdish.io.save(self.post_path, self.posterior)
 
     def plot_fit(self, show=False, save=True):
         """ Make a plot of the input data and fitted posteriors. """
@@ -685,4 +698,3 @@ class fit(fit_info_parser):
     def plot_1d_posterior(self, show=False, save=True):
         """ Make a plot of the 1d posterior distributions. """
         plotting.plot_1d_distributions(self, show=show, save=save)
-

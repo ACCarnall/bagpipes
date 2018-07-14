@@ -10,7 +10,7 @@ from . import utils
 from .model_galaxy import model_galaxy
 
 if "CLOUDY_DATA_PATH" in list(os.environ):
-  cloudy_data_path = os.environ["CLOUDY_DATA_PATH"]
+    cloudy_data_path = os.environ["CLOUDY_DATA_PATH"]
 
 age_lim = 3.*10**7
 
@@ -183,7 +183,7 @@ def extract_cloudy_results(age, zmet, logU, test=False):
 
     cloudy_cont = np.loadtxt(utils.install_dir
                              + "/pipes_models/nebular/"
-                             + "cloudy_temp_files/" + utils.model_type 
+                             + "cloudy_temp_files/" + utils.model_type
                              + "/logU_" + "%.1f" % logU + "_zmet_"
                              + "%.3f" % zmet + "/" + "%.5f" % age + ".econ",
                              usecols=(0, 2))[::-1, :]
@@ -305,20 +305,21 @@ def compile_cloudy_grid():
             print("logU: " + str(np.round(logU, 1))
                   + ", zmet: " + str(np.round(zmet, 4)))
 
-            contgrid = np.zeros((utils.chosen_ages[utils.chosen_ages < age_lim].shape[0]+1,
+            mask = (utils.chosen_ages < age_lim)
+            contgrid = np.zeros((utils.chosen_ages[mask].shape[0]+1,
                                  utils.gridwavs[utils.model_type].shape[0]+1))
 
             contgrid[0, 1:] = utils.gridwavs[utils.model_type]
             contgrid[1:, 0] = utils.chosen_ages[utils.chosen_ages < age_lim]
 
-            linegrid = np.zeros((utils.chosen_ages[utils.chosen_ages < age_lim].shape[0]+1,
+            linegrid = np.zeros((utils.chosen_ages[mask].shape[0]+1,
                                 line_wavs.shape[0]+1))
 
             linegrid[0, 1:] = line_wavs
-            linegrid[1:, 0] = utils.chosen_ages[utils.chosen_ages < age_lim]
+            linegrid[1:, 0] = utils.chosen_ages[mask]
 
-            for i in range(utils.chosen_ages[utils.chosen_ages < age_lim].shape[0]):
-                age = utils.chosen_ages[utils.chosen_ages < age_lim][i]
+            for i in range(utils.chosen_ages[mask].shape[0]):
+                age = utils.chosen_ages[mask][i]
                 cont_fluxes, line_fluxes = extract_cloudy_results(age*10**-9,
                                                                   zmet, logU)
 
@@ -335,12 +336,12 @@ def compile_cloudy_grid():
 
             np.savetxt(utils.install_dir + "/pipes_models/nebular/"
                        "cloudy_temp_files/" + utils.model_type + "/grids/"
-                        + "zmet_" + str(zmet) + "_logU_" + str(logU)
-                        + ".neb_lines", linegrid)
+                       + "zmet_" + str(zmet) + "_logU_" + str(logU)
+                       + ".neb_lines", linegrid)
 
             np.savetxt(utils.install_dir + "/pipes_models/nebular/"
                        + "cloudy_temp_files/" + utils.model_type + "/grids/"
-                       + "zmet_" + str(zmet)+ "_logU_" + str(logU)
+                       + "zmet_" + str(zmet) + "_logU_" + str(logU)
                        + ".neb_cont", contgrid)
 
     # Nebular grids

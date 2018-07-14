@@ -12,7 +12,7 @@ try:
     import matplotlib.pyplot as plt
     tex_on = find_executable("latex")
 
-except:
+except ImportError:
     print("Bagpipes: Matplotlib import failed, plotting unavailable.")
 
 from . import utils
@@ -201,8 +201,8 @@ def plot_fit(fit, show=False, save=True):
     if "polynomial" in list(fit.posterior):
         median_poly = np.median(fit.posterior["polynomial"], axis=0)
         fig, axes, y_scale = plot_galaxy(fit.galaxy, show=False,
-                                        polynomial=median_poly,
-                                        return_y_scale=True)
+                                         polynomial=median_poly,
+                                         return_y_scale=True)
 
     else:
         fig, axes, y_scale = plot_galaxy(fit.galaxy, show=False,
@@ -225,7 +225,7 @@ def plot_fit(fit, show=False, save=True):
 
     if show:
         plt.show()
-    
+
     plt.close(fig)
 
     return fig, axes
@@ -252,7 +252,7 @@ def plot_sfh_post(fit, show=False, save=True):
 
     if show:
         plt.show()
-    
+
     plt.close(fig)
 
     return fig, axes
@@ -301,7 +301,7 @@ def plot_poly(fit, style="percentiles", save=True, show=False):
 
     if show:
         plt.show()
-    
+
     plt.close(fig)
 
     return fig, ax
@@ -371,7 +371,7 @@ def plot_corner(fit, show=False, save=True, bins=25):
 
     if show:
         plt.show()
-    
+
     plt.close(fig)
 
     return fig
@@ -449,10 +449,11 @@ def plot_1d_distributions(fit, fit2=False, show=False, save=True):
 
         if fit2 and name in fit2.fit_params + sfh_quantities:
             hist1d(extra_samples, axes[i], smooth=True, color="purple",
-                    percentiles=False, zorder=2)
+                   percentiles=False, zorder=2)
 
-            axes[i].set_xlim(np.min([samples.min(), extra_samples.min()]),
-                             np.max([samples.max(), extra_samples.max()]))
+            low = np.max([np.min([samples.min(), extra_samples.min()]), -99.])
+            high = np.max([samples.max(), extra_samples.max()])
+            axes[i].set_xlim(low, high)
 
         axes[i].set_xlabel(label)
         auto_x_ticks(axes[i], nticks=3)
@@ -465,7 +466,7 @@ def plot_1d_distributions(fit, fit2=False, show=False, save=True):
 
     if show:
         plt.show()
-    
+
     plt.close(fig)
 
     return fig, axes
@@ -666,7 +667,7 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
     if not y_scale:
         y_scale = int(np.log10(ymax))-1
 
-    if "redshift" in list(fit.posterior):
+    if "redshift" in fit.fit_params:
         redshift = fit.posterior["median"]["redshift"]
 
     else:
@@ -731,7 +732,7 @@ def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw",
     sfh_post = fit.posterior["sfh"]
 
     # Calculate median redshift and median age of Universe
-    if "redshift" in list(fit.posterior):
+    if "redshift" in fit.fit_params:
         redshift = fit.posterior["median"]["redshift"]
 
     else:
@@ -830,7 +831,7 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         ax.set_xlabel(x_label[0])
 
     y, x = np.histogram(samples, bins=bins, density=True,
-                        range=(samples.min(), samples.max()))
+                        range=(np.max([samples.min(), -99.]), samples.max()))
 
     y = gaussian_filter(y, 1.5)
 
@@ -855,7 +856,7 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
                        color="black", zorder=zorder, lw=3)
 
     ax.set_ylim(bottom=0)
-    ax.set_xlim(samples.min(), samples.max())
+    ax.set_xlim(np.max([samples.min(), -99.]), samples.max())
     auto_x_ticks(ax, nticks=3.)
     plt.setp(ax.get_yticklabels(), visible=False)
 
@@ -890,6 +891,9 @@ def auto_x_ticks(ax, nticks=5.):
 def fix_param_names(fit_params):
     new_params = []
 
+    if not isinstance(fit_params, list):
+        fit_params = [fit_params]
+
     for fit_param in fit_params:
         split = fit_param.split(":")
 
@@ -919,6 +923,9 @@ def fix_param_names(fit_params):
             new_param = fit_param
 
         new_params.append(new_param)
+
+    if len(new_params) == 1:
+        new_params = new_params[0]
 
     return new_params
 

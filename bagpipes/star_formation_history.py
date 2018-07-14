@@ -45,7 +45,7 @@ class star_formation_history:
 
         self.hubble_time = utils.age_at_z[utils.z_array == 0.]
 
-        # This has to be a little bigger than the hubble time or the 
+        # This has to be a little bigger than the hubble time or the
         # unphysical flag is never set for models at z = 0.
         log_age_max = np.log10(self.hubble_time)+9. + 2*log_sampling
         self.ages = np.arange(6., log_age_max, log_sampling)
@@ -88,7 +88,7 @@ class star_formation_history:
 
         for name in self.sfh_components:
             living_mass_grid = utils.chosen_live_frac
-            
+
             zmet_weights = np.expand_dims(self.ceh.zmet_weights[name], 1)
             sfh_weights = self.weights[name]
 

@@ -29,8 +29,8 @@ class galaxy:
         microjanskys and a column of flux errors in the same units.
 
     filt_list : list - optional
-        A list of paths to filter curve files, which should contain a 
-        column of wavelengths in angstroms followed by a column of 
+        A list of paths to filter curve files, which should contain a
+        column of wavelengths in angstroms followed by a column of
         transmitted fraction values. Only required if photometric output
         is desired.
 
