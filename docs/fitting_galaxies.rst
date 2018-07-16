@@ -158,7 +158,7 @@ Additionally posterior distributions for each fit parameter are stored. More inf
 Saved outputs
 -------------
 
-The whole of the posterior dictionary is automatically saved in your working directory on the completion of a fit as a hdf5 file under ``pipes/posterior/<ID>.h5``. 
+The basics of the posterior dictionary are automatically saved in your working directory on the completion of a fit as a hdf5 file under ``pipes/posterior/<ID>.h5``. 
 
 When the same fit is run again this posterior will be loaded by default, if you want to start over you'll need to delete the saved file or change the run (see below).
 

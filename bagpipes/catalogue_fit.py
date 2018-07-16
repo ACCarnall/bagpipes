@@ -194,7 +194,7 @@ class catalogue_fit:
                                   + self.run + "/" + self.run + ".txt"
                                   + str(time0), sep="\t", index=False)
 
-                outcat["#ID"][n] = current_fit.galaxy.ID
+                outcat.loc[n, "#ID"] = current_fit.galaxy.ID
 
                 post = current_fit.posterior
 

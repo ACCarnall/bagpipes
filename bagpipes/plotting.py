@@ -222,11 +222,11 @@ def plot_fit(fit, show=False, save=True):
                     + "_fit.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")
+        plt.close(fig)
 
     if show:
         plt.show()
-
-    plt.close(fig)
+        plt.close(fig)
 
     return fig, axes
 
@@ -249,11 +249,11 @@ def plot_sfh_post(fit, show=False, save=True):
                     + "_sfh.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")
+        plt.close(fig)
 
     if show:
         plt.show()
-
-    plt.close(fig)
+        plt.close(fig)
 
     return fig, axes
 
@@ -298,11 +298,11 @@ def plot_poly(fit, style="percentiles", save=True, show=False):
                     + "_poly.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")
+        plt.close(fig)
 
     if show:
         plt.show()
-
-    plt.close(fig)
+        plt.close(fig)
 
     return fig, ax
 
@@ -368,11 +368,11 @@ def plot_corner(fit, show=False, save=True, bins=25):
                     + "_corner.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")
+        plt.close(fig)
 
     if show:
         plt.show()
-
-    plt.close(fig)
+        plt.close(fig)
 
     return fig
 
@@ -463,11 +463,11 @@ def plot_1d_distributions(fit, fit2=False, show=False, save=True):
                     + "_1d_posterior.pdf")
 
         plt.savefig(plotpath, bbox_inches="tight")
+        plt.close(fig)
 
     if show:
         plt.show()
-
-    plt.close(fig)
+        plt.close(fig)
 
     return fig, axes
 

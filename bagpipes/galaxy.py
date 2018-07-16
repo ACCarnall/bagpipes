@@ -46,7 +46,7 @@ class galaxy:
     def __init__(self, ID, load_data, no_of_spectra=1, out_units="ergscma",
                  spectrum_exists=True, photometry_exists=True, filt_list=None):
 
-        self.ID = ID
+        self.ID = str(ID)
         self.filt_list = filt_list
         self.out_units = out_units
         self.spectrum_exists = spectrum_exists
