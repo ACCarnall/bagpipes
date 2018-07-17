@@ -3,6 +3,8 @@ Bagpipes
 
 Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation is a state of the art Python code for modelling galaxy spectra and fitting spectroscopic and photometric observations.
 
+Bagpipes is currently in a state of active development in the run-up to the release of version 1. You are welcome to use the code but you may find problems, feel free to contact me with questions.
+
 .. image:: images/front_page.jpg
 
 Source and installation

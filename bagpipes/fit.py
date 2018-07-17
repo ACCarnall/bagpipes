@@ -99,6 +99,14 @@ class fit_info_parser:
 
         self.ndim = len(self.fit_params)
 
+        indices = np.argsort(self.fit_params)
+        self.fit_limits = [self.fit_limits[i] for i in indices]
+        self.fit_params.sort()
+
+        indices = np.argsort(self.fixed_params)
+        self.fixed_values = [self.fixed_values[i] for i in indices]
+        self.fixed_params.sort()
+
         # Populate list of priors
         for fit_param in self.fit_params:
 
