@@ -105,7 +105,7 @@ class model_galaxy:
         # sfh_components: List of the SFH components for this model
         self.sfh_components = []
         for comp in list(self.model_comp):
-            if (not comp.startswith(("dust", "nebular", "polynomial"))
+            if (not comp.startswith(("dust", "nebular", "polynomial", "noise"))
                     and isinstance(self.model_comp[comp], dict)):
 
                 self.sfh_components.append(comp)

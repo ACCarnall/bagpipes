@@ -21,11 +21,13 @@ latex_names = {"redshift": "z",
                "metallicity": "Z",
                "massformed": "\\mathrm{log_{10}(M",
                "mass": "\\mathrm{log_{10}(M_*",
+               "stellar_mass": "\\mathrm{log_{10}(M_*",
                "tau": "\\tau",
                "alpha": "\\alpha",
                "beta": "\\beta",
                "age": "\\mathrm{Age}",
                "Av": "{A_V}",
+               "n": "n",
                "veldisp": "\\sigma_{vel}",
                "0": "\\mathrm{N}0",
                "1": "\\mathrm{N}1",
@@ -38,17 +40,23 @@ latex_names = {"redshift": "z",
                "8": "\\mathrm{N}8",
                "9": "\\mathrm{N}9",
                "10": "\\mathrm{N}10",
-               "hypspec": "\\mathcal{H}_\\mathrm{spec}",
-               "hypphot": "\\mathcal{H}_\\mathrm{phot}",
                "sfr": "\\mathrm{SFR}",
                "mwa": "\\mathrm{Age_{MW}}",
                "tmw": "\\mathrm{t_{form}}",
+               "tquench": "\\mathrm{t_{quench}}",
                "ssfr": "\\mathrm{log_{10}(sSFR",
+               "sig_exp": "\\Delta",
+               "prob": "P",
+               "mu": "\\mu",
+               "sigma": "\\sigma",
+               "tau_q": "\\tau_\\mathrm{quench}",
+               "fwhm_sf": "\\mathrm{fwhm}_\\mathrm{SF}",
                }
 
 latex_units = {"metallicity": "Z_{\\odot}",
                "massformed": "M_{\\odot})}",
                "mass": "M_{\\odot})}",
+               "stellar_mass": "M_{\\odot})}",
                "tau": "\\mathrm{Gyr}",
                "age": "\\mathrm{Gyr}",
                "Av": "\\mathrm{mag}",
@@ -56,7 +64,10 @@ latex_units = {"metallicity": "Z_{\\odot}",
                "sfr": "\\mathrm{M_\\odot\\ yr}^{-1}",
                "ssfr": "\\mathrm{yr}^{-1})}",
                "mwa": "\\mathrm{Gyr}",
-               "tmw": "\\mathrm{Gyr}"
+               "tmw": "\\mathrm{Gyr}",
+               "tau_q": "\\mathrm{Gyr}",
+               "tquench": "\\mathrm{Gyr}",
+               "fwhm_sf": "\\mathrm{Gyr}",
                }
 
 latex_comps = {"dblplaw": "dpl",
@@ -159,12 +170,8 @@ def plot_galaxy(galaxy, show=True, polynomial=None, return_y_scale=False):
 
     if galaxy.spectrum_exists:
         spec_ax = plt.subplot(gs[0, 0])
-        plot_spec = np.copy(galaxy.spectrum)
 
-        if polynomial is not None:
-            plot_spec[:, 1] *= polynomial
-
-        y_scale_spec = add_spectrum(plot_spec, spec_ax)
+        y_scale_spec = add_spectrum(galaxy.spectrum, spec_ax)
         if galaxy.photometry_exists:
             add_observed_photometry_linear(galaxy, spec_ax,
                                            y_scale=y_scale_spec)
@@ -444,8 +451,12 @@ def plot_1d_distributions(fit, fit2=False, show=False, save=True):
             else:
                 label = "log_10(" + label + ")"
 
-        hist1d(samples[np.invert(np.isnan(samples))], axes[i],
-               smooth=True, percentiles=not fit2)
+        try:
+            hist1d(samples[np.invert(np.isnan(samples))], axes[i],
+                   smooth=True, percentiles=not fit2)
+
+        except ValueError:
+            pass
 
         if fit2 and name in fit2.fit_params + sfh_quantities:
             hist1d(extra_samples, axes[i], smooth=True, color="purple",
@@ -533,11 +544,14 @@ def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True):
         ax.plot(spectrum[:, 0], spectrum[:, 1]*10**-y_scale,
                 color="dodgerblue", zorder=zorder, lw=1)
 
-        ax.fill_between(spectrum[:, 0],
-                        (spectrum[:, 1] - spectrum[:, 2])*10**-y_scale,
-                        (spectrum[:, 1] + spectrum[:, 2])*10**-y_scale,
-                        color="dodgerblue", zorder=zorder-1, alpha=0.75,
-                        linewidth=0)
+        lower = (spectrum[:, 1] - spectrum[:, 2])*10**-y_scale
+        upper = (spectrum[:, 1] + spectrum[:, 2])*10**-y_scale
+
+        upper[upper > ymax*10**-y_scale] = ymax*10**-y_scale
+        lower[lower < 0.] = 0.
+
+        ax.fill_between(spectrum[:, 0], lower, upper, color="dodgerblue",
+                        zorder=zorder-1, alpha=0.75, linewidth=0)
 
     # Sort out x tick locations
     if x_ticks is None:
@@ -708,7 +722,11 @@ def add_spectrum_posterior(fit, ax, zorder=4, y_scale=None):
 
     wavs = fit.model.spectrum[:, 0]
 
-    spec_post = fit.posterior["spectrum"]
+    if "polynomial" in list(fit.posterior):
+        spec_post = fit.posterior["spectrum"]/fit.posterior["polynomial"]
+
+    else:
+        spec_post = fit.posterior["spectrum"]
 
     spec_low = np.percentile(spec_post, 16, axis=0)*10**-y_scale
     spec_med = np.percentile(spec_post, 50, axis=0)*10**-y_scale
@@ -717,6 +735,12 @@ def add_spectrum_posterior(fit, ax, zorder=4, y_scale=None):
     ax.plot(wavs, spec_med, color="sandybrown", zorder=zorder, lw=1.5)
     ax.fill_between(wavs, spec_low, spec_high, color="sandybrown",
                     zorder=zorder, alpha=0.75, linewidth=0)
+
+    if "outlier_probs" in list(fit.posterior):
+        probs = np.median(fit.posterior["outlier_probs"], axis=0)
+        ax.scatter(wavs[probs > 0.5],
+                   fit.galaxy.spectrum[probs > 0.5, 1]*10**-y_scale,
+                   color="red", marker="x", lw=1, zorder=zorder+1)
 
 
 def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw",
@@ -828,7 +852,7 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
 
     if label is not None:
         x_label = fix_param_names([label])
-        ax.set_xlabel(x_label[0])
+        ax.set_xlabel(x_label)
 
     y, x = np.histogram(samples, bins=bins, density=True,
                         range=(np.max([samples.min(), -99.]), samples.max()))

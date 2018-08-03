@@ -92,8 +92,8 @@ class fit_info_parser:
 
                     # Checks for component parameters to be fixed.
                     elif isinstance(comp_param, (float, int, str)):
-                        protected = [p in comp_key for p in ["type", "_prior"]]
-                        if not any(protected):
+                        pr = [comp_key.endswith(p) for p in ["type", "_prior"]]
+                        if not any(pr):
                             self.fixed_values.append(comp_param)
                             self.fixed_params.append(key + ":" + comp_key)
 
@@ -183,7 +183,6 @@ class fit_info_parser:
             if isinstance(param, str) and param not in ["age_of_universe"]:
                 split_par = self.fixed_params[i].split(":")
                 split_val = self.fixed_values[i].split(":")
-                print(split_par, split_val[0], type(split_val[0]))
                 fixed_val = model_comp[split_val[0]][split_val[1]]
                 model_comp[split_par[0]][split_par[1]] = fixed_val
 
@@ -244,6 +243,7 @@ class fit_info_parser:
             coefs = chebfit(x, y, n, w=self.inv_sigma_spec)
 
         self.polynomial = chebval(x, coefs)
+        self.poly_coefs = np.array(coefs)
 
 
 class fit(fit_info_parser):
@@ -281,20 +281,19 @@ class fit(fit_info_parser):
         # galaxy: galaxy object, contains the data to be fitted.
         self.galaxy = galaxy
 
-        # time_calls, whether to time the _get_lnprob function.
+        # time_calls, whether to time the _get_lnlike function.
         self.time_calls = time_calls
 
         # post_path: where the posterior file should be saved.
         self.post_path = ("pipes/posterior/" + self.run + "/"
                           + self.galaxy.ID + ".h5")
 
-        # Set up variables which will be used when calculating lnprob.
+        # Set up variables which will be used when calculating lnlike.
         self.K_phot, self.K_spec = 0., 0.
         self.N_spec, self.N_phot = 0., 0.
-        self.hyp_spec, self.hyp_phot = 1., 1.
         self.chisq_spec, self.chisq_phot = 0., 0.
 
-        # Calculate constant factors to be added to lnprob.
+        # Calculate constant factors to be added to lnlike.
         if self.galaxy.spectrum_exists:
             log_error_factors = np.log(2*np.pi*self.galaxy.spectrum[:, 2]**2)
             self.K_spec = -0.5*np.sum(log_error_factors)
@@ -342,7 +341,7 @@ class fit(fit_info_parser):
 
         name = "pipes/posterior/" + self.run + "/" + self.galaxy.ID + "-"
 
-        pmn.run(self._get_lnprob, self._prior_transform, self.ndim,
+        pmn.run(self._get_lnlike, self._prior_transform, self.ndim,
                 importance_nested_sampling=False, verbose=verbose,
                 sampling_efficiency="model", n_live_points=n_live,
                 outputfiles_basename=name)
@@ -374,7 +373,7 @@ class fit(fit_info_parser):
         else:
             walk = 40
 
-        self.sampler = NestedSampler(self._get_lnprob, self._prior_transform,
+        self.sampler = NestedSampler(self._get_lnlike, self._prior_transform,
                                      self.ndim, nlive=n_live, bound="multi",
                                      sample="rwalk", walks=walk)
 
@@ -397,8 +396,8 @@ class fit(fit_info_parser):
         self.posterior["log_evidence"] = self.sampler.results.logz[-1]
         self.posterior["log_evidence_err"] = np.std(ev_arr)
 
-    def fit(self, verbose=False, n_live=400,
-            sampler="dynesty", calc_post=True):
+    def fit(self, verbose=False, n_live=400, sampler="dynesty",
+            calc_post=True, save_full_post=False):
         """ Fit the specified model to the input galaxy data using the
         dynesty or MultiNest algorithms.
 
@@ -417,13 +416,15 @@ class fit(fit_info_parser):
             Can also be set to "pmn" to use PyMultiNest, however this
             requires the MultiNest Fortran libraries to be installed.
 
-        time_calls : bool - optional
-            If True, prints the time taken for each likelihood call.
-
-        calc_post: bool - optional
+        calc_post : bool - optional
             If True (default), calculates a bunch of useful posterior
             quantities. These are needed for making plots, but things
             can be speeded up by setting this to False.
+
+        save_full_post : bool - optional
+            If True, saves all posterior information to disk instead of
+            just the bare minimum needed to reconstruct the fit. This is
+            set to False by default to save disk space.
         """
 
         if "samples" in list(self.posterior):
@@ -471,6 +472,11 @@ class fit(fit_info_parser):
         if calc_post:
             self._get_post_info()
 
+        if save_full_post:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                deepdish.io.save(self.post_path, self.posterior)
+
         self._print_posterior()
 
     def _print_posterior(self):
@@ -497,7 +503,85 @@ class fit(fit_info_parser):
 
         print("\n")
 
-    def _get_lnprob(self, x, ndim=0, nparam=0):
+    def _get_lnlike_spec(self):
+
+        if not self.galaxy.spectrum_exists:
+            return 0.
+
+        if "polynomial" in self.fit_info:
+            diff = (self.galaxy.spectrum[:, 1]
+                    - self.model.spectrum[:, 1]/self.polynomial)
+
+        else:
+            diff = (self.galaxy.spectrum[:, 1] - self.model.spectrum[:, 1])
+
+        if "noise" in list(self.fit_info):
+            if "mu" in list(self.model_comp["noise"]):
+                median_y_val = np.median(self.galaxy.spectrum[:, 1])
+                noise_mu = self.model_comp["noise"]["mu"]*median_y_val
+                noise_sig = self.model_comp["noise"]["sigma"]*median_y_val
+                noise_prob = self.model_comp["noise"]["prob"]
+
+            if "sig_exp" in list(self.model_comp["noise"]):
+                sig_exp = self.model_comp["noise"]["sig_exp"]
+
+            else:
+                sig_exp = 1.
+
+            model_lnlike = (- 0.5*np.log(sig_exp**2)
+                            - 0.5*np.log(2*np.pi*self.galaxy.spectrum[:, 2]**2)
+                            - 0.5*(diff/self.galaxy.spectrum[:, 2]/sig_exp)**2)
+
+            if "mu" in list(self.model_comp["noise"]):
+                combined_var = (noise_sig**2
+                                + (self.galaxy.spectrum[:, 2]*sig_exp)**2)
+
+                noise_lnlike = (- 0.5*np.log(2*np.pi*combined_var)
+                                - 0.5*(self.galaxy.spectrum[:, 1]
+                                       - noise_mu)**2/combined_var
+                                + np.log(noise_prob))
+
+                model_lnlike += np.log(1. - noise_prob)
+
+                combined_lnlike = np.logaddexp(model_lnlike, noise_lnlike)
+
+            else:
+                combined_lnlike = model_lnlike
+
+            lnlike_spec = np.sum(combined_lnlike)
+
+            if "mu" in list(self.model_comp["noise"]):
+                self.outlier_probs = np.exp(noise_lnlike - combined_lnlike)
+
+            self.chisq_spec = np.sum(diff**2*self.inv_sigma_sq_spec)
+
+        else:
+            self.chisq_spec = np.sum(diff**2*self.inv_sigma_sq_spec)
+
+            lnlike_spec = -0.5*self.chisq_spec
+
+        return lnlike_spec
+
+    def _get_polynomial_prior(self):
+        if "prior_width" not in list(self.fit_info["polynomial"]):
+            return 0.
+
+        width = self.model_comp["polynomial"]["prior_width"]
+        diff = self.polynomial - 1.
+
+        return -0.5*np.sum((diff/width)**2)
+
+    def _get_lnlike_phot(self):
+
+        if not self.galaxy.photometry_exists:
+            return 0.
+
+        diff = (self.galaxy.photometry[:, 1] - self.model.photometry)
+        self.chisq_phot = np.sum(diff**2*self.inv_sigma_sq_phot)
+
+        return self.K_phot - 0.5*self.chisq_phot
+
+    def _get_lnlike(self, x, ndim=0, nparam=0):
         """ Returns the log-probability for a given model sfh and
         parameter vector x. """
 
@@ -506,45 +590,28 @@ class fit(fit_info_parser):
 
         self._get_model(x)
 
-        # If the age of any model component is greater than the age of
-        # the Universe, return zero probability.
+        # Return zero likelihood if the model is older than the universe
         if self.model.sfh.unphysical:
             return -9.99*10**99
 
-        if "hypspec" in list(self.model_comp):
-            self.hyp_spec = self.model_comp["hypspec"]
+        lnlike_spec = self._get_lnlike_spec()
+        lnlike_phot = self._get_lnlike_phot()
 
-        if "hypphot" in list(self.model_comp):
-            self.hyp_phot = self.model_comp["hypphot"]
+        lnlike = lnlike_phot + lnlike_spec
 
-        if self.galaxy.spectrum_exists:
-            if "polynomial" in self.fit_info:
-                diff = (self.galaxy.spectrum[:, 1]
-                        - self.model.spectrum[:, 1]/self.polynomial)
+        # Apply a separate prior for maximum likelihood prior fitting
+        if "polynomial" in self.fit_info:
+            lnlike += self._get_polynomial_prior()
 
-            else:
-                diff = (self.galaxy.spectrum[:, 1] - self.model.spectrum[:, 1])
-
-            self.chisq_spec = np.sum(diff**2*self.inv_sigma_sq_spec)
-
-        if self.galaxy.photometry_exists:
-            diff = (self.galaxy.photometry[:, 1] - self.model.photometry)
-            self.chisq_phot = np.sum(diff**2*self.inv_sigma_sq_phot)
-
-        lnprob = (self.K_phot + self.K_spec
-                  + 0.5*self.N_spec*np.log(self.hyp_spec)
-                  + 0.5*self.N_phot*np.log(self.hyp_phot)
-                  - 0.5*self.hyp_phot*self.chisq_phot
-                  - 0.5*self.hyp_spec*self.chisq_spec)
-
-        # Catch any failures to generate a model and return zero prob.
-        if np.isnan(lnprob):
+        # Return zero likelihood if lnlike is nan (shouldn't happen)
+        if np.isnan(lnlike):
+            print("Bagpipes: lnlike was nan, replaced with zero probability.")
             return -9.99*10**99
 
         if self.time_calls:
             print(time.time() - time0)
 
-        return lnprob
+        return lnlike
 
     def _get_post_info(self, max_size=500):
         """ Calculates posterior quantities which require models to be
@@ -570,12 +637,13 @@ class fit(fit_info_parser):
         self.posterior["chosen_samples"] = chosen
 
         # Set up the structure of the posterior dictionary.
-        self.posterior["lnprob"] = np.zeros(n_post)
+        self.posterior["lnlike"] = np.zeros(n_post)
 
         self.posterior["mass"] = {}
         self.posterior["mass"]["total"] = {}
         self.posterior["mass"]["total"]["living"] = np.zeros(n_post)
         self.posterior["mass"]["total"]["formed"] = np.zeros(n_post)
+
         for comp in self.model.sfh_components:
             self.posterior["mass"][comp] = {}
             self.posterior["mass"][comp]["living"] = np.zeros(n_post)
@@ -583,11 +651,19 @@ class fit(fit_info_parser):
 
         self.posterior["sfh"] = np.zeros((n_post,
                                           self.model.sfh.ages.shape[0]))
+
         self.posterior["sfr"] = np.zeros(n_post)
         self.posterior["ssfr"] = np.zeros(n_post)
         self.posterior["mwa"] = np.zeros(n_post)
         self.posterior["tmw"] = np.zeros(n_post)
-        self.posterior["UVJ"] = np.zeros((n_post, 3))
+        self.posterior["tquench"] = np.zeros(n_post)
+        self.posterior["tau_q"] = np.zeros(n_post)
+        self.posterior["fwhm_sf"] = np.zeros(n_post)
+
+        self.posterior["age_of_universe"] = np.zeros(n_post)
+
+        if self.galaxy.photometry_exists:
+            self.posterior["UVJ"] = np.zeros((n_post, 3))
 
         len_spec_full = self.model.spectrum_full.shape[0]
         self.posterior["spectrum_full"] = np.zeros((n_post, len_spec_full))
@@ -602,6 +678,12 @@ class fit(fit_info_parser):
 
         if "polynomial" in list(self.fit_info):
             self.posterior["polynomial"] = np.zeros((n_post, len_spec))
+            self.posterior["poly_coefs"] = np.zeros((n_post,
+                                                     self.poly_coefs.shape[0]))
+
+        if "noise" in list(self.fit_info):
+            if "mu" in list(self.fit_info["noise"]):
+                self.posterior["outlier_probs"] = np.zeros((n_post, len_spec))
 
         if self.model.nebular_on:
             self.posterior["line_fluxes"] = {}
@@ -612,11 +694,12 @@ class fit(fit_info_parser):
         # relevant quantities.
         for i in range(n_post):
 
-            lnprob = self._get_lnprob(self.posterior["samples"][chosen[i], :])
+            lnlike = self._get_lnlike(self.posterior["samples"][chosen[i], :])
 
-            self.posterior["lnprob"][i] = lnprob
+            self.posterior["lnlike"][i] = lnlike
 
-            model_mass = self.model.sfh.mass
+            sfh = self.model.sfh
+            model_mass = sfh.mass
             post_mass = self.posterior["mass"]
 
             post_mass["total"]["living"][i] = model_mass["total"]["living"]
@@ -625,13 +708,35 @@ class fit(fit_info_parser):
                 post_mass[comp]["living"][i] = model_mass[comp]["living"]
                 post_mass[comp]["formed"][i] = model_mass[comp]["formed"]
 
-            self.posterior["sfh"][i, :] = self.model.sfh.sfr["total"]
-            self.posterior["sfr"][i] = self.model.sfh.sfr_100myr
-            self.posterior["mwa"][i] = 10**-9*self.model.sfh.mass_weighted_age
-            self.posterior["tmw"][i] = (self.model.sfh.age_of_universe*10**-9
-                                        - self.posterior["mwa"][i])
+            self.posterior["sfh"][i, :] = sfh.sfr["total"]
+            self.posterior["sfr"][i] = sfh.sfr_100myr
+            self.posterior["mwa"][i] = 10**-9*sfh.mass_weighted_age
+            self.posterior["age_of_universe"][i] = sfh.age_of_universe
 
-            self.posterior["UVJ"][i, :] = self.model.get_restframe_UVJ()
+            # Calculate time of quenching as defined in Carnall (2017)
+            mass_contrib = sfh.sfr["total"]*sfh.age_widths
+            prog_masses = np.cumsum(mass_contrib[::-1])[::-1]
+            tunivs = sfh.age_of_universe - sfh.ages
+
+            prog_masses = prog_masses[:np.argmax(tunivs < 0)]
+            sfrs = sfh.sfr["total"][:np.argmax(tunivs < 0)]
+            tunivs = tunivs[:np.argmax(tunivs < 0)]
+            mean_sfrs = prog_masses/tunivs
+
+            if sfrs[0] > 0.1*mean_sfrs[0]:
+                self.posterior["tquench"][i] = np.nan
+
+            else:
+                quench_ind = np.argmax(sfrs > 0.1*mean_sfrs)
+                self.posterior["tquench"][i] = 10**-9*(sfh.age_of_universe
+                                                       - sfh.ages[quench_ind])
+
+            end = np.argmax(sfrs > 0.5*sfrs.max())
+            start = sfrs.shape[0] - np.argmax(sfrs[::-1] > 0.5*sfrs.max()) - 1
+            self.posterior["fwhm_sf"][i] = 10**-9*(tunivs[end] - tunivs[start])
+
+            if self.galaxy.photometry_exists:
+                self.posterior["UVJ"][i, :] = self.model.get_restframe_UVJ()
 
             self.posterior["spectrum_full"][i, :] = self.model.spectrum_full
 
@@ -648,9 +753,22 @@ class fit(fit_info_parser):
 
             if "polynomial" in list(self.fit_info):
                 self.posterior["polynomial"][i, :] = self.polynomial
+                self.posterior["poly_coefs"][i, :] = self.poly_coefs
+
+        if "noise" in list(self.fit_info):
+            if "mu" in list(self.fit_info["noise"]):
+                self.posterior["outlier_probs"][i, :] = self.outlier_probs
 
         self.posterior["ssfr"] = np.log10(self.posterior["sfr"]
                                           / post_mass["total"]["living"])
+
+        self.posterior["tmw"] = (self.posterior["age_of_universe"]*10**-9
+                                    - self.posterior["mwa"])
+
+
+        self.posterior["tau_q"] = ((self.posterior["tquench"]
+                                    - self.posterior["tmw"])
+                                   / self.posterior["tquench"])
 
         # Extract parameters associated with the maximum likelihood solution.
         self.posterior["maximum_likelihood"] = {}
@@ -658,10 +776,10 @@ class fit(fit_info_parser):
 
         for i in range(self.ndim):
             samples = self.posterior["samples"][:, i]
-            best_param = samples[np.argmax(self.posterior["lnprob"])]
+            best_param = samples[np.argmax(self.posterior["lnlike"])]
             best_params.append(best_param)
 
-        self._get_lnprob(best_params, self.ndim, self.ndim)
+        self._get_lnlike(best_params, self.ndim, self.ndim)
 
         min_chisq = 0.
         min_chisq_red = 0.

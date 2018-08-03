@@ -3,7 +3,7 @@ Bagpipes
 
 Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation is a state of the art Python code for modelling galaxy spectra and fitting spectroscopic and photometric observations.
 
-Bagpipes is currently in a state of active development in the run-up to the release of version 1. You are welcome to use the code but you may find problems, feel free to contact me with questions.
+Bagpipes is currently in a state of active development in the run-up to the release of version 1. As such the documentation might sometimes lag a little behind the newest version of the code, and you may find a few bugs in the more advanced functions. Please email me if you have any queries, or find things which don't work as they're supposed to.
 
 .. image:: images/front_page.jpg
 
@@ -19,6 +19,8 @@ Bagpipes can be installed with pip:
 Bagpipes is `developed at GitHub <https://github.com/ACCarnall/bagpipes>`_. Note the code will not run from cloning the repository, this is because the large model grid files aren't included.
 
 The pip installation comes with the BC03 models used in `Carnall et al 2017 <https://arxiv.org/abs/1712.04452>`_. If you'd like to use other models please contact me directly, a version with BPASS models is available on request.
+
+The default nested sampling routine in the code is currently Dynesty. However, this has not yet been extensively tested in Bagpipes and you may prefer to install `PyMultiNest <https://johannesbuchner.github.io/PyMultiNest/install.html>`_, which can be used instead by passing the keyword argument sampler="pmn" to the fit function (see :ref:`fitting galaxies <fitting-observational-data>`).
 
 
 Getting started

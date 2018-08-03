@@ -67,7 +67,7 @@ class star_formation_history:
         self.comp_types = []
 
         for comp in list(model_comp):
-            if (not comp.startswith(("dust", "nebular", "polynomial"))
+            if (not comp.startswith(("dust", "nebular", "polynomial", "noise"))
                     and isinstance(model_comp[comp], dict)):
 
                 comp_type = copy(comp)
@@ -133,7 +133,7 @@ class star_formation_history:
 
         # Check that no stars formed before the Big Bang.
         mask = self.ages > self.age_of_universe
-        if not np.max(mask) == 0 and self.sfr["total"][mask].max() > 0.:
+        if self.sfr["total"][mask].max() > 0.:
             self.unphysical = True
 
         # Sum up the contributions to each age bin to create SSP weights.
@@ -169,7 +169,12 @@ class star_formation_history:
     def constant(self, sfr, param):
         """ Constant star-formation between some limits. """
 
-        age_max = param["age_max"]*10**9
+        if param["age_max"] == "age_of_universe":
+            age_max = self.age_of_universe
+
+        else:
+            age_max = param["age_max"]*10**9
+
         age_min = param["age_min"]*10**9
 
         mask = (self.ages > age_min) & (self.ages < age_max)

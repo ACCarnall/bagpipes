@@ -17,12 +17,12 @@ class chemical_enrichment_history:
         self.zmet_weights = {}
 
         for name in list(self.model_comp):
-            if (not name.startswith(("dust", "nebular", "polynomial"))
+            if (not name.startswith(("dust", "nebular", "polynomial", "noise"))
                     and isinstance(self.model_comp[name], dict)):
 
                     comp = self.model_comp[name]
-                    if (("metallicity dist" in list(comp))
-                            and comp["metallicity dist"]):
+                    if (("metallicity_dist" in list(comp))
+                            and comp["metallicity_dist"]):
 
                         self.zmet_weights[name] = self.exp(comp)
 
@@ -61,9 +61,9 @@ class chemical_enrichment_history:
 
         vals_hr = np.arange(0., 10., 0.01) + 0.005
 
-        factors_hr = (1./mean_zmet)*np.exp(-self.vals_hr/mean_zmet)
+        factors_hr = (1./mean_zmet)*np.exp(-vals_hr/mean_zmet)
 
-        for i in range(zmet_weights.shape[0]):
+        for i in range(weights.shape[0]):
             lowmask = (vals_hr > self.zmet_lims[i])
             highmask = (vals_hr < self.zmet_lims[i+1])
             weights[i] = np.sum(0.01*factors_hr[lowmask & highmask])

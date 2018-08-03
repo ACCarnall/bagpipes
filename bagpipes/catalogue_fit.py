@@ -73,12 +73,18 @@ class catalogue_fit:
     make_plots : bool (optional)
         If True, spectral and corner plots will be made for each object.
 
+    analysis_func : function (optional)
+        An optional user-defined function which performs some operations
+        on each fit once it is finished. The function should take a fit
+        object as its only argument.
+
     """
 
     def __init__(self, cat_IDs, fit_instructions, load_data,
                  spectrum_exists=True, photometry_exists=True, run=".",
                  cat_filt_list=None, vary_filt_list=False, cat_redshifts=None,
-                 fix_redshifts=False, make_plots=False):
+                 fix_redshifts=False, make_plots=False, analysis_func=None,
+                 save_full_post=False):
 
         self.IDs = np.array(cat_IDs).astype(str)
         self.fit_instructions = fit_instructions
@@ -91,6 +97,7 @@ class catalogue_fit:
         self.vary_filt_list = vary_filt_list
         self.redshifts = cat_redshifts
         self.fix_redshifts = fix_redshifts
+        self.analysis_func = analysis_func
 
         self.make_plots = make_plots
 
@@ -104,9 +111,37 @@ class catalogue_fit:
         np.savetxt(utils.working_dir + "/pipes/cats/" + self.run + "/all_IDs",
                    self.IDs, fmt="%s")
 
-    def fit(self, verbose=False, n_live=400, sampler="dynesty"):
+    def fit(self, verbose=False, n_live=400, sampler="dynesty",
+            calc_post=True, save_full_post=False):
         """ Run through the catalogue, only fitting objects which have
-        not already been started by another thread. """
+        not already been started by another thread. 
+
+        Parameters
+        ----------
+
+        verbose : bool - optional
+            Set to True to get progress updates from the sampler.
+
+        n_live : int - optional
+            Number of live points: reducing speeds up the code but may
+            lead to unreliable results.
+
+        sampler : string - optional
+            Defaults to "dynesty" to use the Dynesty Python sampler.
+            Can also be set to "pmn" to use PyMultiNest, however this
+            requires the MultiNest Fortran libraries to be installed.
+
+        calc_post : bool - optional
+            If True (default), calculates a bunch of useful posterior
+            quantities. These are needed for making plots, but things
+            can be speeded up by setting this to False.
+
+        save_full_post : bool - optional
+            If True, saves all posterior information to disk instead of
+            just the bare minimum needed to reconstruct the fit. This is
+            set to False by default to save disk space.
+        """
+        
         cat_path = utils.working_dir + "/pipes/cats/"
 
         if os.path.exists(cat_path + self.run + "/kill"):
@@ -124,7 +159,7 @@ class catalogue_fit:
                 self.fit_instructions["redshift"] = z_range
 
             elif self.fix_redshifts:
-                self.fit_instructions["redshift"] = self.redshifts[i]
+                self.fit_instructions["redshift"] = float(self.redshifts[i])
 
             if not os.path.exists(utils.working_dir + "/pipes/cats/"
                                   + self.run + "/" + str(self.IDs[i])
@@ -155,7 +190,11 @@ class catalogue_fit:
 
                 """ Fit the object and make plots of the fit. """
                 current_fit.fit(verbose=verbose, n_live=n_live,
-                                sampler=sampler)
+                                sampler=sampler, calc_post=calc_post,
+                                save_full_post=save_full_post)
+
+                if self.analysis_func:
+                    self.analysis_func(current_fit)
 
                 if self.make_plots:
                     current_fit.plot_fit()
@@ -174,8 +213,8 @@ class catalogue_fit:
                 if n == 0:
 
                     out_cat_names = ["#ID"]
-                    extra_vars = ["UVcolour", "VJcolour", "tmw", "mwa",
-                                  "sfr", "stellar_mass"]
+                    extra_vars = ["UVcolour", "VJcolour", "tmw", "tquench",
+                                  "tau_q", "fwhm_sf", "sfr", "stellar_mass"]
 
                     variables = current_fit.fit_params + extra_vars
 
@@ -192,7 +231,8 @@ class catalogue_fit:
 
                     outcat.to_csv(utils.working_dir + "/pipes/cats/"
                                   + self.run + "/" + self.run + ".txt"
-                                  + str(time0), sep="\t", index=False)
+                                  + str(time0), sep="\t", index=False,
+                                  na_rep="-999999")
 
                 outcat.loc[n, "#ID"] = current_fit.galaxy.ID
 
@@ -233,7 +273,7 @@ class catalogue_fit:
                 """ Save the updated output catalogue. """
                 outcat.to_csv(utils.working_dir + "/pipes/cats/" + self.run
                               + "/" + self.run + ".txt" + str(time0), sep="\t",
-                              index=False)
+                              index=False, na_rep="-999999")
 
                 n += 1
 
@@ -267,7 +307,12 @@ def merge_cat(run, mode="merge"):
                 outcats.append(pd.read_table(file, delimiter="\t",
                                              names=header.split(), skiprows=1))
 
-                outcats[-1].index = outcats[-1]["#ID"]
+                cat = outcats[-1]
+
+                if isinstance(cat.loc[0, "#ID"], float):
+                    cat.loc[:, "#ID"] = cat.loc[:, "#ID"].astype(int)
+
+                cat.index = cat["#ID"].astype(str)
                 break
 
             except ValueError:
@@ -294,7 +339,7 @@ def merge_cat(run, mode="merge"):
 
     finalcat = finalcat.groupby(finalcat["#ID"].isnull()).get_group(False)
     finalcat.to_csv(utils.working_dir + "/pipes/cats/" + run + ".cat",
-                    sep="\t", index=False)
+                    sep="\t", index=False, na_rep="-999999")
 
     # If mode is clean, remove all input catalogues and replace with a
     # merged one, also delete objects which are in progress
@@ -303,7 +348,8 @@ def merge_cat(run, mode="merge"):
             call(["rm",  file])
 
         finalcat.to_csv(utils.working_dir + "/pipes/cats/" + run + "/" + run
-                        + ".txt_clean", sep="\t", index=False)
+                        + ".txt_clean", sep="\t", index=False,
+                        na_rep="-999999")
 
         os.chdir("pipes/cats/" + run)
         lock_files = glob.glob("*.lock")
