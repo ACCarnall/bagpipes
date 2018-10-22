@@ -235,10 +235,10 @@ def make_table():
                                fits.ImageHDU(name="igm_table",
                                data=d_IGM_grid)])
 
-    if os.path.exists(utils.grid_path + "/d_igm_grid_inoue14.fits"):
-        os.system("rm " + utils.grid_path + "/d_igm_grid_inoue14.fits")
+    if os.path.exists(utils.grid_dir + "/d_igm_grid_inoue14.fits"):
+        os.system("rm " + utils.grid_dir + "/d_igm_grid_inoue14.fits")
 
-    hdulist_igm.writeto(utils.grid_path + "/d_igm_grid_inoue14.fits")
+    hdulist_igm.writeto(utils.grid_dir + "/d_igm_grid_inoue14.fits")
 
 
 def test():
