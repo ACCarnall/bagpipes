@@ -1,10 +1,6 @@
-pipes_models/igm/d_igm_grid_inoue14.txt
-pipes_models/nebular/cloudy_temp_files/*
-testing/*
-*.fits
+bagpipes/models/grids/*.fits
+ancillary_code/*
 examples/*
-*/test/*
-
 
 #################################
 

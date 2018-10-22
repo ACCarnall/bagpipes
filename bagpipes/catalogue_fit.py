@@ -114,7 +114,7 @@ class catalogue_fit:
     def fit(self, verbose=False, n_live=400, sampler="dynesty",
             calc_post=True, save_full_post=False):
         """ Run through the catalogue, only fitting objects which have
-        not already been started by another thread. 
+        not already been started by another thread.
 
         Parameters
         ----------
@@ -141,7 +141,7 @@ class catalogue_fit:
             just the bare minimum needed to reconstruct the fit. This is
             set to False by default to save disk space.
         """
-        
+
         cat_path = utils.working_dir + "/pipes/cats/"
 
         if os.path.exists(cat_path + self.run + "/kill"):
@@ -202,7 +202,7 @@ class catalogue_fit:
                     current_fit.plot_1d_posterior()
                     current_fit.plot_sfh()
 
-                    if "polynomial" in self.fit_instructions.keys():
+                    if "polynomial" in current_fit.fit_info.keys():
                         current_fit.plot_poly()
 
                 if n == 10:
@@ -213,8 +213,12 @@ class catalogue_fit:
                 if n == 0:
 
                     out_cat_names = ["#ID"]
-                    extra_vars = ["UVcolour", "VJcolour", "tmw", "tquench",
-                                  "tau_q", "fwhm_sf", "sfr", "stellar_mass"]
+                    extra_vars = ["tmw", "tquench", "tau_q", "fwhm_sf", "sfr",
+                                  "ssfr", "nsfr", "stellar_mass"]
+
+                    if c_galaxy.photometry_exists:
+                        extra_vars += ["UVcolour", "VJcolour"]
+
 
                     variables = current_fit.fit_params + extra_vars
 

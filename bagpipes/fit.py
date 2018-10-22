@@ -14,6 +14,7 @@ from dynesty.utils import resample_equal, simulate_run
 from numpy.polynomial.chebyshev import chebval, chebfit
 
 from . import utils
+from . import config
 from . import priors
 from . import plotting
 
@@ -210,12 +211,12 @@ class fit_info_parser:
         if self.model is None:
             if self.galaxy.spectrum_exists:
                 self.model = model_galaxy(self.model_comp,
-                                          self.galaxy.filt_list,
+                                          self.galaxy.filter_set.filt_list,
                                           spec_wavs=self.galaxy.spectrum[:, 0])
 
             else:
                 self.model = model_galaxy(self.model_comp,
-                                          self.galaxy.filt_list)
+                                          self.galaxy.filter_set.filt_list)
 
         else:
             self.model.update(self.model_comp)
@@ -432,6 +433,11 @@ class fit(fit_info_parser):
                   + self.post_path + ". To start from scratch, delete this "
                   + "file or change run.\n")
 
+            if save_full_post:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    deepdish.io.save(self.post_path, self.posterior)
+
             return
 
         sampler_names = {"pmn": "PyMultiNest", "dynesty": "Dynesty"}
@@ -613,7 +619,7 @@ class fit(fit_info_parser):
 
         return lnlike
 
-    def _get_post_info(self, max_size=500):
+    def _get_post_info(self, max_size=100):
         """ Calculates posterior quantities which require models to be
         re-generated. For all posterior quantities the first index runs
         over the posterior samples. """
@@ -644,7 +650,7 @@ class fit(fit_info_parser):
         self.posterior["mass"]["total"]["living"] = np.zeros(n_post)
         self.posterior["mass"]["total"]["formed"] = np.zeros(n_post)
 
-        for comp in self.model.sfh_components:
+        for comp in self.model.sfh.sfh_components:
             self.posterior["mass"][comp] = {}
             self.posterior["mass"][comp]["living"] = np.zeros(n_post)
             self.posterior["mass"][comp]["formed"] = np.zeros(n_post)
@@ -659,6 +665,7 @@ class fit(fit_info_parser):
         self.posterior["tquench"] = np.zeros(n_post)
         self.posterior["tau_q"] = np.zeros(n_post)
         self.posterior["fwhm_sf"] = np.zeros(n_post)
+        self.posterior["nsfr"] = np.zeros(n_post)
 
         self.posterior["age_of_universe"] = np.zeros(n_post)
 
@@ -685,9 +692,9 @@ class fit(fit_info_parser):
             if "mu" in list(self.fit_info["noise"]):
                 self.posterior["outlier_probs"] = np.zeros((n_post, len_spec))
 
-        if self.model.nebular_on:
+        if self.model.nebular:
             self.posterior["line_fluxes"] = {}
-            for name in utils.line_names:
+            for name in config.line_names:
                 self.posterior["line_fluxes"][name] = np.zeros(n_post)
 
         # For each point in the posterior, generate a model and extract
@@ -704,7 +711,7 @@ class fit(fit_info_parser):
 
             post_mass["total"]["living"][i] = model_mass["total"]["living"]
             post_mass["total"]["formed"][i] = model_mass["total"]["formed"]
-            for comp in self.model.sfh_components:
+            for comp in self.model.sfh.sfh_components:
                 post_mass[comp]["living"][i] = model_mass[comp]["living"]
                 post_mass[comp]["formed"][i] = model_mass[comp]["formed"]
 
@@ -722,9 +729,11 @@ class fit(fit_info_parser):
             sfrs = sfh.sfr["total"][:np.argmax(tunivs < 0)]
             tunivs = tunivs[:np.argmax(tunivs < 0)]
             mean_sfrs = prog_masses/tunivs
+            self.posterior["nsfr"][i] = sfrs[0]/mean_sfrs[0]
+
 
             if sfrs[0] > 0.1*mean_sfrs[0]:
-                self.posterior["tquench"][i] = np.nan
+                self.posterior["tquench"][i] = 999.
 
             else:
                 quench_ind = np.argmax(sfrs > 0.1*mean_sfrs)
@@ -736,15 +745,15 @@ class fit(fit_info_parser):
             self.posterior["fwhm_sf"][i] = 10**-9*(tunivs[end] - tunivs[start])
 
             if self.galaxy.photometry_exists:
-                self.posterior["UVJ"][i, :] = self.model.get_restframe_UVJ()
+                self.posterior["UVJ"][i, :] = self.model.uvj
 
             self.posterior["spectrum_full"][i, :] = self.model.spectrum_full
 
             if self.galaxy.photometry_exists:
                 self.posterior["photometry"][i, :] = self.model.photometry
 
-            if self.model.nebular_on:
-                for name in utils.line_names:
+            if self.model.nebular:
+                for name in config.line_names:
                     line_flux = self.model.line_fluxes[name]
                     self.posterior["line_fluxes"][name][i] = line_flux
 
@@ -797,6 +806,15 @@ class fit(fit_info_parser):
 
         self.posterior["min_chisq"] = min_chisq
         self.posterior["min_chisq_reduced"] = min_chisq_red
+
+        self.posterior["spectrum_full_wavs_rest"] = self.model.wavelengths
+        self.posterior["sfh_ages"] = self.model.sfh.ages
+
+        if self.galaxy.photometry_exists:
+            self.posterior["eff_wavs"] = self.model.filter_set.eff_wavs
+
+        if self.galaxy.spectrum_exists:
+            self.posterior["spectrum_wavs_obs"] = self.model.spec_wavs
 
     def plot_fit(self, show=False, save=True):
         """ Make a plot of the input data and fitted posteriors. """

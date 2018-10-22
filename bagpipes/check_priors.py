@@ -40,6 +40,8 @@ class check_prior(fit_info_parser):
 
             self.prior["sfr"][i] = self.sfh.sfr_100myr
             self.prior["mwa"][i] = 10**-9*self.sfh.mass_weighted_age
+            self.prior["tmw"][i] = 10**-9*(self.sfh.age_of_universe
+                                           - self.sfh.mass_weighted_age)
 
             if "redshift" in self.fixed_params:
                 self.prior["sfh"][i, :] = self.sfh.sfr["total"]
@@ -59,6 +61,7 @@ class check_prior(fit_info_parser):
 
         self.prior["mwa"] = np.zeros(self.n_draws)
         self.prior["sfr"] = np.zeros(self.n_draws)
+        self.prior["tmw"] = np.zeros(self.n_draws)
 
         if "redshift" in self.fixed_params:
             self.prior["sfh"] = np.zeros((self.n_draws,

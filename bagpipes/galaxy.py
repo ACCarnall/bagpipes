@@ -4,8 +4,8 @@ import numpy as np
 import sys
 import os
 
-from . import utils
 from . import plotting
+from . import filters
 
 
 class galaxy:
@@ -21,99 +21,74 @@ class galaxy:
     load_data : function
         User-defined function which should take ID as an argument and
         return spectroscopic and/or photometric data. Spectroscopy
-        should come first and be formatted as an array containing first
-        a column of wavelengths in Angstroms, then secondly a column of
-        fluxes in erg/s/cm^2/A and finally a column of flux errors
-        in the same units. Photometry should come second and be
-        formatted as an array containing first a column of fluxes in
-        microjanskys and a column of flux errors in the same units.
+        should come first and be an array containing a column of
+        wavelengths in Angstroms, then a column of fluxes and finally a
+        column of flux errors. Photometry should come second and be an
+        array containing a column of fluxes and a column of flux errors.
 
     filt_list : list - optional
         A list of paths to filter curve files, which should contain a
         column of wavelengths in angstroms followed by a column of
-        transmitted fraction values. Only required if photometric output
-        is desired.
+        transmitted fraction values. Only needed for photometric data.
 
-    spectrum_exists : bool
+    spectrum_exists : bool - optional
         If you do not have a spectrum for this object, set this to
         False. In this case, load_data should only return photometry.
 
-    photometry_exists : bool
+    photometry_exists : bool - optional
         If you do not have photometry for this object, set this to
         False. In this case, load_data should only return a spectrum.
+
+    spec_units : str - optional
+        Units of the input spectrum, defaults to ergs s^-1 cm^-2 A^-1,
+        "ergscma". Other units (microjanskys; mujy) will be converted to
+        ergscma by default within the class (see out_units).
+
+    phot_units : str - optional
+        Units of the input photometry, defaults to microjanskys, "mujy"
+        The photometry will be converted to ergscma by default within
+        the class (see out_units).
+
+    out_units : str - optional
+        Units to convert the inputs to within the class. Defaults to
+        ergs s^-1 cm^-2 A^-1, "ergscma".
     """
 
-    def __init__(self, ID, load_data, no_of_spectra=1, out_units="ergscma",
-                 spectrum_exists=True, photometry_exists=True, filt_list=None):
+    def __init__(self, ID, load_data, spec_units="ergscma", phot_units="mujy",
+                 spectrum_exists=True, photometry_exists=True, filt_list=None,
+                 out_units="ergscma"):
 
         self.ID = str(ID)
-        self.filt_list = filt_list
+        self.phot_units = phot_units
+        self.spec_units = spec_units
         self.out_units = out_units
         self.spectrum_exists = spectrum_exists
         self.photometry_exists = photometry_exists
-        self.no_of_spectra = no_of_spectra
 
         if not spectrum_exists and not photometry_exists:
             sys.exit("Bagpipes: Object must have at least some data.")
 
         elif spectrum_exists and not photometry_exists:
-            if self.no_of_spectra == 1:
-                self.spectrum = load_data(self.ID)
-
-            else:
-                data = load_data(self.ID)
-                self.spectrum = data[0]
-                self.extra_spectra = []
-                for i in range(len(data)-1):
-                    self.extra_spectra.append(data[i+1])
+            self.spectrum = load_data(self.ID)
 
         elif photometry_exists and not spectrum_exists:
             phot_nowavs = load_data(self.ID)
-            self.no_of_spectra = 0
 
         else:
-            if self.no_of_spectra == 1:
-                self.spectrum, phot_nowavs = load_data(self.ID)
-
-            else:
-                data = load_data(self.ID)
-                self.spectrum = data[0]
-                self.extra_spectra = []
-                phot_nowavs = data[-1]
-                for i in range(len(data)-2):
-                    self.extra_spectra.append(data[i+1])
+            self.spectrum, phot_nowavs = load_data(self.ID)
 
         if photometry_exists:
-            self.photometry = np.zeros(3*len(phot_nowavs))
-            self.photometry.shape = (phot_nowavs.shape[0], 3)
-            self.photometry[:, 1:] = phot_nowavs
-            self._get_eff_wavs()
+            self.filter_set = filters.filter_set(filt_list)
+            self.photometry = np.c_[self.filter_set.eff_wavs, phot_nowavs]
 
-        const = 10**-29*2.9979*10**18
+        # Perform any unit conversions.
+        self._convert_units()
 
-        if self.out_units == "ergscma" and photometry_exists:
-            self.photometry[:, 1] *= (const/self.photometry[:, 0]**2)
-            self.photometry[:, 2] *= (const/self.photometry[:, 0]**2)
-
-        elif self.out_units == "mujy" and spectrum_exists:
-            self.spectrum[:, 1] /= (const/self.spectrum[:, 0]**2)
-            self.spectrum[:, 2] /= (const/self.spectrum[:, 0]**2)
-
-            if self.no_of_spectra != 1:
-                for i in range(len(self.extra_spectra)):
-                    extra_spec = self.extra_spectra[i]
-                    extra_spec[:, 1] /= (const/extra_spec[:, 0]**2)
-                    extra_spec[:, 2] /= (const/extra_spec[:, 0]**2)
-
-        # Mask the regions of the spectrum specified in [ID].mask.
+        # Mask the regions of the spectrum specified in masks/[ID].mask
         if self.spectrum_exists:
             self.spectrum = self._mask(self.spectrum)
 
-            if self.no_of_spectra > 1:
-                for i in range(len(self.extra_spectra)):
-                    self.extra_spectra[i] = self._mask(self.extra_spectra[i])
-
-            # Removes points at the edges of the spectrum with zero flux
+            # Remove points at the edges of the spectrum with zero flux.
             startn = 0
             while self.spectrum[startn, 1] == 0.:
                 startn += 1
@@ -124,20 +99,32 @@ class galaxy:
 
             self.spectrum = self.spectrum[startn:-endn, :]
 
-    def _get_eff_wavs(self):
-        """ Loads filter files from filt_list and calculates effective
-        wavelength values which are added to self.photometry """
-        self.eff_wavs = np.zeros(len(self.filt_list))
+    def _convert_units(self):
+        """ Convert between ergs s^-1 cm^-2 A^-1 and microjanskys if
+        there is a difference between the specified input and output
+        units. """
 
-        for i in range(len(self.photometry)):
-            filt = np.loadtxt(self.filt_list[i])
-            dlambda = utils.make_bins(filt[:, 0])[1]
+        conversion = 10**-29*2.9979*10**18/self.photometry[:, 0]**2
 
-            num = np.sqrt(np.sum(dlambda*filt[:, 1]))
-            denom = np.sqrt(np.sum(dlambda*filt[:, 1]/filt[:, 0]/filt[:, 0]))
-            self.eff_wavs[i] = np.round(num/denom, 1)
+        if self.spectrum_exists:
+            if not self.spec_units == self.out_units:
+                if self.spec_units == "ergscma":
+                    self.spectrum[:, 1] /= conversion
+                    self.spectrum[:, 2] /= conversion
 
-        self.photometry[:, 0] = self.eff_wavs
+                elif spec_units == "mujy":
+                    self.spectrum[:, 1] *= conversion
+                    self.spectrum[:, 2] *= conversion
+
+        if self.photometry_exists:
+            if not self.phot_units == self.out_units:
+                if self.phot_units == "ergscma":
+                    self.spectrum[:, 1] /= conversion
+                    self.spectrum[:, 2] /= conversion
+
+                elif self.phot_units == "mujy":
+                    self.photometry[:, 1] *= conversion
+                    self.photometry[:, 2] *= conversion
 
     def _mask(self, spec):
         """ Set the error spectrum to infinity in masked regions. """

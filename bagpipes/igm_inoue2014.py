@@ -6,11 +6,14 @@ import os
 
 from astropy.io import fits
 
-install_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
-igm_dir = install_dir + "/pipes_models/igm/"
+from . import utils
 
-coefs = np.loadtxt(igm_dir + "lyman_series_coefs_inoue_2014_table2.txt")
+""" This code is called once when Bagpipes is first installed in order
+to generate the IGM absorption table which is subsequently used for
+all IGM calculations. """
 
+coefs = np.loadtxt(utils.grid_dir
+                   + "/lyman_series_coefs_inoue_2014_table2.txt")
 
 def get_Inoue14_trans(rest_wavs, z_obs):
     """ Calculate IGM transmission using witchcraft. """
@@ -106,10 +109,11 @@ def get_Inoue14_trans(rest_wavs, z_obs):
         wav_slice = ((rest_wavs*(1.+z_obs) > 911.8)
                      & (rest_wavs*(1.+z_obs) < 911.8*(1.+z_obs)))
 
-        tau_LAF_LC[wav_slice] = ((0.325*((rest_wavs[wav_slice]
-                                  * (1.+z_obs)/911.8)**1.2))
-                                 - ((1+z_obs)**-0.9)*(rest_wavs[wav_slice]
-                                                      * (1.+z_obs)/911.8)**2.1)
+        tau_LAF_LC[wav_slice] = (0.325*((rest_wavs[wav_slice]
+                                         * (1.+z_obs)/911.8)**1.2
+                                        - (((1+z_obs)**-0.9)
+                                           *(rest_wavs[wav_slice]
+                                           * (1.+z_obs)/911.8)**2.1)))
 
     elif z_obs < 4.7:
         wav_slice_1 = ((rest_wavs*(1.+z_obs) > 911.8)
@@ -230,10 +234,10 @@ def make_table():
                                fits.ImageHDU(name="igm_table",
                                data=d_IGM_grid)])
 
-    if os.path.exists(igm_dir + "d_igm_grid_inoue14.fits"):
-        os.system("rm " + igm_dir + "d_igm_grid_inoue14.fits")
+    if os.path.exists(utils.grid_path + "/d_igm_grid_inoue14.fits"):
+        os.system("rm " + utils.grid_path + "/d_igm_grid_inoue14.fits")
 
-    hdulist_igm.writeto(igm_dir + "d_igm_grid_inoue14.fits")
+    hdulist_igm.writeto(utils.grid_path + "/d_igm_grid_inoue14.fits")
 
 
 def test():

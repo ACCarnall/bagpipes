@@ -1,17 +1,20 @@
 from __future__ import print_function, division, absolute_import
 
 import numpy as np
-import sys
 
 from scipy.optimize import fsolve
 from copy import copy, deepcopy
 
 from . import utils
+from . import config
 from . import plotting
+from . import models
 from .chemical_enrichment_history import chemical_enrichment_history
 
 
 def lognorm_equations(p, consts):
+    """ Equations for finding the tau and T0 for a lognormal SFH given
+    some tmax and FWHM. Needed to transform variables. """
 
     tau_solve, T0_solve = p
 
@@ -30,7 +33,7 @@ class star_formation_history:
     Parameters
     ----------
 
-    model_comp : dict
+    model_components : dict
         A dictionary containing information about the star formation
         history you wish to generate.
 
@@ -38,11 +41,9 @@ class star_formation_history:
         the log of the age sampling of the SFH, defaults to 0.0025.
     """
 
-    def __init__(self, model_comp, log_sampling=0.0025):
+    def __init__(self, model_components, log_sampling=0.0025):
 
-        if utils.model_type not in list(utils.ages):
-            utils.set_model_type(utils.model_type)
-
+        self.model_components = model_components
         self.hubble_time = utils.age_at_z[utils.z_array == 0.]
 
         # This has to be a little bigger than the hubble time or the
@@ -60,15 +61,15 @@ class star_formation_history:
         self.age_widths = self.age_lhs[1:] - self.age_lhs[:-1]
 
         self.sfr = {"total": np.zeros_like(self.ages)}
-        self.weights = {"total": np.zeros_like(utils.chosen_ages)}
+        self.weights = {"total": np.zeros_like(config.age_sampling)}
 
         # Populate a list of star-formation history components
         self.sfh_components = []
         self.comp_types = []
 
-        for comp in list(model_comp):
+        for comp in list(model_components):
             if (not comp.startswith(("dust", "nebular", "polynomial", "noise"))
-                    and isinstance(model_comp[comp], dict)):
+                    and isinstance(model_components[comp], dict)):
 
                 comp_type = copy(comp)
                 while comp_type[-1].isdigit():
@@ -78,46 +79,25 @@ class star_formation_history:
 
                 self.sfh_components.append(comp)
                 self.sfr[comp] = np.zeros_like(self.ages)
-                self.weights[comp] = np.zeros_like(utils.chosen_ages)
+                self.weights[comp] = np.zeros_like(config.age_sampling)
 
-        self.update(model_comp)
+        self._resample_live_frac_grid()
+        self.update(model_components)
 
-    def _mass_calculations(self):
-        """ Calculate the living and formed stellar masses for a SFH
-        component, also keeps track of the total for all components. """
+    def update(self, model_components):
 
-        for name in self.sfh_components:
-            living_mass_grid = utils.chosen_live_frac
-
-            zmet_weights = np.expand_dims(self.ceh.zmet_weights[name], 1)
-            sfh_weights = self.weights[name]
-
-            living_mass_by_age = np.sum(zmet_weights*living_mass_grid, axis=0)
-            living_mass = np.sum(np.squeeze(sfh_weights)*living_mass_by_age)
-
-            formed_mass = 10**self.model_comp[name]["massformed"]
-
-            self.mass["total"]["living"] += living_mass
-            self.mass["total"]["formed"] += formed_mass
-            self.mass[name] = {"living": living_mass, "formed": formed_mass}
-
-    def update(self, model_comp):
-
-        self.model_comp = model_comp
+        self.model_comp = model_components
 
         self.unphysical = False
 
         self.age_of_universe = 10**9*np.interp(self.model_comp["redshift"],
                                                utils.z_array, utils.age_at_z)
 
-        # ceh: Chemical enrichment history object
-        self.ceh = chemical_enrichment_history(self.model_comp)
-
         # mass: stores component and total stellar masses.
         self.mass = {"total": {"formed": 0., "living": 0.}}
 
         self.sfr["total"] = np.zeros_like(self.ages)
-        self.weights["total"] = np.zeros_like(utils.chosen_ages)
+        self.weights["total"] = np.zeros_like(config.age_sampling)
 
         # Calculate the star-formation history for each of the components.
         for i in range(len(self.sfh_components)):
@@ -140,13 +120,30 @@ class star_formation_history:
         for comp in self.sfh_components:
             comp_weights = self.sfr[comp]*self.age_widths
             self.weights[comp] = np.histogram(self.ages,
-                                              bins=utils.chosen_age_lhs,
+                                              bins=config.age_bins,
                                               weights=comp_weights)[0]
 
             self.weights["total"] += self.weights[comp]
 
-        # Calculate living and formed stellar mass contributions.
-        self._mass_calculations()
+        # ceh: Chemical enrichment history object
+        self.ceh = chemical_enrichment_history(self.model_comp, self.weights)
+
+        # Calculate stellar masses, SFRs and mass-weighted ages.
+        self._update_derived_parameters()
+
+    def _update_derived_parameters(self):
+        """ Calculate the living and formed stellar masses for a SFH
+        component, also keeps track of the total for all components. """
+
+        for comp in self.sfh_components:
+
+            living_mass = np.sum(self.live_frac_grid*self.ceh.grid_comp[comp])
+
+            formed_mass = 10**self.model_components[comp]["massformed"]
+
+            self.mass["total"]["living"] += living_mass
+            self.mass["total"]["formed"] += formed_mass
+            self.mass[comp] = {"living": living_mass, "formed": formed_mass}
 
         self.sfr_100myr = np.sum(self.sfr["total"][self.ages < 10**8]
                                  * self.age_widths[self.ages < 10**8])
@@ -156,6 +153,17 @@ class star_formation_history:
         weighted_ages = self.sfr["total"]*self.age_widths*self.ages
         self.mass_weighted_age = np.sum(weighted_ages)
         self.mass_weighted_age /= np.sum(self.sfr["total"]*self.age_widths)
+
+    def _resample_live_frac_grid(self):
+        self.live_frac_grid = np.zeros((config.metallicities.shape[0],
+                                        config.age_sampling.shape[0]))
+
+        raw_live_frac_grid = config.live_frac
+
+        for i in range(config.metallicities.shape[0]):
+            self.live_frac_grid[i, :] = np.interp(config.age_sampling,
+                                                  config.raw_stellar_ages,
+                                                  raw_live_frac_grid[:, i])
 
     def burst(self, sfr, param):
         """ A delta function burst of star-formation. """

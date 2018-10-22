@@ -570,11 +570,11 @@ def add_model_photometry(model, ax, x_ticks=None, zorder=4):
     """ Adds model photometry to the passed axis. """
 
     # Sort out axis limits
-    xmin = np.log10(model.eff_wavs[0])-0.025
-    xmax = np.log10(model.eff_wavs[-1])+0.025
+    xmin = np.log10(model.filter_set.eff_wavs[0])-0.025
+    xmax = np.log10(model.filter_set.eff_wavs[-1])+0.025
     ax.set_xlim(xmin, xmax)
 
-    redshifted_wavs = model.chosen_wavs*(1.+model.model_comp["redshift"])
+    redshifted_wavs = model.wavelengths*(1.+model.model_comp["redshift"])
 
     spec_mask = ((redshifted_wavs > 10**xmin) & (redshifted_wavs < 10**xmax))
 
@@ -589,7 +589,7 @@ def add_model_photometry(model, ax, x_ticks=None, zorder=4):
             model.spectrum_full*10**-y_scale, color="navajowhite",
             zorder=zorder-1)
 
-    ax.scatter(np.log10(model.eff_wavs), model.photometry*10**-y_scale,
+    ax.scatter(np.log10(model.filter_set.eff_wavs), model.photometry*10**-y_scale,
                color="darkorange", s=150, zorder=zorder)
 
     # Sort out x tick locations
@@ -612,8 +612,8 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
     """ Adds photometric data to the passed axes. """
 
     # Sort out axis limits
-    ax.set_xlim((np.log10(galaxy.eff_wavs.min())-0.025),
-                (np.log10(galaxy.eff_wavs.max())+0.025))
+    ax.set_xlim((np.log10(galaxy.filter_set.eff_wavs.min())-0.025),
+                (np.log10(galaxy.filter_set.eff_wavs.max())+0.025))
 
     mask = (galaxy.photometry[:, 1] > 0.)
     ymax = 1.05*np.max((galaxy.photometry[:, 1]+galaxy.photometry[:, 2])[mask])
@@ -689,8 +689,8 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
 
     spec_full_post = fit.posterior["spectrum_full"]
     phot_post = fit.posterior["photometry"]
-    log_wavs = np.log10(fit.model.chosen_wavs*(1.+redshift))
-    log_eff_wavs = np.log10(fit.model.eff_wavs)
+    log_wavs = np.log10(fit.model.wavelengths*(1.+redshift))
+    log_eff_wavs = np.log10(fit.model.filter_set.eff_wavs)
 
     spec_full_low = np.percentile(spec_full_post, 16, axis=0)*10**-y_scale
     spec_full_med = np.percentile(spec_full_post, 50, axis=0)*10**-y_scale
