@@ -731,7 +731,6 @@ class fit(fit_info_parser):
             mean_sfrs = prog_masses/tunivs
             self.posterior["nsfr"][i] = sfrs[0]/mean_sfrs[0]
 
-
             if sfrs[0] > 0.1*mean_sfrs[0]:
                 self.posterior["tquench"][i] = 999.
 
@@ -772,8 +771,7 @@ class fit(fit_info_parser):
                                           / post_mass["total"]["living"])
 
         self.posterior["tmw"] = (self.posterior["age_of_universe"]*10**-9
-                                    - self.posterior["mwa"])
-
+                                 - self.posterior["mwa"])
 
         self.posterior["tau_q"] = ((self.posterior["tquench"]
                                     - self.posterior["tmw"])

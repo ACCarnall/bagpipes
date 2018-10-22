@@ -37,7 +37,8 @@ class igm(object):
     def trans(self, redshift):
         """ Get the IGM transmission at a given redshift. """
 
-        zred_ind = config.igm_redshifts[config.igm_redshifts < redshift].shape[0]
+        redshift_mask = (config.igm_redshifts < redshift)
+        zred_ind = config.igm_redshifts[redshift_mask].shape[0]
 
         zred_fact = ((redshift - config.igm_redshifts[zred_ind-1])
                      / (config.igm_redshifts[zred_ind]

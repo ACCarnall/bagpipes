@@ -5,6 +5,7 @@ import numpy as np
 from .. import config
 from .. import utils
 
+
 class stellar(object):
     """ Allows access to and maniuplation of stellar emission models.
 
@@ -35,7 +36,7 @@ class stellar(object):
                 raw_grid = config.raw_stellar_grid[i].data
                 grid_raw_ages[:, i, j] = np.interp(self.wavelengths,
                                                    config.wavelengths,
-                                                   raw_grid[j,:],
+                                                   raw_grid[j, :],
                                                    left=0., right=0.)
 
         return grid_raw_ages

@@ -15,7 +15,6 @@ are a trade-off between speed and accuracy, you may find changing them
 negatively affects one or both of these things. """
 
 
-
 """ These variables control the wavelength sampling for models. """
 
 # Sets the maximum redshift the code is set up to calculate models for.
@@ -29,7 +28,6 @@ R_phot = 100.
 
 # Sets the R = lambda/dlambda value for other spectral regions.
 R_other = 10.
-
 
 
 """ These variables control the age sampling for the stellar and nebular
@@ -49,9 +47,8 @@ age_bins[-1] = 10**9*utils.cosmo.age(0.).value
 # Set up widths for the age bins for the stellar + nebular models.
 age_widths = age_bins[1:] - age_bins[:-1]
 
-#Convert the age sampling from log10(Gyr) to Gyr.
+# Convert the age sampling from log10(Gyr) to Gyr.
 age_sampling = 10**age_sampling
-
 
 
 """ These variables tell the code where to find the raw stellar emission
@@ -76,13 +73,13 @@ live_frac = fits.open(utils.grid_dir
 # The raw stellar grids, stored as a FITS HDUList.
 # The different HDUs are the grids at different metallicities.
 # Axis 0 of each grid runs over wavelength, axis 1 over age.
-raw_stellar_grid = fits.open(utils.grid_dir + "/bc03_miles_stellar_grids.fits")[1:8]
+raw_stellar_grid = fits.open(utils.grid_dir
+                             + "/bc03_miles_stellar_grids.fits")[1:8]
 
 # Set up edge positions for metallicity bins for stellar + nebular models.
 metallicity_bins = utils.make_bins(metallicities, make_rhs=True)[0]
-metallicity_bins [0] = 0.
-metallicity_bins [-1] = 10.
-
+metallicity_bins[0] = 0.
+metallicity_bins[-1] = 10.
 
 
 """ These variables tell the code where to find the raw nebular emission
@@ -113,7 +110,6 @@ line_grid = fits.open(utils.grid_dir + "/bc03_miles_nebular_line_grids.fits")
 cont_grid = fits.open(utils.grid_dir + "/bc03_miles_nebular_cont_grids.fits")
 
 
-
 """ These variables tell the code where to find the raw dust emission
 models, as well as some of their basic properties. """
 
@@ -134,7 +130,6 @@ dust_grid_umin_umax = fits.open(utils.grid_dir
                                 + "/dl07_grids_umin_umax.fits")
 
 
-
 """ These variables tell the code where to find the raw IGM attenuation
 models, as well as some of their basic properties. """
 
@@ -150,7 +145,6 @@ igm_wavelengths = np.arange(1.0, 1225.01, 1.0)
 
 # 2D numpy array containing the IGM attenuation grid.
 raw_igm_grid = fits.open(utils.grid_dir + "/d_igm_grid_inoue14.fits")[1].data
-
 
 
 """ These variables are alternatives to those given in the stellar

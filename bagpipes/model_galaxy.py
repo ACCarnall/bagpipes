@@ -234,7 +234,8 @@ class model_galaxy(object):
                 umin = model_comp["dust"]["umin"]
                 gamma = model_comp["dust"]["gamma"]
 
-            spectrum += dust_flux*self.dust_emission.spectrum(qpah, umin, gamma)
+            spectrum += dust_flux*self.dust_emission.spectrum(qpah, umin,
+                                                              gamma)
 
         spectrum *= self.igm.trans(model_comp["redshift"])
 

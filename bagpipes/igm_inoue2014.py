@@ -15,6 +15,7 @@ all IGM calculations. """
 coefs = np.loadtxt(utils.grid_dir
                    + "/lyman_series_coefs_inoue_2014_table2.txt")
 
+
 def get_Inoue14_trans(rest_wavs, z_obs):
     """ Calculate IGM transmission using witchcraft. """
 
@@ -112,7 +113,7 @@ def get_Inoue14_trans(rest_wavs, z_obs):
         tau_LAF_LC[wav_slice] = (0.325*((rest_wavs[wav_slice]
                                          * (1.+z_obs)/911.8)**1.2
                                         - (((1+z_obs)**-0.9)
-                                           *(rest_wavs[wav_slice]
+                                           * (rest_wavs[wav_slice]
                                            * (1.+z_obs)/911.8)**2.1)))
 
     elif z_obs < 4.7:
