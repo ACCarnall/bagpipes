@@ -2,12 +2,16 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 
-from . import utils
-from . import config
-from . import models
-from . import filters
-from . import plotting
+from .. import utils
+from .. import config
+from .. import filters
+from .. import plotting
 
+from .stellar_model import stellar
+from .dust_emission_model import dust_emission
+from .dust_attenuation_model import dust_attenuation
+from .nebular_model import nebular
+from .igm_model import igm
 from .star_formation_history import star_formation_history
 
 
@@ -72,19 +76,20 @@ class model_galaxy(object):
         self.uvj_filter_set.resample_filter_curves(self.wavelengths)
 
         # Create relevant physical models.
-        self.stellar = models.stellar(self.wavelengths)
-        self.igm = models.igm(self.wavelengths)
+        self.sfh = star_formation_history(model_components)
+        self.stellar = stellar(self.wavelengths)
+        self.igm = igm(self.wavelengths)
         self.nebular = False
-        self.dust_attenuation = False
+        self.dust_atten = False
         self.dust_emission = False
 
         if "nebular" in list(model_components):
-            self.nebular = models.nebular(self.wavelengths)
+            self.nebular = nebular(self.wavelengths)
 
         if "dust" in list(model_components):
             dust_type = model_components["dust"]["type"]
-            self.dust_emission = models.dust_emission(self.wavelengths)
-            self.dust_attenuation = models.dust_attenuation(self.wavelengths,
+            self.dust_emission = dust_emission(self.wavelengths)
+            self.dust_atten = dust_attenuation(self.wavelengths,
                                                             dust_type)
 
         self.update(model_components)
@@ -160,6 +165,7 @@ class model_galaxy(object):
         the model_components dictionary. """
 
         self.model_comp = model_comp
+        self.sfh.update(model_comp)
         self._calculate_full_spectrum(model_comp)
         self._calculate_uvj_mags()
 
@@ -180,7 +186,6 @@ class model_galaxy(object):
         if "t_bc" in list(model_comp):
             t_bc = model_comp["t_bc"]
 
-        self.sfh = star_formation_history(model_comp)
         spectrum_bc, spectrum = self.stellar.spectrum(self.sfh.ceh.grid, t_bc)
         em_lines = np.zeros(config.line_wavs.shape)
 
@@ -194,7 +199,7 @@ class model_galaxy(object):
                                                  model_comp["nebular"]["logU"])
 
         # Add attenuation due to stellar birth clouds.
-        if self.dust_attenuation:
+        if self.dust_atten:
             dust_flux = 0.  # Total attenuated flux for energy balance.
 
             n = 1.
@@ -205,7 +210,7 @@ class model_galaxy(object):
             if "eta" in list(model_comp["dust"]):
                 eta = model_comp["dust"]["eta"]
                 bc_Av_reduced = (eta - 1.)*model_comp["dust"]["Av"]
-                bc_trans_red = self.dust_attenuation.trans(bc_Av_reduced, n=n)
+                bc_trans_red = self.dust_atten.trans(bc_Av_reduced, n=n)
                 spectrum_bc_dust = spectrum_bc*bc_trans_red
                 dust_flux += np.trapz(spectrum_bc - spectrum_bc_dust,
                                       x=self.wavelengths)
@@ -214,13 +219,13 @@ class model_galaxy(object):
 
             # Attenuate emission line fluxes.
             bc_Av = eta*model_comp["dust"]["Av"]
-            em_lines *= self.dust_attenuation.line_trans(bc_Av, n=n)
+            em_lines *= self.dust_atten.line_trans(bc_Av, n=n)
 
         spectrum += spectrum_bc  # Add birth cloud spectrum to spectrum.
 
         # Add attenuation due to the diffuse ISM.
-        if self.dust_attenuation:
-            trans = self.dust_attenuation.trans(model_comp["dust"]["Av"], n=n)
+        if self.dust_atten:
+            trans = self.dust_atten.trans(model_comp["dust"]["Av"], n=n)
             dust_spectrum = spectrum*trans
 
             dust_flux += np.trapz(spectrum - dust_spectrum, x=self.wavelengths)
@@ -261,10 +266,12 @@ class model_galaxy(object):
         integrates over them to calculate photometric fluxes. """
 
         redshifted_wavs = self.wavelengths*(1. + redshift)
-        filter_set = self.filter_set
 
         if uvj:
             filter_set = self.uvj_filter_set
+
+        else:
+            filter_set = self.filter_set
 
         filters_z = np.zeros_like(filter_set.filt_array)
         for i in range(len(filter_set.filt_list)):
@@ -324,8 +331,3 @@ class model_galaxy(object):
         """ Obtain (unnormalised) rest-frame UVJ magnitudes. """
 
         self.uvj = -2.5*np.log10(self._calculate_photometry(0., uvj=True))
-
-    def plot(self, show=True):
-        """ Make a quick plot of the model spectral outputs. """
-
-        return plotting.plot_model_galaxy(self, show=True)

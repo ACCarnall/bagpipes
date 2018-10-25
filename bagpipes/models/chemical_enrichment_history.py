@@ -2,8 +2,8 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 
-from . import utils
-from . import config
+from .. import utils
+from .. import config
 
 
 class chemical_enrichment_history(object):

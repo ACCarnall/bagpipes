@@ -156,7 +156,7 @@ def plot_model_galaxy(model, show=True):
     return fig, axes
 
 
-def plot_galaxy(galaxy, show=True, polynomial=None, return_y_scale=False):
+def plot_galaxy(galaxy, show=True, return_y_scale=False):
     """ Make a quick plot of the data loaded into a galaxy object. """
     update_rcParams()
     naxes = 1
@@ -205,15 +205,11 @@ def plot_fit(fit, show=False, save=True):
     """ Plot the observational data and posterior from a fit object. """
     update_rcParams()
 
-    if "polynomial" in list(fit.posterior):
-        median_poly = np.median(fit.posterior["polynomial"], axis=0)
-        fig, axes, y_scale = plot_galaxy(fit.galaxy, show=False,
-                                         polynomial=median_poly,
-                                         return_y_scale=True)
 
-    else:
-        fig, axes, y_scale = plot_galaxy(fit.galaxy, show=False,
-                                         return_y_scale=True)
+    fig, axes, y_scale = plot_galaxy(fit.galaxy, show=False,
+                                     return_y_scale=True)
+
+
 
     if fit.galaxy.spectrum_exists:
         add_spectrum_posterior(fit, axes[0], zorder=6, y_scale=y_scale[0])
@@ -681,11 +677,11 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
     if not y_scale:
         y_scale = int(np.log10(ymax))-1
 
-    if "redshift" in fit.fit_params:
+    if "redshift" in fit.fit_pars:
         redshift = fit.posterior["median"]["redshift"]
 
     else:
-        redshift = fit.fixed_values[fit.fixed_params.index("redshift")]
+        redshift = fit.fit_info["redshift"]
 
     spec_full_post = fit.posterior["spectrum_full"]
     phot_post = fit.posterior["photometry"]
@@ -756,7 +752,7 @@ def add_sfh_posterior(fit, ax, style="smooth", colorscheme="bw",
     sfh_post = fit.posterior["sfh"]
 
     # Calculate median redshift and median age of Universe
-    if "redshift" in fit.fit_params:
+    if "redshift" in fit.fit_pars:
         redshift = fit.posterior["median"]["redshift"]
 
     else:

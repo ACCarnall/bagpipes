@@ -6,7 +6,7 @@ import numpy as np
 from astropy.io import fits
 
 from . import utils
-from . import igm_inoue2014
+from .setup import igm_inoue2014
 
 """ This file contains all of the configuration variables for Bagpipes.
 This includes loading different grids of models into the code, and the
@@ -27,7 +27,7 @@ R_spec = 600.
 R_phot = 100.
 
 # Sets the R = lambda/dlambda value for other spectral regions.
-R_other = 10.
+R_other = 20.
 
 
 """ These variables control the age sampling for the stellar and nebular

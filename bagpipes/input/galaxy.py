@@ -4,12 +4,12 @@ import numpy as np
 import sys
 import os
 
-from . import plotting
-from . import filters
+from .. import plotting
+from .. import filters
 
 
 class galaxy:
-    """ Load up observational data into Bagpipes.
+    """ A container for observational data loaded into Bagpipes.
 
     Parameters
     ----------
@@ -64,18 +64,22 @@ class galaxy:
         self.out_units = out_units
         self.spectrum_exists = spectrum_exists
         self.photometry_exists = photometry_exists
+        self.filt_list = filt_list
 
         if not spectrum_exists and not photometry_exists:
             sys.exit("Bagpipes: Object must have at least some data.")
 
         elif spectrum_exists and not photometry_exists:
             self.spectrum = load_data(self.ID)
+            self.spec_wavs = self.spectrum[:,0]
 
         elif photometry_exists and not spectrum_exists:
             phot_nowavs = load_data(self.ID)
+            self.spec_wavs = None
 
         else:
             self.spectrum, phot_nowavs = load_data(self.ID)
+            self.spec_wavs = self.spectrum[:,0]
 
         if photometry_exists:
             self.filter_set = filters.filter_set(filt_list)

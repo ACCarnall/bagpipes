@@ -5,10 +5,10 @@ import numpy as np
 from scipy.optimize import fsolve
 from copy import copy, deepcopy
 
-from . import utils
-from . import config
-from . import plotting
-from . import models
+from .. import utils
+from .. import config
+from .. import plotting
+
 from .chemical_enrichment_history import chemical_enrichment_history
 
 
@@ -37,122 +37,111 @@ class star_formation_history:
         A dictionary containing information about the star formation
         history you wish to generate.
 
-    log_sampling : float (optional)
+    log_sampling : float - optional
         the log of the age sampling of the SFH, defaults to 0.0025.
     """
 
     def __init__(self, model_components, log_sampling=0.0025):
 
-        self.model_components = model_components
         self.hubble_time = utils.age_at_z[utils.z_array == 0.]
 
-        # This has to be a little bigger than the hubble time or the
-        # unphysical flag is never set for models at z = 0.
+        # Set up the age sampling for internal SFH calculations.
         log_age_max = np.log10(self.hubble_time)+9. + 2*log_sampling
         self.ages = np.arange(6., log_age_max, log_sampling)
         self.age_lhs = utils.make_bins(self.ages, make_rhs=True)[0]
-
         self.ages = 10**self.ages
         self.age_lhs = 10**self.age_lhs
-
         self.age_lhs[0] = 0.
         self.age_lhs[-1] = 10**9*self.hubble_time
-
         self.age_widths = self.age_lhs[1:] - self.age_lhs[:-1]
 
-        self.sfr = {"total": np.zeros_like(self.ages)}
-        self.weights = {"total": np.zeros_like(config.age_sampling)}
+        # Detect SFH components
+        comp_list = list(model_components)
+        self.components = ([k for k in comp_list if k in dir(self)]
+                           + [k for k in comp_list if k[:-1] in dir(self)])
 
-        # Populate a list of star-formation history components
-        self.sfh_components = []
-        self.comp_types = []
+        self.component_sfrs = {}  # SFR versus time for all components.
+        self.component_weights = {}  # SSP weights for all components.
 
-        for comp in list(model_components):
-            if (not comp.startswith(("dust", "nebular", "polynomial", "noise"))
-                    and isinstance(model_components[comp], dict)):
-
-                comp_type = copy(comp)
-                while comp_type[-1].isdigit():
-                    comp_type = comp_type[:-1]
-
-                self.comp_types.append(comp_type)
-
-                self.sfh_components.append(comp)
-                self.sfr[comp] = np.zeros_like(self.ages)
-                self.weights[comp] = np.zeros_like(config.age_sampling)
+        for c in self.components:
+            self.component_sfrs[c] = np.zeros_like(self.ages)
+            self.component_weights[c] = np.zeros_like(config.age_sampling)
 
         self._resample_live_frac_grid()
+
         self.update(model_components)
 
     def update(self, model_components):
 
-        self.model_comp = model_components
+        self.model_components = model_components
+        self.redshift = self.model_components["redshift"]
+
+        self.sfh = np.zeros_like(self.ages)  # Star-formation history
 
         self.unphysical = False
-
-        self.age_of_universe = 10**9*np.interp(self.model_comp["redshift"],
-                                               utils.z_array, utils.age_at_z)
-
-        # mass: stores component and total stellar masses.
-        self.mass = {"total": {"formed": 0., "living": 0.}}
-
-        self.sfr["total"] = np.zeros_like(self.ages)
-        self.weights["total"] = np.zeros_like(config.age_sampling)
+        self.age_of_universe = 10**9*np.interp(self.redshift, utils.z_array,
+                                               utils.age_at_z)
 
         # Calculate the star-formation history for each of the components.
-        for i in range(len(self.sfh_components)):
-            comp = self.sfh_components[i]
-            comp_type = self.comp_types[i]
+        for i in range(len(self.components)):
 
-            getattr(self, comp_type)(self.sfr[comp], self.model_comp[comp])
+            name = self.components[i]
+            func = self.components[i]
+            if name not in dir(self):
+                func = name[:-1]
+
+            getattr(self, func)(self.component_sfrs[name],
+                                     self.model_components[name])
 
             # Normalise to the correct mass.
-            self.sfr[comp] /= np.sum(self.sfr[comp]*self.age_widths)
-            self.sfr[comp] *= 10**self.model_comp[comp]["massformed"]
-            self.sfr["total"] += self.sfr[comp]
+            mass_norm = np.sum(self.component_sfrs[name]*self.age_widths)
+            desired_mass = 10**self.model_components[name]["massformed"]
 
-        # Check that no stars formed before the Big Bang.
-        mask = self.ages > self.age_of_universe
-        if self.sfr["total"][mask].max() > 0.:
+            self.component_sfrs[name] *= desired_mass/mass_norm
+            self.sfh += self.component_sfrs[name]
+
+            # Sum up contributions to each age bin to create SSP weights
+            weights = self.component_sfrs[name]*self.age_widths
+            self.component_weights[name] = np.histogram(self.ages,
+                                                        bins=config.age_bins,
+                                                        weights=weights)[0]
+        # Check no stars formed before the Big Bang.
+        if self.sfh[self.ages > self.age_of_universe].max() > 0.:
             self.unphysical = True
 
-        # Sum up the contributions to each age bin to create SSP weights.
-        for comp in self.sfh_components:
-            comp_weights = self.sfr[comp]*self.age_widths
-            self.weights[comp] = np.histogram(self.ages,
-                                              bins=config.age_bins,
-                                              weights=comp_weights)[0]
-
-            self.weights["total"] += self.weights[comp]
-
         # ceh: Chemical enrichment history object
-        self.ceh = chemical_enrichment_history(self.model_comp, self.weights)
+        self.ceh = chemical_enrichment_history(self.model_components,
+                                               self.component_weights)
 
-        # Calculate stellar masses, SFRs and mass-weighted ages.
-        self._update_derived_parameters()
+        self._calculate_derived_quantities()
 
-    def _update_derived_parameters(self):
-        """ Calculate the living and formed stellar masses for a SFH
-        component, also keeps track of the total for all components. """
+    def _calculate_derived_quantities(self):
+        self.stellar_mass = np.log10(np.sum(self.live_frac_grid*self.ceh.grid))
+        self.formed_mass = np.log10(np.sum(self.ceh.grid))
 
-        for comp in self.sfh_components:
+        age_mask = (self.ages < 10**8)
+        self.sfr = np.sum(self.sfh[age_mask]*self.age_widths[age_mask])
+        self.sfr /= self.age_widths[age_mask].sum()
+        self.ssfr = np.log10(self.sfr) - self.stellar_mass
 
-            living_mass = np.sum(self.live_frac_grid*self.ceh.grid_comp[comp])
+        self.mass_weighted_age = np.sum(self.sfh*self.age_widths*self.ages)
+        self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
 
-            formed_mass = 10**self.model_components[comp]["massformed"]
+        self.tform = self.age_of_universe - self.mass_weighted_age
 
-            self.mass["total"]["living"] += living_mass
-            self.mass["total"]["formed"] += formed_mass
-            self.mass[comp] = {"living": living_mass, "formed": formed_mass}
+        mass_assembly = np.cumsum(self.sfh[::-1]*self.age_widths[::-1])[::-1]
+        tunivs = self.age_of_universe - self.ages
+        mean_sfrs = mass_assembly/tunivs
+        normed_sfrs = np.zeros_like(self.sfh)
+        sf_mask = (self.sfh > 0.)
+        normed_sfrs[sf_mask] = self.sfh[sf_mask]/mean_sfrs[sf_mask]
 
-        self.sfr_100myr = np.sum(self.sfr["total"][self.ages < 10**8]
-                                 * self.age_widths[self.ages < 10**8])
+        if self.sfr > 0.1*mean_sfrs[0]:
+            self.tquench = -1.
 
-        self.sfr_100myr /= self.age_widths[self.ages < 10**8].sum()
-
-        weighted_ages = self.sfr["total"]*self.age_widths*self.ages
-        self.mass_weighted_age = np.sum(weighted_ages)
-        self.mass_weighted_age /= np.sum(self.sfr["total"]*self.age_widths)
+        else:
+            quench_ind = np.argmax(normed_sfrs > 0.1)
+            self.tquench = tunivs[quench_ind]
 
     def _resample_live_frac_grid(self):
         self.live_frac_grid = np.zeros((config.metallicities.shape[0],
