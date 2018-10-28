@@ -1,5 +1,7 @@
 from __future__ import print_function, division, absolute_import
 
+from . import making
+
 from .stellar_model import stellar
 from .dust_emission_model import dust_emission
 from .dust_attenuation_model import dust_attenuation

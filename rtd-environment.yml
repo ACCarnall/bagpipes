@@ -9,8 +9,6 @@ dependencies:
     - pip:
       - corner
       - pymultinest
-      - dynesty
       - msgpack
       - deepdish
       - pandas
-

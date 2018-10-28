@@ -4,6 +4,7 @@ import numpy as np
 import time
 
 from copy import deepcopy
+from numpy.polynomial.chebyshev import chebval, chebfit
 
 from .prior import prior
 from ..models.model_galaxy import model_galaxy
@@ -27,7 +28,7 @@ class fitted_model(object):
     def __init__(self, galaxy, fit_instructions):
 
         self.galaxy = galaxy
-        self.fit_info = deepcopy(fit_instructions)
+        self.fit_instructions = deepcopy(fit_instructions)
         self.model_components = deepcopy(fit_instructions)
 
         self._set_constants()
@@ -38,25 +39,25 @@ class fitted_model(object):
         self.times = []
 
     def _process_fit_instructions(self):
-        all_keys = []          # All keys in fit_info dict and sub dicts
-        all_vals = []          # All vals in fit_info dict and sub dicts
+        all_keys = []           # All keys in fit_instructions and subs
+        all_vals = []           # All vals in fit_instructions and subs
 
-        self.params = []   # Parameters to be fitted
-        self.limits = []   # Limits for fitted parameter values
-        self.pdfs = []         # Prior probability densities within lims
-        self.hyper_params = [] # Hyper-parameters of prior distributions
-        self.mirror_pars = {}  # Params which mirror a fitted param
+        self.params = []        # Parameters to be fitted
+        self.limits = []        # Limits for fitted parameter values
+        self.pdfs = []          # Probability densities within lims
+        self.hyper_params = []  # Hyperparameters of prior distributions
+        self.mirror_pars = {}   # Params which mirror a fitted param
 
         # Flatten the input fit_instructions dictionary.
-        for key in list(self.fit_info):
-            if not isinstance(self.fit_info[key], dict):
+        for key in list(self.fit_instructions):
+            if not isinstance(self.fit_instructions[key], dict):
                 all_keys.append(key)
-                all_vals.append(self.fit_info[key])
+                all_vals.append(self.fit_instructions[key])
 
             else:
-                for sub_key in list(self.fit_info[key]):
+                for sub_key in list(self.fit_instructions[key]):
                     all_keys.append(key + ":" + sub_key)
-                    all_vals.append(self.fit_info[key][sub_key])
+                    all_vals.append(self.fit_instructions[key][sub_key])
 
         # Sort the resulting lists alphabetically by parameter name.
         indices = np.argsort(all_keys)
@@ -80,8 +81,9 @@ class fitted_model(object):
                 # Any hyper-parameters of these prior distributions.
                 self.hyper_params.append({})
                 for i in range(len(all_keys)):
-                    if key.startswith(prior_key + "_"):
-                        self.hyper_params[i][len(prior_key)+1:] = all_vals[i]
+                    if all_keys[i].startswith(prior_key + "_"):
+                        hyp_key = all_keys[i][len(prior_key)+1:]
+                        self.hyper_params[-1][hyp_key] = all_vals[i]
 
             # Find any parameters which mirror the value of a fit param.
             if all_vals[i] in all_keys:
@@ -115,13 +117,7 @@ class fitted_model(object):
                                              filt_list=self.galaxy.filt_list,
                                              spec_wavs=self.galaxy.spec_wavs)
 
-        time0 = time.time()
         self.model_galaxy.update(self.model_components)
-        self.times.append(time.time() - time0)
-
-        if not len(self.times) % 100:
-            print("Update time:", 1000*np.mean(np.array(self.times)), "ms.")
-            times = []
 
         if "polynomial" in list(self.model_components):
             self._update_polynomial()
@@ -159,7 +155,7 @@ class fitted_model(object):
         polynomial and modelling problems with the error spectrum. """
 
         # Optionally divide the model by a polynomial for calibration.
-        if "polynomial" in self.fit_info:
+        if "polynomial" in list(self.fit_instructions):
             diff = (self.galaxy.spectrum[:, 1]
                     - self.model_galaxy.spectrum[:, 1]/self.polynomial)**2
 
@@ -172,7 +168,7 @@ class fitted_model(object):
         if "noise" in list(self.model_components):
             sig_exp = self.model_components["noise"]["sig_exp"]
 
-        chisq_spec = np.sum(diff/self.inv_sig_sq_spec/sig_exp**2)
+        chisq_spec = np.sum(diff*self.inv_sigma_sq_spec)/sig_exp**2
 
         return self.K_spec - self.N_spec*np.log(sig_exp) - 0.5*chisq_spec
 
@@ -199,10 +195,10 @@ class fitted_model(object):
         """ Update the spectral calibration polynomial. """
 
         # Transform spec_wavs into interval (-1, 1).
-        x = np.copy(self.model_galaxy.spec_wavs)
-        x = (x - (x[0] + (x[-1] - x[0])/2.))/(x[-1] - x[0])/2
+        x = np.copy(self.galaxy.spec_wavs)
+        x = 2.*(x - (x[0] + (x[-1] - x[0])/2.))/(x[-1] - x[0])
 
-        # Get coefficients for the polynomial from fit_info or fitting.
+        # Get coefficients for the polynomial.
         if self.model_components["polynomial"]["type"] == "bayesian":
             coefs = []
             poly_dict = self.model_components["polynomial"]
@@ -212,7 +208,7 @@ class fitted_model(object):
 
         elif self.model_components["polynomial"]["type"] == "max_like":
             y = self.model_galaxy.spectrum[:, 1]/self.galaxy.spectrum[:, 1]
-            n = int(self.fit_info["polynomial"]["order"])
+            n = int(self.fit_instructions["polynomial"]["order"])
             coefs = chebfit(x, y, n, w=self.inv_sigma_spec)
 
         self.polynomial = chebval(x, coefs)

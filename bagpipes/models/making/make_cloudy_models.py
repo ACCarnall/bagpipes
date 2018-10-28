@@ -6,13 +6,17 @@ import sys
 
 from astropy.io import fits
 
-from . import utils
-from .model_galaxy import model_galaxy
+from ... import utils
+from ..model_galaxy import model_galaxy
 
 if "CLOUDY_DATA_PATH" in list(os.environ):
     cloudy_data_path = os.environ["CLOUDY_DATA_PATH"]
 
 age_lim = 3.*10**7
+
+""" This code is only necessary for making new sets of cloudy nebular
+models. It is not called by Bagpipes under normal operation. It is also
+currently a little out of date! """
 
 
 def make_cloudy_sed_file(age, zmet):

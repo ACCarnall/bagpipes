@@ -52,10 +52,9 @@ class posterior(object):
         self.samples = {}  # Store all posterior samples
 
         for i in range(self.fitted_model.ndim):
-            self.samples[self.fitted_model.params[i]] = self.samples2d[:,i]
+            self.samples[self.fitted_model.params[i]] = self.samples2d[:, i]
 
         self.get_basic_quantities()
-        self.get_advanced_quantities()
 
     def get_basic_quantities(self):
         """Calculates basic derived posterior quantities, these are fast
@@ -91,7 +90,8 @@ class posterior(object):
                                          filt_list=self.galaxy.filt_list,
                                          spec_wavs=self.galaxy.spec_wavs)
 
-        all_names = ["photometry", "uvj", "spectrum", "spectrum_full"]
+        all_names = ["photometry", "spectrum", "spectrum_full", "uvj"]
+
         all_model_keys = dir(self.model_galaxy)
         quantity_names = [q for q in all_names if q in all_model_keys]
 
@@ -112,4 +112,8 @@ class posterior(object):
                 self.samples["polynomial"][i] = self.fitted_model.polynomial
 
             for q in quantity_names:
+                if q == "spectrum":
+                    self.samples[q][i] = getattr(self.model_galaxy, q)[:, 1]
+                    continue
+
                 self.samples[q][i] = getattr(self.model_galaxy, q)

@@ -33,8 +33,7 @@ class filter_set(object):
 
         for filt in self.filt_list:
             try:
-                self.filt_dict[filt] = np.loadtxt(utils.working_dir + "/"
-                                                  + filt, usecols=(0, 1))
+                self.filt_dict[filt] = np.loadtxt(filt, usecols=(0, 1))
 
             except IOError:
                 self.filt_dict[filt] = np.loadtxt(utils.install_dir + "/"

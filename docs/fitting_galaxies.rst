@@ -1,7 +1,7 @@
 .. _fitting-observational-data:
 
-Fitting observational data
-==========================
+Fitting observational data: fit
+===============================
 
 This section describes fitting observational data with Bagpipes. This involves setting up a ``fit`` object. The two main arguments passed to ``fit`` are a ``galaxy`` object (described in the :ref:`inputting observational data <inputting-observational-data>` section) and the ``fit_instructions`` dictionary, which contains instructions on the model to be fitted to the data.
 
@@ -19,7 +19,7 @@ The ``fit_instructions`` dictionary is similar to the ``model_components`` dicti
 For example, the simple model built :ref:`here <model-components>` could be fitted to data by specifying the following ``fit_instructions`` dictionary:
 
 .. code:: python
-	
+
 	burst = {}
 	burst["age"] = (0., 15.)           # Vary the age between 0 and 15 Gyr
 	burst["metallicity"] = (0., 2.5)   # Vary stellar metallicity between 0 and 2.5 times Solar
@@ -63,7 +63,7 @@ There is no need to vary all of the parameters in ``fit_instructions``. Paramete
 	burst2 = {}
 	burst2["age"] = 1.0                          # Fix the age to 0.1 Gyr
 	burst2["metallicity"] = "burst1:metallicity" # Mirror burst1:metallicity
-	burst2["massformed"] = (0., 13.)  
+	burst2["massformed"] = (0., 13.)
 
 	fit_instructions = {}
 	fit_instructions["burst1"] = burst1       # Add the burst1 sfh component to the model
@@ -77,7 +77,7 @@ Adding priors
 At the moment, all of the parameters in the above example are fitted with uniform priors by default. We can add further keys to the relevant dictionaries to specify different priors. For example, if we wanted the prior on stellar metallicity to be uniform in log_10 of the parameter:
 
 .. code:: python
-	
+
 	burst = {}
 	burst["age"] = (0., 13.)               # Vary the age between 0 and 13 Gyr.
 	burst["metallicity"] = (0.01, 5.)      # Vary metallicity between 0 and 5 times Solar
@@ -87,7 +87,7 @@ At the moment, all of the parameters in the above example are fitted with unifor
 The list of currently available priors is:
 
 .. code:: python
-	
+
 	component = {}
 	component["parameter_prior"] = "uniform"  # Uniform prior
 	component["parameter_prior"] = "log_10"   # Uniform in log_10(parameter)
@@ -158,7 +158,7 @@ Additionally posterior distributions for each fit parameter are stored. More inf
 Saved outputs
 -------------
 
-The basics of the posterior dictionary are automatically saved in your working directory on the completion of a fit as a hdf5 file under ``pipes/posterior/<ID>.h5``. 
+The basics of the posterior dictionary are automatically saved in your working directory on the completion of a fit as a hdf5 file under ``pipes/posterior/<ID>.h5``.
 
 When the same fit is run again this posterior will be loaded by default, if you want to start over you'll need to delete the saved file or change the run (see below).
 

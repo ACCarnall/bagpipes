@@ -6,18 +6,20 @@ import time
 import warnings
 import deepdish as dd
 
-from numpy.polynomial.chebyshev import chebval, chebfit
 from copy import deepcopy
 
 try:
     import pymultinest as pmn
 
-except ImportError:
-    print("BAGPIPES: PyMultiNest is not installed so fitting is unavailable.")
+except (ImportError, RuntimeError) as e:
+    print("Bagpipes: PyMultiNest import failed, fitting will be unavailable.")
 
 from .. import utils
+from .. import plotting
+
 from .fitted_model import fitted_model
 from .posterior import posterior
+
 
 class fit(object):
     """ Top-level class for fitting models to observational data.
@@ -132,9 +134,24 @@ class fit(object):
         print("-"*58)
 
         for i in range(self.fitted_model.ndim):
-            print("{:<25}".format(self.fit_params[i]),
+            print("{:<25}".format(self.fitted_model.params[i]),
                   "{:>10.3f}".format(self.results["conf_int"][0, i]),
                   "{:>10.3f}".format(self.results["median"][i]),
                   "{:>10.3f}".format(self.results["conf_int"][1, i]))
 
         print("\n")
+
+    def plot_corner(self, show=False, save=True):
+        plotting.plot_corner(self, show=show, save=save)
+
+    def plot_1d_posterior(self, show=False, save=True):
+        plotting.plot_1d_posterior(self, show=show, save=save)
+
+    def plot_sfh_posterior(self, show=False, save=True):
+        plotting.plot_sfh_posterior(self, show=show, save=save)
+
+    def plot_spectrum_posterior(self, show=False, save=True):
+        plotting.plot_spectrum_posterior(self, show=show, save=save)
+
+    def plot_polynomial(self, show=False, save=True):
+        plotting.plot_polynomial(self, show=show, save=save)

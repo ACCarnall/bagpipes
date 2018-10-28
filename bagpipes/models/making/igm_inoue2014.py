@@ -1,4 +1,4 @@
-from __future__ import print_function,  division,  absolute_import
+from __future__ import print_function, division, absolute_import
 
 import numpy as np
 import sys
@@ -6,7 +6,7 @@ import os
 
 from astropy.io import fits
 
-from .. import utils
+from ... import utils
 
 """ This code is called once when Bagpipes is first installed in order
 to generate the IGM absorption table which is subsequently used for

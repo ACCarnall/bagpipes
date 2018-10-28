@@ -45,7 +45,8 @@ class prior(object):
         # Call the relevant prior functions to draw random values.
         for i in range(self.ndim):
             prior_function = getattr(self, self.pdfs[i])
-            cube[i] = prior_function(cube[i], self.limits[i], self.hyper_params[i])
+            cube[i] = prior_function(cube[i], self.limits[i],
+                                     self.hyper_params[i])
 
         return cube
 
@@ -57,7 +58,8 @@ class prior(object):
 
     def log_10(self, value, limits, hyper_params):
         """ Uniform prior in log_10(x) where x is the parameter. """
-        value = 10**((np.log10(limits[1]/limits[0]))*value + np.log10(limits[0]))
+        value = 10**((np.log10(limits[1]/limits[0]))*value
+                     + np.log10(limits[0]))
         return value
 
     def log_e(self, value, limits, hyper_params):

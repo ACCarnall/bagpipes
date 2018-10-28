@@ -65,21 +65,20 @@ class galaxy:
         self.spectrum_exists = spectrum_exists
         self.photometry_exists = photometry_exists
         self.filt_list = filt_list
+        self.spec_wavs = None
 
         if not spectrum_exists and not photometry_exists:
             sys.exit("Bagpipes: Object must have at least some data.")
 
         elif spectrum_exists and not photometry_exists:
             self.spectrum = load_data(self.ID)
-            self.spec_wavs = self.spectrum[:,0]
+            self.spec_wavs = self.spectrum[:, 0]
 
         elif photometry_exists and not spectrum_exists:
             phot_nowavs = load_data(self.ID)
-            self.spec_wavs = None
 
         else:
             self.spectrum, phot_nowavs = load_data(self.ID)
-            self.spec_wavs = self.spectrum[:,0]
 
         if photometry_exists:
             self.filter_set = filters.filter_set(filt_list)
@@ -97,20 +96,26 @@ class galaxy:
             while self.spectrum[startn, 1] == 0.:
                 startn += 1
 
-            endn = 1
+            endn = 0
             while self.spectrum[-endn-1, 1] == 0.:
                 endn += 1
 
-            self.spectrum = self.spectrum[startn:-endn, :]
+            if endn == 0:
+                self.spectrum = self.spectrum[startn:, :]
+
+            else:
+                self.spectrum = self.spectrum[startn:-endn, :]
+
+            self.spec_wavs = self.spectrum[:, 0]
 
     def _convert_units(self):
         """ Convert between ergs s^-1 cm^-2 A^-1 and microjanskys if
         there is a difference between the specified input and output
         units. """
 
-        conversion = 10**-29*2.9979*10**18/self.photometry[:, 0]**2
-
         if self.spectrum_exists:
+            conversion = 10**-29*2.9979*10**18/self.spectrum[:, 0]**2
+
             if not self.spec_units == self.out_units:
                 if self.spec_units == "ergscma":
                     self.spectrum[:, 1] /= conversion
@@ -121,6 +126,8 @@ class galaxy:
                     self.spectrum[:, 2] *= conversion
 
         if self.photometry_exists:
+            conversion = 10**-29*2.9979*10**18/self.photometry[:, 0]**2
+
             if not self.phot_units == self.out_units:
                 if self.phot_units == "ergscma":
                     self.spectrum[:, 1] /= conversion

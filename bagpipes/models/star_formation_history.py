@@ -63,10 +63,6 @@ class star_formation_history:
         self.component_sfrs = {}  # SFR versus time for all components.
         self.component_weights = {}  # SSP weights for all components.
 
-        for c in self.components:
-            self.component_sfrs[c] = np.zeros_like(self.ages)
-            self.component_weights[c] = np.zeros_like(config.age_sampling)
-
         self._resample_live_frac_grid()
 
         self.update(model_components)
@@ -87,11 +83,15 @@ class star_formation_history:
 
             name = self.components[i]
             func = self.components[i]
+
             if name not in dir(self):
                 func = name[:-1]
 
+            self.component_sfrs[name] = np.zeros_like(self.ages)
+            self.component_weights[name] = np.zeros_like(config.age_sampling)
+
             getattr(self, func)(self.component_sfrs[name],
-                                     self.model_components[name])
+                                self.model_components[name])
 
             # Normalise to the correct mass.
             mass_norm = np.sum(self.component_sfrs[name]*self.age_widths)
@@ -129,6 +129,9 @@ class star_formation_history:
 
         self.tform = self.age_of_universe - self.mass_weighted_age
 
+        self.tform *= 10**-9
+        self.mass_weighted_age *= 10**-9
+
         mass_assembly = np.cumsum(self.sfh[::-1]*self.age_widths[::-1])[::-1]
         tunivs = self.age_of_universe - self.ages
         mean_sfrs = mass_assembly/tunivs
@@ -141,7 +144,7 @@ class star_formation_history:
 
         else:
             quench_ind = np.argmax(normed_sfrs > 0.1)
-            self.tquench = tunivs[quench_ind]
+            self.tquench = tunivs[quench_ind]*10**-9
 
     def _resample_live_frac_grid(self):
         self.live_frac_grid = np.zeros((config.metallicities.shape[0],
@@ -159,9 +162,6 @@ class star_formation_history:
 
         age = param["age"]*10**9
         sfr[np.argmin(np.abs(self.ages - age))] += 1
-
-        if age > self.age_of_universe:
-            self.unphysical = True
 
     def constant(self, sfr, param):
         """ Constant star-formation between some limits. """
@@ -250,5 +250,5 @@ class star_formation_history:
 
         sfr[self.ages > self.age_of_universe] = 0.
 
-    def plot(self, show=True, style="smooth"):
-        return plotting.plot_sfh(self, show=show, style=style)
+    def plot(self, show=True):
+        return plotting.plot_sfh(self, show=show)

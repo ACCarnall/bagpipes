@@ -1,13 +1,19 @@
 .. _inputting-observational-data:
 
-Inputting observational data
-============================
+Loading observational data: galaxy
+==================================
 
-This section will introduce you to loading observational data into Bagpipes. Observational data is stored in the ``galaxy`` object. The most important argument passed to ``galaxy`` is the ``load_data`` function, which you will need to write to access your data files and return observational data.
+This section will introduce you to loading observational data. This is stored in the ``galaxy`` object. The most important argument passed to ``galaxy`` is the ``load_data`` function, which you will need to write to access your data files and return observational data.
 
-Check out the `second iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%202%20-%20Loading%20observational%20data.ipynb>`_ for a quick-start guide to loading observational data.
+Check out the `second iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%202%20-%20Loading%20observational%20data.ipynb>`_ for a quick-start guide to loading data.
 
-API documentation for the ``galaxy`` class is provided :ref:`here <galaxy-api>`.
+.. _galaxy-api:
+
+API documentation: galaxy
+-------------------------
+
+.. autoclass:: bagpipes.galaxy
+	:members:
 
 .. _load-data:
 
@@ -43,13 +49,3 @@ By default, Bagpipes expects spectroscopic and photometric data to be returned b
 The format of the spectrum returned by ``load_data`` should be a 2D array with three columns: wavelengths in Angstroms, fluxes in erg/s/cm^2/A and flux errors in the same units. These will be stored in ``galaxy.spectrum``.
 
 The format of the photometry returned by ``load_data`` should be a 2D array with a column of fluxes in microJanskys and a column of flux errors in the same units. The filters in your filter list should be in the same order as the fluxes returned by ``load_data``. Bagpipes will calculate effective wavelengths for each filter and store these along with the input data in ``galaxy.photometry``.
-
-.. _galaxy-api:
-
-API documentation: galaxy
--------------------------
-
-.. autoclass:: bagpipes.galaxy
-	:members:
-
-	

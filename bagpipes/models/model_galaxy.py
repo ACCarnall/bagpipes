@@ -16,7 +16,8 @@ from .star_formation_history import star_formation_history
 
 
 class model_galaxy(object):
-    """ Builds model galaxy spectra from grids of models.
+    """ Builds model galaxy spectra and calculates predictions for
+    spectroscopic and photometric observables.
 
     Parameters
     ----------
@@ -89,8 +90,7 @@ class model_galaxy(object):
         if "dust" in list(model_components):
             dust_type = model_components["dust"]["type"]
             self.dust_emission = dust_emission(self.wavelengths)
-            self.dust_atten = dust_attenuation(self.wavelengths,
-                                                            dust_type)
+            self.dust_atten = dust_attenuation(self.wavelengths, dust_type)
 
         self.update(model_components)
 
@@ -160,20 +160,28 @@ class model_galaxy(object):
 
         return np.array(x)
 
-    def update(self, model_comp):
-        """ Update the model outputs to reflect the parameter values in
-        the model_components dictionary. """
+    def update(self, model_components):
+        """ Update the model outputs to reflect new parameter values in
+        the model_components dictionary. Note that only the changing of
+        numerical values is supported. """
 
-        self.model_comp = model_comp
-        self.sfh.update(model_comp)
-        self._calculate_full_spectrum(model_comp)
-        self._calculate_uvj_mags()
+        self.model_comp = model_components
+        self.sfh.update(model_components)
+
+        # If the SFH is unphysical do not caclulate the full spectrum
+        if self.sfh.unphysical:
+            self.spectrum_full = np.zeros_like(self.wavelengths)
+            self.uvj = np.zeros(3)
+
+        else:
+            self._calculate_full_spectrum(model_components)
+            self._calculate_uvj_mags()
 
         if self.filt_list is not None:
-            self._calculate_photometry(model_comp["redshift"])
+            self._calculate_photometry(model_components["redshift"])
 
         if self.spec_wavs is not None:
-            self._calculate_spectrum(model_comp)
+            self._calculate_spectrum(model_components)
 
     def _calculate_full_spectrum(self, model_comp):
         """ This method combines the models for the various emission
@@ -207,6 +215,7 @@ class model_galaxy(object):
                 n = model_comp["dust"]["n"]
 
             # Add extra attenuation to birth clouds.
+            eta = 1.
             if "eta" in list(model_comp["dust"]):
                 eta = model_comp["dust"]["eta"]
                 bc_Av_reduced = (eta - 1.)*model_comp["dust"]["Av"]
@@ -236,7 +245,11 @@ class model_galaxy(object):
             qpah, umin, gamma = 2., 1., 0.01
             if "qpah" in list(model_comp["dust"]):
                 qpah = model_comp["dust"]["qpah"]
+
+            if "umin" in list(model_comp["dust"]):
                 umin = model_comp["dust"]["umin"]
+
+            if "gamma" in list(model_comp["dust"]):
                 gamma = model_comp["dust"]["gamma"]
 
             spectrum += dust_flux*self.dust_emission.spectrum(qpah, umin,
@@ -245,13 +258,16 @@ class model_galaxy(object):
         spectrum *= self.igm.trans(model_comp["redshift"])
 
         # Convert from luminosity to observed flux at redshift z.
+        self.lum_flux = 1.
         if model_comp["redshift"] > 0.:
             ldist_cm = 3.086*10**24*np.interp(model_comp["redshift"],
                                               utils.z_array, utils.ldist_at_z,
                                               left=0, right=0)
 
-            spectrum /= (4*np.pi*ldist_cm**2)*(1. + model_comp["redshift"])
-            em_lines /= (4*np.pi*ldist_cm**2)*(1. + model_comp["redshift"])
+            self.lum_flux = (4*np.pi*ldist_cm**2)*(1. + model_comp["redshift"])
+
+        spectrum /= self.lum_flux
+        em_lines /= self.lum_flux
 
         # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
         spectrum *= 3.826*10**33
@@ -331,3 +347,9 @@ class model_galaxy(object):
         """ Obtain (unnormalised) rest-frame UVJ magnitudes. """
 
         self.uvj = -2.5*np.log10(self._calculate_photometry(0., uvj=True))
+
+    def plot(self):
+        plotting.plot_model_galaxy(self)
+
+    def plot_full_spectrum(self):
+        plotting.plot_full_spectrum(self)
