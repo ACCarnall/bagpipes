@@ -5,7 +5,7 @@ import numpy as np
 
 from astropy.io import fits
 
-from . import utils
+from .utils import *
 from .models.making import igm_inoue2014
 
 """ This file contains all of the configuration variables for Bagpipes.
@@ -37,12 +37,12 @@ if these variables are changed. """
 
 # Sets the default age sampling for stellar models in log10(Gyr).
 # Beware: if you change this you need to recompute the nebular models.
-age_sampling = np.arange(6., np.log10(utils.cosmo.age(0.).value) + 9., 0.1)
+age_sampling = np.arange(6., np.log10(cosmo.age(0.).value) + 9., 0.1)
 
 # Set up edge positions for age bins for stellar + nebular models.
-age_bins = 10**utils.make_bins(age_sampling, make_rhs=True)[0]
+age_bins = 10**make_bins(age_sampling, make_rhs=True)[0]
 age_bins[0] = 0.
-age_bins[-1] = 10**9*utils.cosmo.age(0.).value
+age_bins[-1] = 10**9*cosmo.age(0.).value
 
 # Set up widths for the age bins for the stellar + nebular models.
 age_widths = age_bins[1:] - age_bins[:-1]
@@ -54,87 +54,101 @@ age_sampling = 10**age_sampling
 """ These variables tell the code where to find the raw stellar emission
 models, as well as some of their basic properties. """
 
-# The metallicities of the different stellar grids in units of Z_Solar
-metallicities = np.array([0.005, 0.02, 0.2, 0.4, 1., 2.5, 5.])
+try:
+    # Name of the fits file storing the stellar models
+    stellar_file = "bc03_miles_stellar_grids.fits"
 
-# The wavelengths of the grid points in Angstroms
-wavelengths = fits.open(utils.grid_dir
-                        + "/bc03_miles_stellar_grids.fits")[-1].data
+    # The metallicities of the stellar grids in units of Z_Solar
+    metallicities = np.array([0.005, 0.02, 0.2, 0.4, 1., 2.5, 5.])
 
-# The ages of the grid points in Gyr
-raw_stellar_ages = fits.open(utils.grid_dir
-                             + "/bc03_miles_stellar_grids.fits")[-2].data
+    # The wavelengths of the grid points in Angstroms
+    wavelengths = fits.open(grid_dir + "/" + stellar_file)[-1].data
 
-# The fraction of stellar mass still living (1 - return fraction).
-# Axis 0 runs over metallicity, axis 1 runs over age.
-live_frac = fits.open(utils.grid_dir
-                      + "/bc03_miles_stellar_grids.fits")[-3].data[:, 1:]
+    # The ages of the grid points in Gyr
+    raw_stellar_ages = fits.open(grid_dir + "/" + stellar_file)[-2].data
 
-# The raw stellar grids, stored as a FITS HDUList.
-# The different HDUs are the grids at different metallicities.
-# Axis 0 of each grid runs over wavelength, axis 1 over age.
-raw_stellar_grid = fits.open(utils.grid_dir
-                             + "/bc03_miles_stellar_grids.fits")[1:8]
+    # The fraction of stellar mass still living (1 - return fraction).
+    # Axis 0 runs over metallicity, axis 1 runs over age.
+    live_frac = fits.open(grid_dir + "/" + stellar_file)[-3].data[:, 1:]
 
-# Set up edge positions for metallicity bins for stellar + nebular models.
-metallicity_bins = utils.make_bins(metallicities, make_rhs=True)[0]
-metallicity_bins[0] = 0.
-metallicity_bins[-1] = 10.
+    # The raw stellar grids, stored as a FITS HDUList.
+    # The different HDUs are the grids at different metallicities.
+    # Axis 0 of each grid runs over wavelength, axis 1 over age.
+    raw_stellar_grid = fits.open(grid_dir + "/" + stellar_file)[1:8]
+
+    # Set up edge positions for metallicity bins for stellar models.
+    metallicity_bins = make_bins(metallicities, make_rhs=True)[0]
+    metallicity_bins[0] = 0.
+    metallicity_bins[-1] = 10.
+
+except IOError:
+    print("Failed to load stellar grids, these should be placed in"
+          + " the bagpipes/models/grids/ directory.")
 
 
 """ These variables tell the code where to find the raw nebular emission
 models, as well as some of their basic properties. """
 
-# Names for the emission features to be tracked.
-line_names = np.loadtxt(utils.grid_dir + "/cloudy_lines.txt",
-                        dtype="str", delimiter="}")
+try:
+    # Names of files containing the nebular grids.
+    neb_cont_file = "bc03_miles_nebular_cont_grids.fits"
+    neb_line_file = "bc03_miles_nebular_line_grids.fits"
 
-# Wavelengths of these emission features in Angstroms.
-line_wavs = np.loadtxt(utils.grid_dir + "/cloudy_linewavs.txt")
+    # Names for the emission features to be tracked.
+    line_names = np.loadtxt(grid_dir + "/cloudy_lines.txt",
+                            dtype="str", delimiter="}")
 
-# Ages for the nebular emission grids.
-neb_ages = fits.open(utils.grid_dir
-                     + "/bc03_miles_nebular_line_grids.fits")[1].data[1:, 0]
+    # Wavelengths of these emission features in Angstroms.
+    line_wavs = np.loadtxt(grid_dir + "/cloudy_linewavs.txt")
 
-# Wavelengths for the nebular continuum grids.
-neb_wavs = fits.open(utils.grid_dir
-                     + "/bc03_miles_nebular_cont_grids.fits")[1].data[0, 1:]
+    # Ages for the nebular emission grids.
+    neb_ages = fits.open(grid_dir
+                         + "/" + neb_line_file)[1].data[1:, 0]
 
-# LogU values for the nebular emission grids.
-logU = np.arange(-4., -1.99, 0.5)
+    # Wavelengths for the nebular continuum grids.
+    neb_wavs = fits.open(grid_dir + "/" + neb_cont_file)[1].data[0, 1:]
 
-# Grid of line fluxes.
-line_grid = fits.open(utils.grid_dir + "/bc03_miles_nebular_line_grids.fits")
+    # LogU values for the nebular emission grids.
+    logU = np.arange(-4., -1.99, 0.5)
 
-# Grid of nebular continuum fluxes.
-cont_grid = fits.open(utils.grid_dir + "/bc03_miles_nebular_cont_grids.fits")
+    # Grid of line fluxes.
+    line_grid = fits.open(grid_dir + "/" + neb_line_file)
+
+    # Grid of nebular continuum fluxes.
+    cont_grid = fits.open(grid_dir + "/" + neb_cont_file)
+
+except IOError:
+    print("Failed to load nebular grids, these should be placed in the"
+          + " bagpipes/models/grids/ directory.")
 
 
 """ These variables tell the code where to find the raw dust emission
 models, as well as some of their basic properties. """
 
-# Values of Umin for each of the Draine + Li (2007) dust emission grids.
-umin_vals = np.array([0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.70, 0.80, 1.00,
-                      1.20, 1.50, 2.00, 2.50, 3.00, 4.00, 5.00, 7.00, 8.00,
-                      10.0, 12.0, 15.0, 20.0, 25.0])
+try:
+    # Values of Umin for each of the Draine + Li (2007) dust emission grids.
+    umin_vals = np.array([0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.70, 0.80, 1.00,
+                          1.20, 1.50, 2.00, 2.50, 3.00, 4.00, 5.00, 7.00, 8.00,
+                          10.0, 12.0, 15.0, 20.0, 25.0])
 
-# Values of qpah for each of the Draine + Li (2007) dust emission grids.
-qpah_vals = np.array([0.10, 0.47, 0.75, 1.12, 1.49, 1.77,
-                      2.37, 2.50, 3.19, 3.90, 4.58])
+    # Values of qpah for each of the Draine + Li (2007) dust emission grids.
+    qpah_vals = np.array([0.10, 0.47, 0.75, 1.12, 1.49, 1.77,
+                          2.37, 2.50, 3.19, 3.90, 4.58])
 
-# Draine + Li (2007) dust emission grids, stored as a FITS HDUList.
-dust_grid_umin_only = fits.open(utils.grid_dir
-                                + "/dl07_grids_umin_only.fits")
+    # Draine + Li (2007) dust emission grids, stored as a FITS HDUList.
+    dust_grid_umin_only = fits.open(grid_dir + "/dl07_grids_umin_only.fits")
 
-dust_grid_umin_umax = fits.open(utils.grid_dir
-                                + "/dl07_grids_umin_umax.fits")
+    dust_grid_umin_umax = fits.open(grid_dir + "/dl07_grids_umin_umax.fits")
 
+except IOError:
+    print("Failed to load dust emission grids, these should be placed in the"
+          + " bagpipes/models/grids/ directory.")
 
 """ These variables tell the code where to find the raw IGM attenuation
 models, as well as some of their basic properties. """
 
 # If the IGM grid has not yet been calculated, calculate it now.
-if not os.path.exists(utils.grid_dir + "/d_igm_grid_inoue14.fits"):
+if not os.path.exists(grid_dir + "/d_igm_grid_inoue14.fits"):
     igm_inoue2014.make_table()
 
 # Redshift points for the IGM grid.
@@ -144,7 +158,7 @@ igm_redshifts = np.arange(0.0, 10.01, 0.01)
 igm_wavelengths = np.arange(1.0, 1225.01, 1.0)
 
 # 2D numpy array containing the IGM attenuation grid.
-raw_igm_grid = fits.open(utils.grid_dir + "/d_igm_grid_inoue14.fits")[1].data
+raw_igm_grid = fits.open(grid_dir + "/d_igm_grid_inoue14.fits")[1].data
 
 
 """ These variables are alternatives to those given in the stellar
@@ -153,12 +167,12 @@ section, they are for using the BPASS stellar population models.
 metallicities = np.array([0.00001, 0.0001, 0.001, 0.002, 0.003, 0.004, 0.006,
                           0.008, 0.010, 0.014, 0.020, 0.030, 0.040])/0.02
 
-wavelengths = fits.open(utils.grid_dir
+wavelengths = fits.open(grid_dir
                       + "/bpass_bin_stellar_grids.fits")[-1].data
 
-raw_stellar_ages = fits.open(utils.grid_dir
+raw_stellar_ages = fits.open(grid_dir
                              + "/bpass_bin_stellar_grids.fits")[-2].data
 
-live_frac = fits.open(utils.grid_dir
+live_frac = fits.open(grid_dir
                       + "/bpass_bin_stellar_grids.fits")[-3].data
 """
