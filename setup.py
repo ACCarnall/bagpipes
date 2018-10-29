@@ -23,7 +23,7 @@ setup(
 
     author_email='adamc@roe.ac.uk',
 
-    packages=["bagpipes", "bagpipes.fitting", "bagpipes.catalogue"],
+    packages=["bagpipes", "bagpipes.fitting", "bagpipes.catalogue",
               "bagpipes.models", "bagpipes.filters", "bagpipes.input",
               "bagpipes.plotting", "bagpipes.models.making"],
 
