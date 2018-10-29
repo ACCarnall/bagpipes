@@ -11,7 +11,7 @@ from copy import deepcopy
 try:
     import pymultinest as pmn
 
-except (ImportError, RuntimeError, OSError) as e:
+except (ImportError, RuntimeError, SystemExit) as e:
     print("Bagpipes: PyMultiNest import failed, fitting will be unavailable.")
 
 from .. import utils
