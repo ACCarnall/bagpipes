@@ -36,43 +36,46 @@ class fit_catalogue(object):
         column of fluxes in microjanskys and a column of flux errors
         in the same units.
 
-    spectrum_exists : bool(optional)
+    spectrum_exists : bool - optional
         If the objects do not have spectroscopic data set this to False.
         In this case, load_data should only return photometry.
 
-    photometry_exists : bool (optional)
+    photometry_exists : bool - optional
         If the objects do not have photometric data set this to False.
         In this case, load_data should only return a spectrum.
 
-    run : string (optional)
+    run : string - optional
         The subfolder into which outputs will be saved, useful e.g. for
         fitting more than one model configuration to the same data.
 
-    make_plots : bool (optional)
+    make_plots : bool - optional
         Whether to make output plots for each object.
 
-    cat_filt_list : list (optional)
+    cat_filt_list : list - optional
         The filt_list, or list of filt_lists for the catalogue.
 
-    vary_filt_list : bool (optional)
+    vary_filt_list : bool - optional
         If True, changes the filter list for each object. When True,
         each entry in cat_filt_list is expected to be a different
         filt_list corresponding to each object in the catalogue.
 
-    redshifts : list (optional)
+    redshifts : list - optional
         List of values for the redshift for each object to be fixed to.
 
-    redshift_sigma : float
+    redshift_sigma : float - optional
         If this is set, the redshift for each object will be assigned a
         Gaussian prior centred on the value in redshifts with this
         standard deviation. Hard limits will be placed at 3 sigma.
 
+    analysis_function : function - optional
+        Specify some function to be run on each completed fit, must
+        take the fit object as its only argument.
     """
 
-    def __init__(self, IDs, fit_instructions, load_data,
-                 spectrum_exists=True, photometry_exists=True,
-                 make_plots=False, cat_filt_list=None, vary_filt_list=False,
-                 redshifts=None, redshift_sigma=0., run="."):
+    def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
+                 photometry_exists=True, make_plots=False, cat_filt_list=None,
+                 vary_filt_list=False, redshifts=None, redshift_sigma=0.,
+                 run=".", analysis_function=None):
 
         self.IDs = np.array(IDs).astype(str)
         self.fit_instructions = fit_instructions
@@ -85,6 +88,7 @@ class fit_catalogue(object):
         self.redshifts = redshifts
         self.redshift_sigma = redshift_sigma
         self.run = run
+        self.analysis_funtion = analysis_function
 
         self.n_objects = len(self.IDs)
 
@@ -201,6 +205,9 @@ class fit_catalogue(object):
         # Fit the object
         self.fit = fit(self.galaxy, self.fit_instructions, run=self.run)
         self.fit.fit(verbose=verbose, n_live=n_live)
+
+        if self.analysis_function is not None:
+            self.analysis_function(self.fit)
 
         # Make plots if necessary
         if self.make_plots:

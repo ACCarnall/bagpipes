@@ -99,4 +99,4 @@ Three dust attenuation models are implemented in Bagpipes, the Calzetti et al. (
 	dust["n"] = 1.             # Power-law slope of attenuation law ("CF00" only)
 	dust["qpah"] = 2.          # PAH mass fraction
 	dust["umin"] = 1.          # Lower limit of starlight intensity distribution
-	dust["gamma"] = 2.         # Fraction of stars at umin
+	dust["gamma"] = 0.01       # Fraction of stars at umin

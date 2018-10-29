@@ -3,7 +3,7 @@
 Making model spectra: model_galaxy
 ==================================
 
-Model galaxy spectra and associated observables are created using the ``model_galaxy`` class. Check out the `first iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%201%20-%20Making%20model%20galaxies.ipynb>`_ for a quick-start guide.
+Model galaxy spectra and associated observables are created using the ``model_galaxy`` class. Check out the `first iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%201%20-%20Making%20model%20galaxies.ipynb>`_ for a quick-start guide to making models.
 
 .. _model-galaxy-api:
 

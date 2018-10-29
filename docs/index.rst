@@ -7,6 +7,7 @@ Bagpipes is currently in a state of active development in the run-up to the rele
 
 .. image:: images/front_page.jpg
 
+
 Source and installation
 -----------------------
 
@@ -17,7 +18,7 @@ Bagpipes is `developed at GitHub <https://github.com/ACCarnall/bagpipes>`_, howe
     pip install bagpipes
 
 
-All of the code's Python dependencies will be automatically installed. The only non-Python dependency is the MultiNest nested sampling algorithm (used only for fitting). To install MultiNest see point 1 of the "on your own computer" section of the `PyMultiNest installation instructions <https://johannesbuchner.github.io/PyMultiNest/install.html>`_.
+All of the code's Python dependencies will be automatically installed. The only non-Python dependency is the MultiNest nested sampling algorithm (used only for fitting). To install MultiNest see point 1 of the "on your own computer" section of the `PyMultiNest installation instructions <http://johannesbuchner.github.io/pymultinest-tutorial/install.html>`_.
 
 In my experience, the sequence of commands necessary to install MultiNest on a mac is as follows:
 
@@ -32,6 +33,7 @@ In my experience, the sequence of commands necessary to install MultiNest on a m
     sudo make install
     cd ../..
     rm -r MultiNest
+
 
 Citation
 --------
@@ -50,9 +52,9 @@ Bagpipes is structured around three core classes:
  - :ref:`galaxy <inputting-observational-data>`: for loading observational data into Bagpipes
  - :ref:`fit <fitting-observational-data>`: for fitting models to observational data.
 
+
 Acknowledgements
 ----------------
-
 
 A few of the excellent projects Bagpipes relies on are:
 
@@ -62,3 +64,16 @@ A few of the excellent projects Bagpipes relies on are:
  - The `PyMultiNest <https://johannesbuchner.github.io/PyMultiNest>`_ Python interface for Multinest `(Buchner et al. 2014) <https://arxiv.org/abs/1402.0004>`_.
  - The `Cloudy <https://www.nublado.org>`_ photoionization code `(Ferland et al. 2017) <https://arxiv.org/abs/1705.10877>`_.
  - The `Deepdish <http://deepdish.readthedocs.io>`_ HDF5 loading/saving interface.
+
+
+ .. toctree::
+    :maxdepth: 1
+    :hidden:
+
+    index.rst
+    model_galaxies.rst
+    model_components.rst
+    loading_galaxies.rst
+    fitting_galaxies.rst
+    fit_instructions.rst
+    fitting_catalogues.rst
