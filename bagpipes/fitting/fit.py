@@ -89,10 +89,13 @@ class fit(object):
 
         start_time = time.time()
 
-        pmn.run(self.fitted_model.lnlike, self.fitted_model.prior.transform,
-                self.fitted_model.ndim, importance_nested_sampling=False,
-                verbose=verbose, sampling_efficiency="model",
-                n_live_points=n_live, outputfiles_basename=self.fname)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            pmn.run(self.fitted_model.lnlike,
+                    self.fitted_model.prior.transform,
+                    self.fitted_model.ndim, importance_nested_sampling=False,
+                    verbose=verbose, sampling_efficiency="model",
+                    n_live_points=n_live, outputfiles_basename=self.fname)
 
         runtime = time.time() - start_time
 

@@ -88,7 +88,7 @@ class fit_catalogue(object):
         self.redshifts = redshifts
         self.redshift_sigma = redshift_sigma
         self.run = run
-        self.analysis_funtion = analysis_function
+        self.analysis_function = analysis_function
 
         self.n_objects = len(self.IDs)
 

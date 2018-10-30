@@ -71,7 +71,7 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
                 (np.log10(galaxy.filter_set.eff_wavs.max()) + 0.025))
 
     mask = (galaxy.photometry[:, 1] > 0.)
-    ymax = 1.05*np.max((galaxy.photometry[:, 1]+galaxy.photometry[:, 2])[mask])
+    ymax = 1.1*np.max((galaxy.photometry[:, 1]+galaxy.photometry[:, 2])[mask])
 
     y_scale = int(np.log10(ymax))-1
 

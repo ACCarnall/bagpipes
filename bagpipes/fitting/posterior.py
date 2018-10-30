@@ -49,6 +49,9 @@ class posterior(object):
         # 2D array of samples for the fitted parameters only.
         self.samples2d = dd.io.load(fname, group="/samples2d")
 
+        if self.samples2d.shape[0] < self.n_samples:
+            self.n_samples = self.samples2d.shape[0]
+
         self.samples = {}  # Store all posterior samples
 
         for i in range(self.fitted_model.ndim):

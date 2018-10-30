@@ -112,6 +112,20 @@ def plot_full_spectrum(model, show=True):
 
     ax.set_xlim(2.75, 6.75)
 
+    # Set axis labels
+    if tex_on:
+
+        ax.set_ylabel("$\\mathrm{\\lambda L_{\\lambda}}\\ \\mathrm{/\\ erg"
+                      + "\\ s^{-1}}$")
+
+        ax.set_xlabel("$\\mathrm{log_{10}}\\Big(\\lambda / \\mathrm{\\AA}"
+                      + "\\Big)$")
+
+    else:
+        ax.set_ylabel("f_lambda / erg s^-1")
+
+        ax.set_xlabel("log_10(lambda / A)")
+
     if show:
         plt.show()
         plt.close(fig)
