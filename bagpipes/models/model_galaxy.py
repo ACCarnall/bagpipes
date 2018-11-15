@@ -211,7 +211,7 @@ class model_galaxy(object):
             dust_flux = 0.  # Total attenuated flux for energy balance.
 
             n = 1.
-            if "n" in list(model_comp["dust"]):
+            if self.dust_atten.type == "CF00":
                 n = model_comp["dust"]["n"]
 
             # Add extra attenuation to birth clouds.

@@ -46,12 +46,7 @@ class fit(object):
 
         self.run = run
         self.galaxy = galaxy
-
-        # A dictionary containing properties of the model to be saved.
-        self.results = {"fit_instructions": deepcopy(fit_instructions)}
-
-        # Set up the model which is to be fitted to the data.
-        self.fitted_model = fitted_model(galaxy, fit_instructions)
+        self.fit_instructions = deepcopy(fit_instructions)
 
         # Set up the directory structure for saving outputs.
         utils.make_dirs(run=run)
@@ -64,6 +59,14 @@ class fit(object):
             self.results = dd.io.load(self.fname[:-1] + ".h5")
             print("\nExisting fit loaded from " + self.fname[:-1] + ".h5\n")
             self.posterior = posterior(self.galaxy, run=run)
+            self.fit_instructions = dd.io.load(self.fname[:-1] + ".h5",
+                                               group="/fit_instructions")
+        else:
+            # A dictionary containing properties of the model to be saved.
+            self.results = {"fit_instructions": self.fit_instructions}
+
+        # Set up the model which is to be fitted to the data.
+        self.fitted_model = fitted_model(galaxy, self.fit_instructions)
 
     def fit(self, verbose=False, n_live=400):
         """ Fit the specified model to the input galaxy data.
@@ -106,8 +109,8 @@ class fit(object):
         lnz_line = open(self.fname + "stats.dat").readline().split()
 
         self.results["samples2d"] = samples2d
-        self.results["lnz"] = lnz_line[-3]
-        self.results["lnz_err"] = lnz_line[-1]
+        self.results["lnz"] = float(lnz_line[-3])
+        self.results["lnz_err"] = float(lnz_line[-1])
         self.results["median"] = np.median(samples2d, axis=0)
         self.results["conf_int"] = np.percentile(samples2d, (16, 84), axis=0)
 
@@ -145,16 +148,17 @@ class fit(object):
         print("\n")
 
     def plot_corner(self, show=False, save=True):
-        plotting.plot_corner(self, show=show, save=save)
+        return plotting.plot_corner(self, show=show, save=save)
 
     def plot_1d_posterior(self, show=False, save=True):
-        plotting.plot_1d_posterior(self, show=show, save=save)
+        return plotting.plot_1d_posterior(self, show=show, save=save)
 
-    def plot_sfh_posterior(self, show=False, save=True):
-        plotting.plot_sfh_posterior(self, show=show, save=save)
+    def plot_sfh_posterior(self, show=False, save=True, colorscheme="bw"):
+        return plotting.plot_sfh_posterior(self, show=show, save=save,
+                                           colorscheme=colorscheme)
 
     def plot_spectrum_posterior(self, show=False, save=True):
-        plotting.plot_spectrum_posterior(self, show=show, save=save)
+        return plotting.plot_spectrum_posterior(self, show=show, save=save)
 
     def plot_polynomial(self, show=False, save=True):
-        plotting.plot_polynomial(self, show=show, save=save)
+        return plotting.plot_polynomial(self, show=show, save=save)
