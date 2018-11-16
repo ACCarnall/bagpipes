@@ -11,6 +11,7 @@ from subprocess import call
 from ..input.galaxy import galaxy
 from ..fitting.fit import fit
 from .. import utils
+from .merge_catalogue import merge
 
 
 class fit_catalogue(object):
@@ -129,7 +130,7 @@ class fit_catalogue(object):
 
             if n == 10:
                 n = 0
-                merge_cat(self.run)
+                merge(self.run)
 
             # Set up output catalogue
             if n == 0:
