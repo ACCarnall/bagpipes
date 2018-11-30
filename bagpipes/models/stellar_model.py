@@ -118,6 +118,9 @@ class stellar(object):
         index = config.age_bins[config.age_bins < t_bc].shape[0]
         old_weight = (config.age_bins[index] - t_bc)/config.age_widths[index-1]
 
+        if index == 0:
+            index += 1
+
         for i in range(config.metallicities.shape[0]):
             if sfh_ceh[i, :index].sum() > 0.:
                 sfh_ceh[:, index-1] *= (1. - old_weight)
