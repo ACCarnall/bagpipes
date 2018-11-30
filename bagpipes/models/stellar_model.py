@@ -51,7 +51,16 @@ class stellar(object):
                          config.metallicities.shape[0],
                          config.age_sampling.shape[0]))
 
-        raw_age_lhs, raw_age_widths = utils.make_bins(config.raw_stellar_ages)
+        raw_age_lhs, raw_age_widths = utils.make_bins(config.raw_stellar_ages,
+                                                      make_rhs=True)
+
+        # Force raw ages to span full range from 0 to age of Universe.
+        raw_age_widths[0] += raw_age_lhs[0]
+        raw_age_lhs[0] = 0.
+
+        if raw_age_lhs[-1] < config.age_bins[-1]:
+            raw_age_widths[-1] += config.age_bins[-1] - raw_age_lhs[-1]
+            raw_age_lhs[-1] = config.age_bins[-1]
 
         start = 0
         stop = 0
