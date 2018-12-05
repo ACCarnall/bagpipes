@@ -12,8 +12,8 @@ except RuntimeError:
 from .general import *
 
 
-def plot_polynomial(fit, save=True, show=False):
-    """ Plot the posterior of the polynomial spectral correction. """
+def plot_calibration(fit, save=True, show=False):
+    """ Plot the posterior of the calibration spectral correction. """
 
     update_rcParams()
 
@@ -21,7 +21,7 @@ def plot_polynomial(fit, save=True, show=False):
     ax = plt.subplot()
 
     wavs = fit.galaxy.spectrum[:, 0]
-    samples = fit.posterior.samples["polynomial"]
+    samples = fit.posterior.samples["calib"]
     post = np.percentile(samples, (16, 50, 84), axis=0).T
 
     ax.plot(wavs, post[:, 0], color="navajowhite", zorder=10)
@@ -41,7 +41,7 @@ def plot_polynomial(fit, save=True, show=False):
         ax.set_ylabel("Spectrum multiplied by")
 
     if save:
-        plotpath = "pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_poly.pdf"
+        plotpath = "pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_cal.pdf"
         plt.savefig(plotpath, bbox_inches="tight")
         plt.close(fig)
 

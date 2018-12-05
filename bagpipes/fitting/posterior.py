@@ -66,7 +66,7 @@ class posterior(object):
         self.fitted_model._update_model_components(self.samples2d[0, :])
         self.sfh = star_formation_history(self.fitted_model.model_components)
 
-        quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr",
+        quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
                           "mass_weighted_age", "tform", "tquench"]
 
         for q in quantity_names:
@@ -102,21 +102,32 @@ class posterior(object):
             size = getattr(self.model_galaxy, q).shape[0]
             self.samples[q] = np.zeros((self.n_samples, size))
 
-        if "polynomial" in list(self.fitted_model.model_components):
+        if "calib" in list(self.fitted_model.model_components):
             size = self.model_galaxy.spectrum.shape[0]
-            self.samples["polynomial"] = np.zeros((self.n_samples, size))
+            self.samples["calib"] = np.zeros((self.n_samples, size))
+
+        if "noise" in list(self.fitted_model.model_components):
+            type = self.fitted_model.model_components["noise"]["type"]
+            if type == "gaussian_process":
+                size = self.model_galaxy.spectrum.shape[0]
+                self.samples["noise"] = np.zeros((self.n_samples, size))
 
         for i in range(self.n_samples):
             self.fitted_model._update_model_components(self.samples2d[i, :])
-            self.model_galaxy.update(self.fitted_model.model_components)
+            self.fitted_model.lnlike(self.samples2d[i, :])
 
-            if "polynomial" in list(self.fitted_model.model_components):
-                self.fitted_model._update_polynomial()
-                self.samples["polynomial"][i] = self.fitted_model.polynomial
+            if "calib" in list(self.fitted_model.model_components):
+                self.samples["calib"][i] = self.fitted_model.calib.model
+
+            if "noise" in list(self.fitted_model.model_components):
+                type = self.fitted_model.model_components["noise"]["type"]
+                if type == "gaussian_process":
+                    self.samples["noise"][i] = self.fitted_model.noise.mean()
 
             for q in quantity_names:
                 if q == "spectrum":
-                    self.samples[q][i] = getattr(self.model_galaxy, q)[:, 1]
+                    spectrum = getattr(self.fitted_model.model_galaxy, q)[:, 1]
+                    self.samples[q][i] = spectrum
                     continue
 
-                self.samples[q][i] = getattr(self.model_galaxy, q)
+                self.samples[q][i] = getattr(self.fitted_model.model_galaxy, q)

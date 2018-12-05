@@ -40,9 +40,13 @@ class fit(object):
     run : string - optional
         The subfolder into which outputs will be saved, useful e.g. for
         fitting more than one model configuration to the same data.
+
+    time_calls : bool - optional
+        Whether to print information on the average time taken for
+        likelihood calls.
     """
 
-    def __init__(self, galaxy, fit_instructions, run="."):
+    def __init__(self, galaxy, fit_instructions, run=".", time_calls=False):
 
         self.run = run
         self.galaxy = galaxy
@@ -66,7 +70,8 @@ class fit(object):
             self.results = {"fit_instructions": self.fit_instructions}
 
         # Set up the model which is to be fitted to the data.
-        self.fitted_model = fitted_model(galaxy, self.fit_instructions)
+        self.fitted_model = fitted_model(galaxy, self.fit_instructions,
+                                         time_calls=time_calls)
 
     def fit(self, verbose=False, n_live=400):
         """ Fit the specified model to the input galaxy data.
@@ -160,5 +165,5 @@ class fit(object):
     def plot_spectrum_posterior(self, show=False, save=True):
         return plotting.plot_spectrum_posterior(self, show=show, save=save)
 
-    def plot_polynomial(self, show=False, save=True):
-        return plotting.plot_polynomial(self, show=show, save=save)
+    def plot_calibration(self, show=False, save=True):
+        return plotting.plot_calibration(self, show=show, save=save)

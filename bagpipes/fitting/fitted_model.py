@@ -4,9 +4,10 @@ import numpy as np
 import time
 
 from copy import deepcopy
-from numpy.polynomial.chebyshev import chebval, chebfit
 
 from .prior import prior
+from .calibration import calib_model
+from .noise import noise_model
 from ..models.model_galaxy import model_galaxy
 
 
@@ -23,20 +24,28 @@ class fitted_model(object):
     fit_instructions : dict
         A dictionary containing instructions on the kind of model which
         should be fitted to the data.
+
+    time_calls : bool - optional
+        Whether to print information on the average time taken for
+        likelihood calls.
     """
 
-    def __init__(self, galaxy, fit_instructions):
+    def __init__(self, galaxy, fit_instructions, time_calls=False):
 
         self.galaxy = galaxy
         self.fit_instructions = deepcopy(fit_instructions)
         self.model_components = deepcopy(fit_instructions)
+        self.time_calls = time_calls
 
         self._set_constants()
         self._process_fit_instructions()
 
         self.prior = prior(self.limits, self.pdfs, self.hyper_params)
         self.model_galaxy = None
-        self.times = []
+
+        if self.time_calls:
+            self.times = np.zeros(1000)
+            self.n_calls = 0
 
     def _process_fit_instructions(self):
         all_keys = []           # All keys in fit_instructions and subs
@@ -95,12 +104,6 @@ class fitted_model(object):
     def _set_constants(self):
         """ Calculate constant factors used in the lnlike function. """
 
-        if self.galaxy.spectrum_exists:
-            log_error_factors = np.log(2*np.pi*self.galaxy.spectrum[:, 2]**2)
-            self.K_spec = -0.5*np.sum(log_error_factors)
-            self.N_spec = self.galaxy.spectrum.shape[0]
-            self.inv_sigma_sq_spec = 1./self.galaxy.spectrum[:, 2]**2
-
         if self.galaxy.photometry_exists:
             log_error_factors = np.log(2*np.pi*self.galaxy.photometry[:, 2]**2)
             self.K_phot = -0.5*np.sum(log_error_factors)
@@ -108,6 +111,9 @@ class fitted_model(object):
 
     def lnlike(self, x, ndim=0, nparam=0):
         """ Returns the log-likelihood for a given parameter vector. """
+
+        if self.time_calls:
+            time0 = time.time()
 
         # Update the model_galaxy with the parameters from the sampler.
         self._update_model_components(x)
@@ -118,9 +124,6 @@ class fitted_model(object):
                                              spec_wavs=self.galaxy.spec_wavs)
 
         self.model_galaxy.update(self.model_components)
-
-        if "polynomial" in list(self.model_components):
-            self._update_polynomial()
 
         # Return zero likelihood if SFH is older than the universe.
         if self.model_galaxy.sfh.unphysical:
@@ -139,6 +142,15 @@ class fitted_model(object):
             print("Bagpipes: lnlike was nan, replaced with zero probability.")
             return -9.99*10**99
 
+        # Functionality for timing likelihood calls.
+        if self.time_calls:
+            self.times[self.n_calls] = time.time() - time0
+            self.n_calls += 1
+
+            if self.n_calls == 1000:
+                self.n_calls = 0
+                print("Mean likelihood call time:", np.mean(self.times))
+
         return lnlike
 
     def _lnlike_phot(self):
@@ -150,27 +162,39 @@ class fitted_model(object):
         return self.K_phot - 0.5*self.chisq_phot
 
     def _lnlike_spec(self):
-        """ Calculates the log-likelihood for spectroscopic data.
-        This includes options for fitting a spectral calibration
-        polynomial and modelling problems with the error spectrum. """
+        """ Calculates the log-likelihood for spectroscopic data. This
+        includes options for fitting flexible spectral calibration and
+        covariant noise models. """
 
         # Optionally divide the model by a polynomial for calibration.
-        if "polynomial" in list(self.fit_instructions):
-            diff = (self.galaxy.spectrum[:, 1]
-                    - self.model_galaxy.spectrum[:, 1]/self.polynomial)**2
+        if "calib" in list(self.fit_instructions):
+            self.calib = calib_model(self.model_components["calib"],
+                                     self.galaxy.spectrum,
+                                     self.model_galaxy.spectrum)
+
+            model = self.model_galaxy.spectrum[:, 1]/self.calib.model
 
         else:
-            diff = (self.galaxy.spectrum[:, 1]
-                    - self.model_galaxy.spectrum[:, 1])**2
+            model = self.model_galaxy.spectrum[:, 1]
 
-        # Optionally blow up the error spectrum by a factor sig_exp.
-        sig_exp = 1.
-        if "noise" in list(self.model_components):
-            sig_exp = self.model_components["noise"]["sig_exp"]
+        diff = (self.galaxy.spectrum[:, 1] - model)
 
-        chisq_spec = np.sum(diff*self.inv_sigma_sq_spec)/sig_exp**2
+        if "noise" in list(self.fit_instructions):
+            self.noise = noise_model(self.model_components["noise"],
+                                     self.galaxy.spectrum, model)
+        else:
+            self.noise = noise_model({}, self.galaxy.spectrum, model)
 
-        return self.K_spec - self.N_spec*np.log(sig_exp) - 0.5*chisq_spec
+        if self.noise.corellated:
+            lnlike_spec = self.noise.gp.lnlikelihood(self.noise.diff)
+
+            return lnlike_spec
+
+        else:
+            self.chisq_spec = np.sum(self.noise.inv_var*diff**2)
+            self.K_spec = np.sum(np.log(self.noise.inv_var))
+
+            return self.K_spec - 0.5*self.chisq_spec
 
     def _update_model_components(self, param):
         """ Generates a model object with the current parameters. """
@@ -190,26 +214,3 @@ class fitted_model(object):
             split_val = self.mirror_pars[key].split(":")
             fit_val = self.model_components[split_val[0]][split_val[1]]
             self.model_components[split_par[0]][split_par[1]] = fit_val
-
-    def _update_polynomial(self):
-        """ Update the spectral calibration polynomial. """
-
-        # Transform spec_wavs into interval (-1, 1).
-        x = np.copy(self.galaxy.spec_wavs)
-        x = 2.*(x - (x[0] + (x[-1] - x[0])/2.))/(x[-1] - x[0])
-
-        # Get coefficients for the polynomial.
-        if self.model_components["polynomial"]["type"] == "bayesian":
-            coefs = []
-            poly_dict = self.model_components["polynomial"]
-
-            while str(len(coefs)) in list(poly_dict):
-                coefs.append(poly_dict[str(len(coefs))])
-
-        elif self.model_components["polynomial"]["type"] == "max_like":
-            y = self.model_galaxy.spectrum[:, 1]/self.galaxy.spectrum[:, 1]
-            n = int(self.fit_instructions["polynomial"]["order"])
-            coefs = chebfit(x, y, n, w=self.inv_sigma_spec)
-
-        self.polynomial = chebval(x, coefs)
-        self.poly_coefs = np.array(coefs)

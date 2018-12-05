@@ -68,9 +68,7 @@ def add_sfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4):
     # Plot the SFH
     x = age_of_universe - fit.posterior.sfh.ages*10**-9
 
-    #ax.plot(x, post[:, 2], color=color2, zorder=5)
     ax.plot(x, post[:, 1], color=color1, zorder=zorder+1)
-    #ax.plot(x, post[:, 0], color=color2, zorder=5)
     ax.fill_between(x, post[:, 0], post[:, 2], color=color2,
                     alpha=alpha, zorder=zorder, lw=0)
 

@@ -348,8 +348,8 @@ class model_galaxy(object):
 
         self.uvj = -2.5*np.log10(self._calculate_photometry(0., uvj=True))
 
-    def plot(self):
-        plotting.plot_model_galaxy(self)
+    def plot(self, show=True):
+        return plotting.plot_model_galaxy(self, show=show)
 
-    def plot_full_spectrum(self):
-        plotting.plot_full_spectrum(self)
+    def plot_full_spectrum(self, show=True):
+        return plotting.plot_full_spectrum(self, show=show)

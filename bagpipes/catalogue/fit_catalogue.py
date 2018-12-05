@@ -71,12 +71,16 @@ class fit_catalogue(object):
     analysis_function : function - optional
         Specify some function to be run on each completed fit, must
         take the fit object as its only argument.
+
+    time_calls : bool - optional
+        Whether to print information on the average time taken for
+        likelihood calls.
     """
 
     def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
                  photometry_exists=True, make_plots=False, cat_filt_list=None,
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
-                 run=".", analysis_function=None):
+                 run=".", analysis_function=None, time_calls=False):
 
         self.IDs = np.array(IDs).astype(str)
         self.fit_instructions = fit_instructions
@@ -90,6 +94,7 @@ class fit_catalogue(object):
         self.redshift_sigma = redshift_sigma
         self.run = run
         self.analysis_function = analysis_function
+        self.time_calls = time_calls
 
         self.n_objects = len(self.IDs)
 
@@ -204,7 +209,9 @@ class fit_catalogue(object):
                              photometry_exists=self.photometry_exists)
 
         # Fit the object
-        self.fit = fit(self.galaxy, self.fit_instructions, run=self.run)
+        self.fit = fit(self.galaxy, self.fit_instructions, run=self.run,
+                       time_calls=self.time_calls)
+
         self.fit.fit(verbose=verbose, n_live=n_live)
 
         if self.analysis_function is not None:
@@ -217,14 +224,14 @@ class fit_catalogue(object):
             self.fit.plot_1d_posterior()
             self.fit.plot_sfh_posterior()
 
-            if "polynomial" in list(self.fit.fitted_model.fit_instructions):
-                self.fit.plot_polynomial()
+            if "calib" in list(self.fit.fitted_model.fit_instructions):
+                self.fit.plot_calibration()
 
     def _setup_catalogue(self):
         """ Set up and save the initial blank output catalogue. """
 
         self.vars = self.fit.fitted_model.params
-        self.vars += ["stellar_mass", "formed_mass", "sfr",
+        self.vars += ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
                       "mass_weighted_age", "tform", "tquench"]
 
         cols = ["#ID"]

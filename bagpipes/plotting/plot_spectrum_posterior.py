@@ -91,8 +91,11 @@ def add_spectrum_posterior(fit, ax, zorder=4, y_scale=None):
     wavs = fit.galaxy.spectrum[:, 0]
     spec_post = fit.posterior.samples["spectrum"]
 
-    if "polynomial" in list(fit.posterior.samples):
-        spec_post /= fit.posterior.samples["polynomial"]
+    if "calib" in list(fit.posterior.samples):
+        spec_post /= fit.posterior.samples["calib"]
+
+    if "noise" in list(fit.posterior.samples):
+        spec_post += fit.posterior.samples["noise"]
 
     post = np.percentile(spec_post, (16, 50, 84), axis=0).T*10**-y_scale
 

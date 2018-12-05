@@ -52,7 +52,10 @@ latex_names = {"redshift": "z",
                "prob": "P",
                "mu": "\\mu",
                "sigma": "\\sigma",
-               "tau_q": "\\tau_\\mathrm{quench}"}
+               "tau_q": "\\tau_\\mathrm{quench}",
+               "length": "l",
+               "norm": "n",
+               "scaling": "s"}
 
 latex_units = {"metallicity": "Z_{\\odot}",
                "massformed": "M_{\\odot})}",
@@ -73,7 +76,7 @@ latex_comps = {"dblplaw": "dpl",
                "exponential": "exp",
                "constant": "const",
                "delayed": "del",
-               "polynomial": "poly",
+               "calibration": "calib",
                "nebular": "neb",
                "lognormal": "lnorm"}
 
