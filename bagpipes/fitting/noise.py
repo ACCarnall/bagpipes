@@ -14,8 +14,11 @@ class noise_model(object):
     noise_dict : dictionary
         Contains the desired parameters for the noise model.
 
-    inverse_variances : array_like
-        The inverse of the variance for each data point.
+    spectrum : array_like
+        The spectral data to which the calibration model is applied.
+
+    spectral_model : array_like
+        The physical model which is being fitted to the data.
     """
 
     def __init__(self, noise_dict, spectrum, spectral_model):
@@ -42,23 +45,44 @@ class noise_model(object):
             self.corellated = False
 
     def white_scaled(self):
-        """ A simple noise model with no covariances. Simply scales the
-        input error spectrum by a constant factor. """
+        """ A simple variable noise model with no covariances. Scales
+        the input error spectrum by a constant factor. """
 
         self.inv_var = 1./(self.max_y*self.y_err*self.param["scaling"])**2
         self.corellated = False
 
-    def gaussian_process(self):
-        """ A GP noise model including various options for corellated
-        noise and white noise (jitter term). """
+    def GP_exp_squared(self):
+        """ A GP noise model including an exponenetial squared kernel
+        for corellated noise and white noise (jitter term). """
+
+        scaling = self.param["scaling"]
 
         norm = self.param["norm"]
         length = self.param["length"]
-        self.scaling = self.param["scaling"]
 
         kernel = norm**2*kernels.ExpSquaredKernel(length**2)
         self.gp = george.GP(kernel)
-        self.gp.compute(self.x, self.y_err*self.scaling)
+        self.gp.compute(self.x, self.y_err*scaling)
+
+        self.corellated = True
+
+    def GP_double_exp_squared(self):
+        """ A GP noise model including a double exponenetial squared
+        kernel for corellated noise and white noise (jitter term). """
+
+        scaling = self.param["scaling"]
+
+        norm1 = self.param["norm1"]
+        length1 = self.param["length1"]
+
+        norm2 = self.param["norm2"]
+        length2 = self.param["length2"]
+
+        kernel = (norm1**2*kernels.ExpSquaredKernel(length1**2)
+                  + norm2**2*kernels.ExpSquaredKernel(length2**2))
+
+        self.gp = george.GP(kernel)
+        self.gp.compute(self.x, self.y_err*scaling)
 
         self.corellated = True
 

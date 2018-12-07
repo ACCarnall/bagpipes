@@ -17,7 +17,6 @@ class calib_model(object):
 
     spectral_model : array_like
         The physical model which is being fitted to the data.
-
     """
 
     def __init__(self, calib_dict, spectrum, spectral_model):

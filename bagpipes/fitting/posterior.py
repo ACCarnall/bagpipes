@@ -108,7 +108,7 @@ class posterior(object):
 
         if "noise" in list(self.fitted_model.model_components):
             type = self.fitted_model.model_components["noise"]["type"]
-            if type == "gaussian_process":
+            if type.startswith("GP"):
                 size = self.model_galaxy.spectrum.shape[0]
                 self.samples["noise"] = np.zeros((self.n_samples, size))
 
@@ -121,7 +121,7 @@ class posterior(object):
 
             if "noise" in list(self.fitted_model.model_components):
                 type = self.fitted_model.model_components["noise"]["type"]
-                if type == "gaussian_process":
+                if type.startswith("GP"):
                     self.samples["noise"][i] = self.fitted_model.noise.mean()
 
             for q in quantity_names:
