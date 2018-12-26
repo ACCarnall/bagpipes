@@ -40,24 +40,11 @@ def merge(run, mode="merge"):
                 time.sleep(1)
 
     # Generate files to merge outputs into
-    all_IDs = np.loadtxt("pipes/cats/" + run + "/all_IDs", dtype=str)
+    all_IDs = np.loadtxt("pipes/cats/" + run + "/IDs", dtype=str)
 
-    finalcat = pd.DataFrame(np.zeros((all_IDs.shape[0], cats[0].shape[1])),
-                            columns=header, index=all_IDs)
-
-    finalcat.loc[:, "#ID"] = all_IDs
-
-    # Merge outputs into final catalogue
-    for ind in finalcat.index:
-        for cat in cats:
-            if ind in cat.index:
-                finalcat.loc[ind, :] = cat.loc[ind, :]
-                break
-
-        else:
-            finalcat.loc[ind, "#ID"] = np.nan
-
+    finalcat = pd.concat(cats)
     finalcat = finalcat.groupby(finalcat["#ID"].isnull()).get_group(False)
+    finalcat = finalcat.drop_duplicates(subset="#ID")
     finalcat.to_csv("pipes/cats/" + run + ".cat", sep="\t", index=False)
 
     # If mode is clean, remove all of the separate input catalogues

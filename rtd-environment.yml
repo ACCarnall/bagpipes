@@ -13,3 +13,5 @@ dependencies:
       - deepdish
       - pandas
       - sphinx_navtree
+      - pybind11
+      - george

@@ -8,6 +8,14 @@ import pandas as pd
 
 from subprocess import call
 
+# detect if run through mpiexec/mpirun
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.Get_rank()
+
+except ImportError:
+    rank = 0
+
 from ..input.galaxy import galaxy
 from ..fitting.fit import fit
 from .. import utils
@@ -98,13 +106,14 @@ class fit_catalogue(object):
 
         self.n_objects = len(self.IDs)
 
-        utils.make_dirs()
+        if rank == 0:
+            utils.make_dirs()
 
-        # Set up the directory for the output catalogues to be saved
-        if not os.path.exists("pipes/cats/" + self.run):
-            os.mkdir("pipes/cats/" + self.run)
+            # Set up the directory for the output catalogues to be saved
+            if not os.path.exists("pipes/cats/" + self.run):
+                os.mkdir("pipes/cats/" + self.run)
 
-        np.savetxt("pipes/cats/" + self.run + "/all_IDs", self.IDs, fmt="%s")
+            np.savetxt("pipes/cats/" + self.run + "/IDs", self.IDs, fmt="%s")
 
     def fit(self, verbose=False, n_live=400):
         """ Run through the catalogue, only fitting objects which have
@@ -120,52 +129,57 @@ class fit_catalogue(object):
             Number of live points: reducing speeds up the code but may
             lead to unreliable results.
         """
+        if rank == 0:
+            if os.path.exists("pipes/cats/" + self.run + "/kill"):
+                call(["rm", "pipes/cats/" + self.run + "/kill"])
 
-        if os.path.exists("pipes/cats/" + self.run + "/kill"):
-            call(["rm", "pipes/cats/" + self.run + "/kill"])
-
-        n = 0
+            n = 0
 
         for i in range(self.n_objects):
             if os.path.exists("pipes/cats/" + self.run + "/"
                               + self.IDs[i] + ".lock"):
+
+                print("thread:", rank, "skipping", self.IDs[i])
                 continue
 
             self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live)
 
-            if n == 10:
-                n = 0
+            if rank == 0:
+                if n == 10:
+                    n = 0
+
+                # Set up output catalogue
+                if n == 0:
+                    self.time0 = time.time()
+                    outcat = self._setup_catalogue()
+
+                outcat.loc[n, "#ID"] = self.galaxy.ID
+
+                samples = self.fit.posterior.samples
+
+                for v in self.vars:
+                    outcat.loc[n, v + "_16"] = np.percentile(samples[v], 16)
+                    outcat.loc[n, v + "_50"] = np.percentile(samples[v], 50)
+                    outcat.loc[n, v + "_84"] = np.percentile(samples[v], 84)
+
+                if self.redshifts is not None:
+                    outcat.loc[n, "input_redshift"] = self.redshifts[i]
+
+                outcat.loc[n, "log_evidence"] = self.fit.results["lnz"]
+                outcat.loc[n, "log_evidence_err"] = self.fit.results["lnz_err"]
+
+                # Check to see if the kill switch has been set
+                if os.path.exists("pipes/cats/" + self.run + "/kill"):
+                    sys.exit("Kill command received")
+
+                # Save the updated output catalogue.
+                outcat.to_csv("pipes/cats/" + self.run + "/" + self.run
+                              + ".txt" + str(self.time0), sep="\t",
+                              index=False)
+
                 merge(self.run)
 
-            # Set up output catalogue
-            if n == 0:
-                self.time0 = time.time()
-                outcat = self._setup_catalogue()
-
-            outcat.loc[n, "#ID"] = self.galaxy.ID
-
-            samples = self.fit.posterior.samples
-
-            for var in self.vars:
-                outcat.loc[n, var + "_16"] = np.percentile(samples[var], 16)
-                outcat.loc[n, var + "_50"] = np.percentile(samples[var], 50)
-                outcat.loc[n, var + "_84"] = np.percentile(samples[var], 84)
-
-            if self.redshifts is not None:
-                outcat.loc[n, "input_redshift"] = self.redshifts[i]
-
-            outcat.loc[n, "log_evidence"] = self.fit.results["lnz"]
-            outcat.loc[n, "log_evidence_err"] = self.fit.results["lnz_err"]
-
-            # Check to see if the kill switch has been set
-            if os.path.exists("pipes/cats/" + self.run + "/kill"):
-                sys.exit("Kill command received")
-
-            # Save the updated output catalogue.
-            outcat.to_csv("pipes/cats/" + self.run + "/" + self.run + ".txt"
-                          + str(self.time0), sep="\t", index=False)
-
-            n += 1
+                n += 1
 
     def _set_redshift(self, ID):
         """ Sets the corrrect redshift (range) in self.fit_instructions
@@ -192,8 +206,9 @@ class fit_catalogue(object):
             sys.exit("Kill command received")
 
         # Save lock file to stop other threads from fitting this object
-        np.savetxt(utils.working_dir + "/pipes/cats/" + self.run
-                   + "/" + str(ID) + ".lock", np.array([0.]))
+        if rank == 0:
+            np.savetxt(utils.working_dir + "/pipes/cats/" + self.run
+                       + "/" + str(ID) + ".lock", np.array([0.]))
 
         # Set the correct redshift for this object
         self._set_redshift(ID)
@@ -214,18 +229,19 @@ class fit_catalogue(object):
 
         self.fit.fit(verbose=verbose, n_live=n_live)
 
-        if self.analysis_function is not None:
-            self.analysis_function(self.fit)
+        if rank == 0:
+            if self.analysis_function is not None:
+                self.analysis_function(self.fit)
 
-        # Make plots if necessary
-        if self.make_plots:
-            self.fit.plot_spectrum_posterior()
-            self.fit.plot_corner()
-            self.fit.plot_1d_posterior()
-            self.fit.plot_sfh_posterior()
+            # Make plots if necessary
+            if self.make_plots:
+                self.fit.plot_spectrum_posterior()
+                self.fit.plot_corner()
+                self.fit.plot_1d_posterior()
+                self.fit.plot_sfh_posterior()
 
-            if "calib" in list(self.fit.fitted_model.fit_instructions):
-                self.fit.plot_calibration()
+                if "calib" in list(self.fit.fitted_model.fit_instructions):
+                    self.fit.plot_calibration()
 
     def _setup_catalogue(self):
         """ Set up and save the initial blank output catalogue. """
@@ -241,5 +257,6 @@ class fit_catalogue(object):
         cols += ["input_redshift", "log_evidence", "log_evidence_err"]
 
         outcat = pd.DataFrame(np.zeros((10, len(cols))), columns=cols)
+        outcat.loc[:, "#ID"] = np.nan
 
         return outcat

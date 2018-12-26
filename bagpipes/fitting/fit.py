@@ -14,6 +14,14 @@ try:
 except (ImportError, RuntimeError, SystemExit) as e:
     print("Bagpipes: PyMultiNest import failed, fitting will be unavailable.")
 
+# detect if run through mpiexec/mpirun
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.Get_rank()
+
+except ImportError:
+    rank = 0
+
 from .. import utils
 from .. import plotting
 
@@ -53,21 +61,24 @@ class fit(object):
         self.fit_instructions = deepcopy(fit_instructions)
 
         # Set up the directory structure for saving outputs.
-        utils.make_dirs(run=run)
+        if rank == 0:
+            utils.make_dirs(run=run)
 
         # The base name for output files.
         self.fname = "pipes/posterior/" + run + "/" + self.galaxy.ID + "_"
 
+        # A dictionary containing properties of the model to be saved.
+        self.results = {"fit_instructions": self.fit_instructions}
+
         # If a posterior file already exists load it.
         if os.path.exists(self.fname[:-1] + ".h5"):
             self.results = dd.io.load(self.fname[:-1] + ".h5")
-            print("\nExisting fit loaded from " + self.fname[:-1] + ".h5\n")
             self.posterior = posterior(self.galaxy, run=run)
             self.fit_instructions = dd.io.load(self.fname[:-1] + ".h5",
                                                group="/fit_instructions")
-        else:
-            # A dictionary containing properties of the model to be saved.
-            self.results = {"fit_instructions": self.fit_instructions}
+
+            if  rank == 0:
+                print("\nResults loaded from " + self.fname[:-1] + ".h5\n")
 
         # Set up the model which is to be fitted to the data.
         self.fitted_model = fitted_model(galaxy, self.fit_instructions,
@@ -88,14 +99,17 @@ class fit(object):
         """
 
         if "lnz" in list(self.results):
-            print("Fitting not performed as results have already been"
-                  + " loaded from " + self.fname[:-1] + ".h5. To start"
-                  + " over delete this file or change run.\n")
+            if rank == 0:
+                print("Fitting not performed as results have already been"
+                      + " loaded from " + self.fname[:-1] + ".h5. To start"
+                      + " over delete this file or change run.\n")
+
             return
 
-        print("\nBagpipes: fitting object " + self.galaxy.ID + "\n")
+        if rank == 0:
+            print("\nBagpipes: fitting object " + self.galaxy.ID + "\n")
 
-        start_time = time.time()
+            start_time = time.time()
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -105,31 +119,35 @@ class fit(object):
                     verbose=verbose, sampling_efficiency="model",
                     n_live_points=n_live, outputfiles_basename=self.fname)
 
-        runtime = time.time() - start_time
+        if rank == 0:
+            runtime = time.time() - start_time
 
-        print("\nCompleted in " + str("%.1f" % runtime) + " seconds.\n")
+            print("\nCompleted in " + str("%.1f" % runtime) + " seconds.\n")
 
-        # Load MultiNest outputs and save basic quantities to file.
-        samples2d = np.loadtxt(self.fname + "post_equal_weights.dat")[:, :-1]
-        lnz_line = open(self.fname + "stats.dat").readline().split()
+            # Load MultiNest outputs and save basic quantities to file.
+            samples2d = np.loadtxt(self.fname + "post_equal_weights.dat")
+            lnz_line = open(self.fname + "stats.dat").readline().split()
 
-        self.results["samples2d"] = samples2d
-        self.results["lnz"] = float(lnz_line[-3])
-        self.results["lnz_err"] = float(lnz_line[-1])
-        self.results["median"] = np.median(samples2d, axis=0)
-        self.results["conf_int"] = np.percentile(samples2d, (16, 84), axis=0)
+            self.results["samples2d"] = samples2d[:, :-1]
+            self.results["lnlike"] = samples2d[:, -1]
+            self.results["lnz"] = float(lnz_line[-3])
+            self.results["lnz_err"] = float(lnz_line[-1])
+            self.results["median"] = np.median(samples2d, axis=0)
+            self.results["conf_int"] = np.percentile(self.results["samples2d"],
+                                                     (16, 84), axis=0)
 
-        # Save re-formatted outputs as HDF5 and remove MultiNest output.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            dd.io.save(self.fname[:-1] + ".h5", self.results)
+            # Save re-formatted outputs as HDF5 and remove MultiNest output.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                dd.io.save(self.fname[:-1] + ".h5", self.results)
 
-        os.system("rm " + self.fname + "*")
+            os.system("rm " + self.fname + "*")
 
-        # Create a posterior object to hold the results of the fit.
-        self.posterior = posterior(self.galaxy, run=self.run)
+            self._print_results()
 
-        self._print_results()
+            # Create a posterior object to hold the results of the fit.
+            self.posterior = posterior(self.galaxy, run=self.run)
+
 
     def _print_results(self):
         """ Print the 16th, 50th, 84th percentiles of the posterior. """

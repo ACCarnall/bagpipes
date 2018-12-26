@@ -63,6 +63,9 @@ class posterior(object):
         """Calculates basic derived posterior quantities, these are fast
         as they are derived only from the star-formation history """
 
+        if "stellar_mass" in list(self.samples):
+            return
+
         self.fitted_model._update_model_components(self.samples2d[0, :])
         self.sfh = star_formation_history(self.fitted_model.model_components)
 
@@ -87,6 +90,9 @@ class posterior(object):
     def get_advanced_quantities(self):
         """Calculates advanced derived posterior quantities, these are
         slower because they require the full model spectra. """
+
+        if "spectrum_full" in list(self.samples):
+            return
 
         self.fitted_model._update_model_components(self.samples2d[0, :])
         self.model_galaxy = model_galaxy(self.fitted_model.model_components,

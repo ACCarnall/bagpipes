@@ -35,8 +35,8 @@ def plot_spectrum_posterior(fit, show=False, save=True):
         plt.close(fig)
 
     if show:
-        plt.show()
         plt.close(fig)
+        plt.show()
 
     return fig, ax
 
@@ -77,8 +77,10 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
         mask = (phot_band > phot_post[j, 0]) & (phot_band < phot_post[j, 1])
         phot_1sig = phot_band[mask]*10**-y_scale
         wav_array = np.zeros(phot_1sig.shape[0]) + log_eff_wavs[j]
-        ax.scatter(wav_array, phot_1sig, color="darkorange",
-                   zorder=zorder, alpha=0.05, s=100, rasterized=True)
+
+        if phot_1sig.min() < ymax*10**-y_scale:
+            ax.scatter(wav_array, phot_1sig, color="darkorange",
+                       zorder=zorder, alpha=0.05, s=100, rasterized=True)
 
 
 def add_spectrum_posterior(fit, ax, zorder=4, y_scale=None):
@@ -89,7 +91,7 @@ def add_spectrum_posterior(fit, ax, zorder=4, y_scale=None):
         y_scale = int(np.log10(ymax))-1
 
     wavs = fit.galaxy.spectrum[:, 0]
-    spec_post = fit.posterior.samples["spectrum"]
+    spec_post = np.copy(fit.posterior.samples["spectrum"])
 
     if "calib" in list(fit.posterior.samples):
         spec_post /= fit.posterior.samples["calib"]
