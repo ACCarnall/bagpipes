@@ -12,9 +12,11 @@ from subprocess import call
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.Get_rank()
+    nproc = MPI.COMM_WORLD.Get_size()
 
 except ImportError:
     rank = 0
+    nproc = 1
 
 from ..input.galaxy import galaxy
 from ..fitting.fit import fit
@@ -136,10 +138,18 @@ class fit_catalogue(object):
             n = 0
 
         for i in range(self.n_objects):
-            if os.path.exists("pipes/cats/" + self.run + "/"
-                              + self.IDs[i] + ".lock"):
 
-                print("thread:", rank, "skipping", self.IDs[i])
+            if rank == 0:
+                done = os.path.exists("pipes/cats/" + self.run + "/"
+                                      + self.IDs[i] + ".lock")
+
+                for proc in range(1, nproc):
+                    MPI.COMM_WORLD.send(done, dest=proc)
+
+            else:
+                done = MPI.COMM_WORLD.recv(source=0)
+
+            if done:
                 continue
 
             self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live)
