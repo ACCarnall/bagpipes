@@ -46,3 +46,8 @@ In order to clean up any failed or killed fits the clean function will check for
 
     run = "name_of_run"
     pipes.catalogue.clean(run)
+
+MPI parallelisation
+-------------------
+
+As of v0.7.5 the code now also supports parallelisation with MPI. You can run both fit or fit_catalogue with MPI, just do ``mpirun -n nproc python fit_with_bagpipes.py``. You can also run multiple objects in parallel each with MPI, e.g. if you have two nodes with eight cores each.
