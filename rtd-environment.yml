@@ -6,6 +6,7 @@ dependencies:
     - scipy
     - matplotlib>=2.2.2
     - numpy>=1.14.2
+    - pybind11
     - pip:
       - corner
       - pymultinest
@@ -13,5 +14,4 @@ dependencies:
       - deepdish
       - pandas
       - sphinx_navtree
-      - pybind11
       - george

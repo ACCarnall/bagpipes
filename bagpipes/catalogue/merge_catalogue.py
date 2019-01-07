@@ -4,6 +4,7 @@ import numpy as np
 import glob
 import pandas as pd
 import os
+import time
 
 from subprocess import call
 
@@ -31,7 +32,8 @@ def merge(run, mode="merge"):
                                           names=header, skiprows=1))
 
                 if isinstance(cats[-1].loc[0, "#ID"], float):
-                    cats[-1].loc[:, "#ID"] = cats[-1].loc[:, "#ID"].astype(int)
+                    m = np.invert(np.isnan(cats[-1].loc[:, "#ID"]))
+                    cats[-1].loc[m, "#ID"] = cats[-1].loc[m, "#ID"].astype(int)
 
                 cats[-1].index = cats[-1]["#ID"].astype(str)
                 break

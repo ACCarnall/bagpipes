@@ -135,8 +135,11 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         x_label = fix_param_names([label])
         ax.set_xlabel(x_label)
 
-    y, x = np.histogram(samples, bins=bins, density=True,
-                        range=(np.max([samples.min(), -99.]), samples.max()))
+    width = samples.max() - np.max([samples.min(), -99.])
+    range = (np.max([samples.min(), -99.]) - width/10.,
+             samples.max() + width/10.)
+
+    y, x = np.histogram(samples, bins=bins, density=True, range=range)
 
     y = gaussian_filter(y, 1.5)
 
@@ -161,7 +164,7 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
                        color="black", zorder=zorder, lw=3)
 
     ax.set_ylim(bottom=0)
-    ax.set_xlim(np.max([samples.min(), -99.]), samples.max())
+    ax.set_xlim(range)
     auto_x_ticks(ax, nticks=3.)
     plt.setp(ax.get_yticklabels(), visible=False)
 
