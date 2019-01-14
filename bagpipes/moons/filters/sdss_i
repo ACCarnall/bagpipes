@@ -1,0 +1,109 @@
+# Units:
+#  "lambda" is in Angstroms
+#  "pass" is the contribution to the detector signal per photon
+#         entering the atmosphere of Earth (for airmass 1.3)
+#  "pass_1_[069]" are the contribution to the signal for airmasses
+#         1.0, 1.6, and 1.9 respectively
+#
+# Bandpass Name(s): i
+#
+# Instrument: SDSS telescope at APO Average over columns 1-6
+# 
+# Determined by: Jim Gunn, Mamoru Doi, Daniel Eisenstein
+#
+# Date of determination: 2001-12-18
+#
+# Meaning of/Reason for default column: 1.3 airmass; SDSS magnitudes are
+#   calibrated to this airmass
+#
+# Notes:
+#
+#  Keep in mind that SDSS pipelines are output in the MAYBE magnitude 
+#  system, which is currently (2002-08-19) thought to be related to
+#  the AB magnitude system by the offsets:
+#
+#    u(AB,2.5m) = u(MAYBE,2.5m) - 0.042
+#    g(AB,2.5m) = g(MAYBE,2.5m) + 0.036
+#    r(AB,2.5m) = r(MAYBE,2.5m) + 0.015
+#    i(AB,2.5m) = i(MAYBE,2.5m) + 0.013
+#    z(AB,2.5m) = z(MAYBE,2.5m) - 0.002
+#
+#  See sdss-general/2486 or contact David W. Hogg for details.
+#
+#  The following notes come from Jim Gunn:
+# 
+#    These files are the response functions as measured by Mamoru Jan 2001,
+#    interpolated to fill in the sharp corner near the red cutoff using model
+#    filters and then splined to a standard wavelengh set, shared by all of
+#    the files in this set of response functions for all the telescopes.
+#  
+#    The files indexed 0 are the response functions averaged over the six
+#    columns of the camera.
+#    
+#    The file sdssav.lis is a list of magnitudes (V=0) and colors for these
+#    (average) response functions at 1.3 airmasses run against the
+#    Gunn-Stryker spectrophotometric atlas stars and the AB95 standards. 
+#    These are AB magnitudes, note, not whatever system we will come up with. 
+#    To transform from USNO magnitudes to a natural SDSS AB system, the
+#    best-guess transformations as of this writing are
+#  
+#    u_AB = u' - 0.04 - 0.003*(u'-g')
+#    
+#    g_AB = g'        + 0.069*(g'-r') 
+#    
+#    r_AB = r'        + 0.038*(r'-i') 
+#    
+#    i_AB = i'        + 0.049*(r'-i')
+#    
+#    z_AB = z' - 0.01 + 0.011*(i'-z')
+#    
+#    but these are based ENTIRELY on calculations, and should be much better
+#    determined by observations shortly.
+#    
+#    jeg011218
+#
+  6430   0.0000   0.0000   0.0000   0.0000   0.0000
+  6480   0.0004   0.0003   0.0003   0.0003   0.0003
+  6530   0.0006   0.0004   0.0004   0.0004   0.0004
+  6580   0.0004   0.0003   0.0003   0.0003   0.0003
+  6630   0.0013   0.0009   0.0009   0.0009   0.0009
+  6680   0.0047   0.0034   0.0033   0.0032   0.0032
+  6730   0.0145   0.0103   0.0101   0.0099   0.0097
+  6780   0.0479   0.0343   0.0337   0.0332   0.0327
+  6830   0.1196   0.0839   0.0822   0.0805   0.0788
+  6880   0.2333   0.1552   0.1497   0.1443   0.1392
+  6930   0.3569   0.2428   0.2359   0.2291   0.2226
+  6980   0.4559   0.3221   0.3166   0.3113   0.3060
+  7030   0.5232   0.3733   0.3683   0.3633   0.3584
+  7080   0.5603   0.4098   0.4075   0.4053   0.4031
+  7130   0.5769   0.4125   0.4078   0.4031   0.3985
+  7180   0.5827   0.3823   0.3686   0.3553   0.3426
+  7230   0.5803   0.3938   0.3838   0.3740   0.3645
+  7280   0.5709   0.3852   0.3751   0.3653   0.3557
+  7330   0.5585   0.3873   0.3806   0.3740   0.3676
+  7380   0.5469   0.3805   0.3747   0.3690   0.3633
+  7430   0.5375   0.3739   0.3686   0.3634   0.3582
+  7480   0.5302   0.3664   0.3610   0.3556   0.3503
+  7530   0.5223   0.3557   0.3494   0.3431   0.3370
+  7580   0.5112   0.3470   0.3409   0.3350   0.3292
+  7630   0.4976   0.2334   0.2055   0.1810   0.1594
+  7680   0.4833   0.3282   0.3235   0.3189   0.3143
+  7730   0.4697   0.3188   0.3147   0.3106   0.3066
+  7780   0.4581   0.3092   0.3051   0.3011   0.2971
+  7830   0.4479   0.2998   0.2955   0.2913   0.2872
+  7880   0.4385   0.2924   0.2882   0.2842   0.2801
+  7930   0.4312   0.2893   0.2861   0.2828   0.2796
+  7980   0.4260   0.2893   0.2873   0.2854   0.2834
+  8030   0.4184   0.2856   0.2842   0.2829   0.2815
+  8080   0.4058   0.2729   0.2705   0.2681   0.2657
+  8130   0.3783   0.2433   0.2379   0.2327   0.2276
+  8180   0.2767   0.1713   0.1655   0.1600   0.1547
+  8230   0.1494   0.0917   0.0883   0.0851   0.0821
+  8280   0.0608   0.0382   0.0370   0.0359   0.0348
+  8330   0.0176   0.0117   0.0115   0.0113   0.0111
+  8380   0.0071   0.0048   0.0047   0.0047   0.0046
+  8430   0.0029   0.0020   0.0020   0.0019   0.0019
+  8480   0.0014   0.0010   0.0010   0.0010   0.0009
+  8530   0.0013   0.0009   0.0009   0.0009   0.0009
+  8580   0.0007   0.0005   0.0005   0.0005   0.0005
+  8630   0.0000   0.0000   0.0000   0.0000   0.0000

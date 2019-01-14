@@ -11,7 +11,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='bagpipes',
 
-    version='0.7.6',
+    version='0.7.7',
 
     description='Galaxy spectral fitting',
 
@@ -25,7 +25,7 @@ setup(
 
     packages=["bagpipes", "bagpipes.fitting", "bagpipes.catalogue",
               "bagpipes.models", "bagpipes.filters", "bagpipes.input",
-              "bagpipes.plotting", "bagpipes.models.making"],
+              "bagpipes.plotting", "bagpipes.models.making", "bagpipes.moons"],
 
     include_package_data=True,
 
