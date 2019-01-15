@@ -97,9 +97,11 @@ class posterior(object):
         self.fitted_model._update_model_components(self.samples2d[0, :])
         self.model_galaxy = model_galaxy(self.fitted_model.model_components,
                                          filt_list=self.galaxy.filt_list,
-                                         spec_wavs=self.galaxy.spec_wavs)
+                                         spec_wavs=self.galaxy.spec_wavs,
+                                         index_list=self.galaxy.index_list)
 
-        all_names = ["photometry", "spectrum", "spectrum_full", "uvj"]
+        all_names = ["photometry", "spectrum", "spectrum_full", "uvj",
+                     "indices"]
 
         all_model_keys = dir(self.model_galaxy)
         quantity_names = [q for q in all_names if q in all_model_keys]

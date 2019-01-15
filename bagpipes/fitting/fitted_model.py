@@ -109,6 +109,11 @@ class fitted_model(object):
             self.K_phot = -0.5*np.sum(log_error_factors)
             self.inv_sigma_sq_phot = 1./self.galaxy.photometry[:, 2]**2
 
+        if self.galaxy.index_list is not None:
+            log_error_factors = np.log(2*np.pi*self.galaxy.indices[:, 1]**2)
+            self.K_ind = -0.5*np.sum(log_error_factors)
+            self.inv_sigma_sq_ind = 1./self.galaxy.indices[:, 1]**2
+
     def lnlike(self, x, ndim=0, nparam=0):
         """ Returns the log-likelihood for a given parameter vector. """
 
@@ -121,7 +126,8 @@ class fitted_model(object):
         if self.model_galaxy is None:
             self.model_galaxy = model_galaxy(self.model_components,
                                              filt_list=self.galaxy.filt_list,
-                                             spec_wavs=self.galaxy.spec_wavs)
+                                             spec_wavs=self.galaxy.spec_wavs,
+                                             index_list=self.galaxy.index_list)
 
         self.model_galaxy.update(self.model_components)
 
@@ -131,11 +137,14 @@ class fitted_model(object):
 
         lnlike = 0.
 
-        if self.galaxy.spectrum_exists:
+        if self.galaxy.spectrum_exists and self.galaxy.index_list is None:
             lnlike += self._lnlike_spec()
 
         if self.galaxy.photometry_exists:
             lnlike += self._lnlike_phot()
+
+        if self.galaxy.index_list is not None:
+            lnlike += self._lnlike_indices()
 
         # Return zero likelihood if lnlike = nan (something went wrong).
         if np.isnan(lnlike):
@@ -195,6 +204,14 @@ class fitted_model(object):
             self.K_spec = np.sum(np.log(self.noise.inv_var))
 
             return self.K_spec - 0.5*self.chisq_spec
+
+    def _lnlike_indices(self):
+        """ Calculates the log-likelihood for spectral indices. """
+
+        diff = (self.galaxy.indices[:, 1] - self.model_galaxy.indices)**2
+        self.chisq_ind = np.sum(diff*self.inv_sigma_sq_ind)
+
+        return self.K_ind - 0.5*self.chisq_ind
 
     def _update_model_components(self, param):
         """ Generates a model object with the current parameters. """

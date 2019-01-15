@@ -57,11 +57,17 @@ class model_galaxy(object):
         if filt_list is None and spec_wavs is None:
             raise ValueError("Please specify either spec_wavs or filt_list.")
 
+        if (spec_wavs is not None) and (index_list is not None):
+            raise ValueError("Cannot specify both spec_wavs and index_list.")
+
         self.spec_wavs = spec_wavs
         self.filt_list = filt_list
         self.spec_units = spec_units
         self.phot_units = phot_units
         self.index_list = index_list
+
+        if self.index_list is not None:
+            self.spec_wavs = self._get_index_spec_wavs(model_components)
 
         # Create a filter_set object to manage the filter curves.
         if filt_list is not None:
@@ -98,16 +104,6 @@ class model_galaxy(object):
             self.dust_atten = dust_attenuation(self.wavelengths, dust_type)
 
         self.update(model_components)
-
-        # Deal with any spectral index calculations.
-        if self.index_list is not None:
-            self.index_names = [ind["name"] for ind in self.index_list]
-
-            self.indices = np.zeros(len(self.index_list))
-            for i in range(self.indices.shape[0]):
-                self.indices[i] = measure_index(self.index_list[i],
-                                                self.spectrum,
-                                                model_components["redshift"])
 
     def _get_wavelength_sampling(self):
         """ Calculate the optimal wavelength sampling for the model
@@ -175,6 +171,30 @@ class model_galaxy(object):
 
         return np.array(x)
 
+    def _get_index_spec_wavs(self, model_components):
+        """ Generate an appropriate spec_wavs array for covering the
+        spectral indices specified in index_list. """
+
+        redshift = (1. + model_components["redshift"])
+
+        min = 9.9*10**99
+        max = 0.
+        for i in range(len(self.index_list)):
+            wavs = np.array(self.index_list[i]["continuum"]).flatten()
+
+            if "feature" in list(self.index_list[i]):
+                extra_wavs = np.array(self.index_list[i]["feature"])
+                wavs = np.concatenate((wavs, extra_wavs))
+
+            min = np.min([min, np.min(wavs)])
+            max = np.max([max, np.max(wavs)])
+
+        min = np.round(0.95*min, 2)
+        max = np.round(1.05*max, 2)
+        sampling = np.round(np.mean([min, max])/config.R_spec/2., 2)
+
+        return np.arange(min, max, sampling)*redshift
+
     def update(self, model_components):
         """ Update the model outputs to reflect new parameter values in
         the model_components dictionary. Note that only the changing of
@@ -197,6 +217,16 @@ class model_galaxy(object):
 
         if self.spec_wavs is not None:
             self._calculate_spectrum(model_components)
+
+        # Deal with any spectral index calculations.
+        if self.index_list is not None:
+            self.index_names = [ind["name"] for ind in self.index_list]
+
+            self.indices = np.zeros(len(self.index_list))
+            for i in range(self.indices.shape[0]):
+                self.indices[i] = measure_index(self.index_list[i],
+                                                self.spectrum,
+                                                model_components["redshift"])
 
     def _calculate_full_spectrum(self, model_comp):
         """ This method combines the models for the various emission
