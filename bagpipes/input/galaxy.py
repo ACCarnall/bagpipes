@@ -7,6 +7,8 @@ import os
 from .. import plotting
 from .. import filters
 
+from .spectral_indices import measure_index
+
 
 class galaxy:
     """ A container for observational data loaded into Bagpipes.
@@ -52,11 +54,27 @@ class galaxy:
     out_units : str - optional
         Units to convert the inputs to within the class. Defaults to
         ergs s^-1 cm^-2 A^-1, "ergscma".
+
+    index_list : list - optional
+        list of dicts containining definitions for spectral indices.
+
+    load_indices : function or str - optional
+        Load spectral index information for the galaxy. This can either
+        be a function which takes the galaxy ID and returns index values
+        in the same order as they are defined in index_list, or the str
+        "from_spectrum", in which case the code will measure the indices
+        from the observed spectrum for the galaxy.
+
+    index_redshift : float - optional
+        Observed redshift for this galaxy. This is only ever used if the
+        user requests the code to calculate spectral indices from the
+        observed spectrum.
     """
 
     def __init__(self, ID, load_data, spec_units="ergscma", phot_units="mujy",
                  spectrum_exists=True, photometry_exists=True, filt_list=None,
-                 out_units="ergscma"):
+                 out_units="ergscma", load_indices=None, index_list=None,
+                 index_redshift=None):
 
         self.ID = str(ID)
         self.phot_units = phot_units
@@ -66,6 +84,8 @@ class galaxy:
         self.photometry_exists = photometry_exists
         self.filt_list = filt_list
         self.spec_wavs = None
+        self.index_list = index_list
+        self.index_redshift = index_redshift
 
         if not spectrum_exists and not photometry_exists:
             sys.exit("Bagpipes: Object must have at least some data.")
@@ -107,6 +127,20 @@ class galaxy:
                 self.spectrum = self.spectrum[startn:-endn, :]
 
             self.spec_wavs = self.spectrum[:, 0]
+
+        # Deal with any spectral index calculations.
+        if load_indices is not None:
+            self.index_names = [ind["name"] for ind in self.index_list]
+
+            if callable(load_indices):
+                self.indices = load_indices(self.ID)
+
+            elif load_indices == "from_spectrum":
+                self.indices = np.zeros((len(self.index_list), 2))
+                for i in range(self.indices.shape[0]):
+                    self.indices[i] = measure_index(self.index_list[i],
+                                                    self.spectrum,
+                                                    self.index_redshift)
 
     def _convert_units(self):
         """ Convert between ergs s^-1 cm^-2 A^-1 and microjanskys if

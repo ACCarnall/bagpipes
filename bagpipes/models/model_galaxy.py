@@ -13,6 +13,7 @@ from .dust_attenuation_model import dust_attenuation
 from .nebular_model import nebular
 from .igm_model import igm
 from .star_formation_history import star_formation_history
+from ..input.spectral_indices import measure_index
 
 
 class model_galaxy(object):
@@ -45,10 +46,13 @@ class model_galaxy(object):
         The units the output spectrum will be returned in. Default is
         "ergscma" for ergs per second per centimetre squared per
         angstrom, can also be set to "mujy" for microjanskys.
+
+    index_list : list - optional
+        list of dicts containining definitions for spectral indices.
     """
 
     def __init__(self, model_components, filt_list=None, spec_wavs=None,
-                 spec_units="ergscma", phot_units="ergscma"):
+                 spec_units="ergscma", phot_units="ergscma", index_list=None):
 
         if filt_list is None and spec_wavs is None:
             raise ValueError("Please specify either spec_wavs or filt_list.")
@@ -57,6 +61,7 @@ class model_galaxy(object):
         self.filt_list = filt_list
         self.spec_units = spec_units
         self.phot_units = phot_units
+        self.index_list = index_list
 
         # Create a filter_set object to manage the filter curves.
         if filt_list is not None:
@@ -93,6 +98,16 @@ class model_galaxy(object):
             self.dust_atten = dust_attenuation(self.wavelengths, dust_type)
 
         self.update(model_components)
+
+        # Deal with any spectral index calculations.
+        if self.index_list is not None:
+            self.index_names = [ind["name"] for ind in self.index_list]
+
+            self.indices = np.zeros(len(self.index_list))
+            for i in range(self.indices.shape[0]):
+                self.indices[i] = measure_index(self.index_list[i],
+                                                self.spectrum,
+                                                model_components["redshift"])
 
     def _get_wavelength_sampling(self):
         """ Calculate the optimal wavelength sampling for the model

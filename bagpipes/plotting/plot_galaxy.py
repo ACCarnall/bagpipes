@@ -85,7 +85,7 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
                 color="black")
 
     ax.scatter(np.log10(galaxy.photometry[:, 0]),
-               galaxy.photometry[:, 1]*10**-y_scale, color="blue", s=60,
+               galaxy.photometry[:, 1]*10**-y_scale, color="blue", s=40,
                zorder=zorder, linewidth=1, facecolor="blue", edgecolor="black")
 
     # Sort out x tick locations
@@ -121,7 +121,7 @@ def add_observed_photometry_linear(galaxy, ax, zorder=4, y_scale=None):
                 color="black")
 
     ax.scatter(galaxy.photometry[:, 0],
-               galaxy.photometry[:, 1]*10**-y_scale, color="blue", s=75,
+               galaxy.photometry[:, 1]*10**-y_scale, color="blue", s=40,
                zorder=zorder, linewidth=1, facecolor="blue", edgecolor="black")
 
     return ax
