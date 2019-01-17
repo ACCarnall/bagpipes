@@ -54,8 +54,8 @@ class model_galaxy(object):
     def __init__(self, model_components, filt_list=None, spec_wavs=None,
                  spec_units="ergscma", phot_units="ergscma", index_list=None):
 
-        if filt_list is None and spec_wavs is None:
-            raise ValueError("Please specify either spec_wavs or filt_list.")
+        #if filt_list is None and spec_wavs is None:
+        #    raise ValueError("Please specify either spec_wavs or filt_list.")
 
         if (spec_wavs is not None) and (index_list is not None):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
@@ -179,11 +179,23 @@ class model_galaxy(object):
 
         min = 9.9*10**99
         max = 0.
-        for i in range(len(self.index_list)):
-            wavs = np.array(self.index_list[i]["continuum"]).flatten()
 
-            if "feature" in list(self.index_list[i]):
-                extra_wavs = np.array(self.index_list[i]["feature"])
+        indiv_ind = []
+        for j in range(len(self.index_list)):
+            if self.index_list[j]["type"] == "composite":
+                n = 1
+                while "component" + str(n) in list(self.index_list[j]):
+                    indiv_ind.append(self.index_list[j]["component" + str(n)])
+                    n += 1
+
+            else:
+                indiv_ind.append(self.index_list[j])
+
+        for i in range(len(indiv_ind)):
+            wavs = np.array(indiv_ind[i]["continuum"]).flatten()
+
+            if "feature" in list(indiv_ind[i]):
+                extra_wavs = np.array(indiv_ind[i]["feature"])
                 wavs = np.concatenate((wavs, extra_wavs))
 
             min = np.min([min, np.min(wavs)])
