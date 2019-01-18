@@ -34,6 +34,9 @@ def plot_calibration(fit, save=True, show=False):
     return fig, ax
 
 def add_calibration(fit, ax):
+
+    fit.posterior.get_advanced_quantities()
+
     wavs = fit.galaxy.spectrum[:, 0]
     samples = fit.posterior.samples["calib"]
     post = np.percentile(samples, (16, 50, 84), axis=0).T
