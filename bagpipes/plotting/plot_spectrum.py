@@ -12,14 +12,16 @@ except RuntimeError:
 from .general import *
 
 
-def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True):
+def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
+                 y_scale=None):
     """ Add a spectrum to the passed axes. Adds errors if they are
     included in the spectrum object as a third column. """
 
     # Sort out axis limits
     ymax = 1.05*np.max(spectrum[:, 1])
 
-    y_scale = int(np.log10(ymax))-1
+    if y_scale is None:
+        y_scale = int(np.log10(ymax))-1
 
     ax.set_ylim(0., ymax*10**-y_scale)
     ax.set_xlim(spectrum[0, 0], spectrum[-1, 0])

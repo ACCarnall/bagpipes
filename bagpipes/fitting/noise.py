@@ -1,7 +1,11 @@
 import numpy as np
-import george
 
-from george import kernels
+try:
+    import george
+    from george import kernels
+    
+except ImportError:
+    pass
 
 
 class noise_model(object):

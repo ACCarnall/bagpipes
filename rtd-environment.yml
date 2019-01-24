@@ -14,4 +14,3 @@ dependencies:
       - deepdish
       - pandas
       - sphinx_navtree
-      - george
