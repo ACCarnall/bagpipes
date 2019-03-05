@@ -338,35 +338,26 @@ class model_galaxy(object):
         It resamples filter curves onto observed frame wavelengths and
         integrates over them to calculate photometric fluxes. """
 
-        redshifted_wavs = self.wavelengths*(1. + redshift)
-
-        if uvj:
-            filter_set = self.uvj_filter_set
+        if self.phot_units == "mujy" or uvj:
+            unit_conv = "cgs_to_mujy"
 
         else:
-            filter_set = self.filter_set
-
-        filters_z = np.zeros_like(filter_set.filt_array)
-        for i in range(len(filter_set.filt_list)):
-            filters_z[:, i] = np.interp(redshifted_wavs, self.wavelengths,
-                                        filter_set.filt_array[:, i],
-                                        left=0, right=0)
-
-        spec_energy = np.expand_dims(self.spectrum_full*filter_set.widths,
-                                     axis=1)
-
-        filt_weights = filters_z*np.expand_dims(filter_set.widths, axis=1)
-
-        photometry = np.squeeze(np.sum(spec_energy*filters_z, axis=0)
-                                / np.sum(filt_weights, axis=0))
-
-        if self.phot_units == "mujy" or uvj:
-            photometry /= (10**-29*2.9979*10**18/filter_set.eff_wavs**2)
+            unit_conv = None
 
         if uvj:
-            return photometry
+            phot = self.uvj_filter_set.get_photometry(self.spectrum_full,
+                                                      redshift,
+                                                      unit_conv=unit_conv)
 
-        self.photometry = photometry
+        else:
+            phot = self.filter_set.get_photometry(self.spectrum_full,
+                                                  redshift,
+                                                  unit_conv=unit_conv)
+
+        if uvj:
+            return phot
+
+        self.photometry = phot
 
     def _calculate_spectrum(self, model_comp):
         """ This method generates predictions for observed spectroscopy.

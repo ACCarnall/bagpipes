@@ -20,7 +20,7 @@ class filter_set(object):
 
     def __init__(self, filt_list):
         self.filt_list = filt_list
-
+        self.wavelengths = None
         self._load_filter_curves()
         self._calculate_min_max_wavelengths()
         self._calculate_effective_wavelengths()
@@ -84,8 +84,7 @@ class filter_set(object):
         """ Resamples the filter curves onto a new set of wavelengths
         and creates a 2D array of filter curves on this sampling. """
 
-        self.filt_array = np.zeros((wavelengths.shape[0],
-                                   len(self.filt_list)))
+        self.filt_array = np.zeros((wavelengths.shape[0], len(self.filt_list)))
 
         for i in range(len(self.filt_list)):
             filt = self.filt_list[i]
@@ -99,3 +98,29 @@ class filter_set(object):
         # wav_widths: An array containing the width in wavelength space
         # for each point in the spectrum.
         self.widths = model_widths*wavelengths
+        self.wavelengths = wavelengths
+
+    def get_photometry(self, spectrum, redshift, unit_conv=None):
+
+        if self.wavelengths is None:
+            raise ValueError("Please use resample_filter_curves method to set"
+                             + " wavelengths before calculating photometry.")
+
+        redshifted_wavs = self.wavelengths*(1. + redshift)
+
+        filters_z = np.zeros_like(self.filt_array)
+
+        for i in range(len(self.filt_list)):
+            filters_z[:, i] = np.interp(redshifted_wavs, self.wavelengths,
+                                        self.filt_array[:, i],
+                                        left=0, right=0)
+
+        spec_energy = np.expand_dims(spectrum*self.widths, axis=1)
+        filt_weights = filters_z*np.expand_dims(self.widths, axis=1)
+        photometry = np.squeeze(np.sum(spec_energy*filters_z, axis=0)
+                                / np.sum(filt_weights, axis=0))
+
+        if unit_conv == "cgs_to_mujy":
+            photometry /= (10**-29*2.9979*10**18/self.eff_wavs**2)
+
+        return photometry
