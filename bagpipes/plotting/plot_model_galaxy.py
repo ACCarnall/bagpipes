@@ -92,6 +92,18 @@ def add_model_photometry(model, ax, x_ticks=None, zorder=4):
     return ax
 
 
+def add_full_spectrum(model, ax, color="darkorange", lw=1):
+    log_wavs = np.log10(model.wavelengths)
+    wav_mask = (log_wavs > 2.75) & (log_wavs < 6.75)
+
+    spec_full = model.spectrum_full*model.lum_flux*model.wavelengths
+    spec_full = spec_full[wav_mask]
+
+    ax.plot(log_wavs[wav_mask], np.log10(spec_full), color=color, lw=lw)
+
+    ax.set_xlim(2.75, 6.75)
+
+
 def plot_full_spectrum(model, show=True):
     """ Make a quick plot of an individual model galaxy. """
 
@@ -99,27 +111,19 @@ def plot_full_spectrum(model, show=True):
 
     naxes = 1
 
-    fig = plt.figure(figsize=(12, 4.))
+    fig = plt.figure(figsize=(12, 4))
     ax = plt.subplot()
 
-    log_wavs = np.log10(model.wavelengths)
-    wav_mask = (log_wavs > 2.75) & (log_wavs < 6.75)
-
-    spec_full = model.spectrum_full*model.lum_flux*model.wavelengths
-    spec_full = spec_full[wav_mask]
-
-    ax.plot(log_wavs[wav_mask], np.log10(spec_full), color="darkorange")
-
-    ax.set_xlim(2.75, 6.75)
+    add_full_spectrum(model, ax)
 
     # Set axis labels
     if tex_on:
 
-        ax.set_ylabel("$\\mathrm{\\lambda L_{\\lambda}}\\ \\mathrm{/\\ erg"
-                      + "\\ s^{-1}}$")
+        ax.set_ylabel("$\\mathrm{log_{10}}\\big(\\mathrm{\\lambda L_{\\lambda}}\\ \\mathrm{/\\ erg"
+                      + "\\ s^{-1}}\\big)$")
 
-        ax.set_xlabel("$\\mathrm{log_{10}}\\Big(\\lambda / \\mathrm{\\AA}"
-                      + "\\Big)$")
+        ax.set_xlabel("$\\mathrm{log_{10}}\\big(\\lambda / \\mathrm{\\AA}"
+                      + "\\big)$")
 
     else:
         ax.set_ylabel("f_lambda / erg s^-1")
@@ -129,3 +133,6 @@ def plot_full_spectrum(model, show=True):
     if show:
         plt.show()
         plt.close(fig)
+
+    else:
+        return fig, ax

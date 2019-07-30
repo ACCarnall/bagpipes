@@ -252,8 +252,8 @@ def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
                           + "}\\ erg\\ s^{-1}\\ \\AA^{-1}}$")
 
         if log_x:
-            ax.set_xlabel("$\\mathrm{log_{10}}\\Big(\\lambda / \\mathrm{\\AA}"
-                          + "\\Big)$")
+            ax.set_xlabel("$\\mathrm{log_{10}}\\big(\\lambda / \\mathrm{\\AA}"
+                          + "\\big)$")
 
         else:
             ax.set_xlabel("$\\lambda / \\mathrm{\\AA}$")
