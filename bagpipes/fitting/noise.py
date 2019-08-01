@@ -3,7 +3,7 @@ import numpy as np
 try:
     import george
     from george import kernels
-    
+
 except ImportError:
     pass
 
@@ -18,15 +18,16 @@ class noise_model(object):
     noise_dict : dictionary
         Contains the desired parameters for the noise model.
 
-    spectrum : array_like
-        The spectral data to which the calibration model is applied.
+    galaxy : bagpipes.galaxy
+        The galaxy object being fitted.
 
     spectral_model : array_like
         The physical model which is being fitted to the data.
     """
 
-    def __init__(self, noise_dict, spectrum, spectral_model):
+    def __init__(self, noise_dict, galaxy, spectral_model):
         self.param = noise_dict
+        spectrum = np.copy(galaxy.spectrum)
 
         self.max_y = np.max(spectrum[:, 1])
 

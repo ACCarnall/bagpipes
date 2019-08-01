@@ -1,6 +1,7 @@
 from __future__ import print_function, division, absolute_import
 
 import numpy as np
+import warnings
 
 from .. import utils
 from .. import config
@@ -53,9 +54,6 @@ class model_galaxy(object):
 
     def __init__(self, model_components, filt_list=None, spec_wavs=None,
                  spec_units="ergscma", phot_units="ergscma", index_list=None):
-
-        #if filt_list is None and spec_wavs is None:
-        #    raise ValueError("Please specify either spec_wavs or filt_list.")
 
         if (spec_wavs is not None) and (index_list is not None):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
@@ -217,6 +215,10 @@ class model_galaxy(object):
 
         # If the SFH is unphysical do not caclulate the full spectrum
         if self.sfh.unphysical:
+            warnings.warn("The requested model includes stars which formed "
+                          "before the Big Bang, no spectrum generated.",
+                          RuntimeWarning)
+
             self.spectrum_full = np.zeros_like(self.wavelengths)
             self.uvj = np.zeros(3)
 

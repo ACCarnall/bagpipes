@@ -6,18 +6,16 @@ import os
 
 from astropy.io import fits
 
-from ... import utils
-
 """ This code is called once when Bagpipes is first installed in order
 to generate the IGM absorption table which is subsequently used for
 all IGM calculations. """
 
-coefs = np.loadtxt(utils.grid_dir
-                   + "/lyman_series_coefs_inoue_2014_table2.txt")
+path = os.path.dirname(os.path.realpath(__file__)) + "/../grids"
+coefs = np.loadtxt(path + "/lyman_series_coefs_inoue_2014_table2.txt")
 
 
 def get_Inoue14_trans(rest_wavs, z_obs):
-    """ Calculate IGM transmission using witchcraft. """
+    """ Calculate IGM transmission using Inoue et al. (2014) model. """
 
     if isinstance(rest_wavs, float):
         rest_wavs = np.array([rest_wavs])
@@ -216,29 +214,25 @@ def get_Inoue14_trans(rest_wavs, z_obs):
     return np.exp(-tau)
 
 
-def make_table():
+def make_table(z_array, rest_wavs):
     """ Make up the igm absorption table used by bagpipes. """
 
-    print("BAGPIPES: Generating IGM absorption table, this may take a few "
-          + "moments the first time you run the code.")
-
-    z_array = np.arange(0.0, 10.01, 0.01)
-
-    rest_wavs = np.arange(1.0, 1225.01, 1.0)
+    print("BAGPIPES: Generating IGM absorption table.")
 
     d_IGM_grid = np.zeros((z_array.shape[0], rest_wavs.shape[0]))
 
     for i in range(z_array.shape[0]):
         d_IGM_grid[i, :] = get_Inoue14_trans(rest_wavs, z_array[i])
 
-    hdulist_igm = fits.HDUList(hdus=[fits.PrimaryHDU(),
-                               fits.ImageHDU(name="igm_table",
-                               data=d_IGM_grid)])
+    hdulist = fits.HDUList(hdus=[fits.PrimaryHDU(),
+                                 fits.ImageHDU(name="trans", data=d_IGM_grid),
+                                 fits.ImageHDU(name="wavs", data=rest_wavs),
+                                 fits.ImageHDU(name="zred", data=z_array)])
 
-    if os.path.exists(utils.grid_dir + "/d_igm_grid_inoue14.fits"):
-        os.system("rm " + utils.grid_dir + "/d_igm_grid_inoue14.fits")
+    if os.path.exists(path + "/d_igm_grid_inoue14.fits"):
+        os.system("rm " + path + "/d_igm_grid_inoue14.fits")
 
-    hdulist_igm.writeto(utils.grid_dir + "/d_igm_grid_inoue14.fits")
+    hdulist.writeto(path + "/d_igm_grid_inoue14.fits")
 
 
 def test():

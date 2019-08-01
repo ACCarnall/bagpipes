@@ -49,19 +49,26 @@ class posterior(object):
         # 2D array of samples for the fitted parameters only.
         self.samples2d = dd.io.load(fname, group="/samples2d")
 
+        # If fewer than n_samples exist in posterior, reduce n_samples
         if self.samples2d.shape[0] < self.n_samples:
             self.n_samples = self.samples2d.shape[0]
 
+        # Randomly choose points to generate posterior quantities
+        self.indices = np.random.choice(self.samples2d.shape[0],
+                                        size=self.n_samples, replace=False)
+
         self.samples = {}  # Store all posterior samples
 
+        # Add 1D posteriors for fitted params to the samples dictionary
         for i in range(self.fitted_model.ndim):
-            self.samples[self.fitted_model.params[i]] = self.samples2d[:, i]
+            param_name = self.fitted_model.params[i]
+            self.samples[param_name] = self.samples2d[self.indices, i]
 
         self.get_basic_quantities()
 
     def get_basic_quantities(self):
-        """Calculates basic derived posterior quantities, these are fast
-        as they are derived only from the star-formation history """
+        """Calculates basic posterior quantities, these are fast as they
+        are derived only from the SFH model, not the spectral model. """
 
         if "stellar_mass" in list(self.samples):
             return
@@ -81,7 +88,8 @@ class posterior(object):
         quantity_names += ["sfh"]
 
         for i in range(self.n_samples):
-            self.fitted_model._update_model_components(self.samples2d[i, :])
+            param = self.samples2d[self.indices[i], :]
+            self.fitted_model._update_model_components(param)
             self.sfh.update(self.fitted_model.model_components)
 
             for q in quantity_names:
@@ -121,8 +129,9 @@ class posterior(object):
                 self.samples["noise"] = np.zeros((self.n_samples, size))
 
         for i in range(self.n_samples):
-            self.fitted_model._update_model_components(self.samples2d[i, :])
-            self.fitted_model.lnlike(self.samples2d[i, :])
+            param = self.samples2d[self.indices[i], :]
+            self.fitted_model._update_model_components(param)
+            self.fitted_model.lnlike(param)
 
             if "calib" in list(self.fitted_model.model_components):
                 self.samples["calib"][i] = self.fitted_model.calib.model

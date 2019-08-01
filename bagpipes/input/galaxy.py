@@ -69,12 +69,14 @@ class galaxy:
         Observed redshift for this galaxy. This is only ever used if the
         user requests the code to calculate spectral indices from the
         observed spectrum.
+
+
     """
 
     def __init__(self, ID, load_data, spec_units="ergscma", phot_units="mujy",
                  spectrum_exists=True, photometry_exists=True, filt_list=None,
                  out_units="ergscma", load_indices=None, index_list=None,
-                 index_redshift=None):
+                 index_redshift=None, input_spec_cov_matrix=False):
 
         self.ID = str(ID)
         self.phot_units = phot_units
@@ -87,22 +89,42 @@ class galaxy:
         self.index_list = index_list
         self.index_redshift = index_redshift
 
-        if not spectrum_exists and not photometry_exists:
-            sys.exit("Bagpipes: Object must have at least some data.")
+        # Attempt to load the data from the load_data function.
+        try:
+            if not spectrum_exists and not photometry_exists:
+                raise ValueError("Bagpipes: Object must have some data.")
 
-        elif spectrum_exists and not photometry_exists:
-            self.spectrum = load_data(self.ID)
-            self.spec_wavs = self.spectrum[:, 0]
+            elif spectrum_exists and not photometry_exists:
+                self.spectrum = load_data(self.ID)
 
-        elif photometry_exists and not spectrum_exists:
-            phot_nowavs = load_data(self.ID)
+            elif photometry_exists and not spectrum_exists:
+                phot_nowavs = load_data(self.ID)
 
-        else:
-            self.spectrum, phot_nowavs = load_data(self.ID)
+            else:
+                self.spectrum, phot_nowavs = load_data(self.ID)
 
-        if photometry_exists:
+        except ValueError:
+                print("load_data did not return expected outputs, did you "
+                      "remember to set photometry_exists/spectrum_exists to "
+                      "false?")
+                raise
+
+        # If photometry is provided, add filter effective wavelengths to array
+        if self.photometry_exists:
             self.filter_set = filters.filter_set(filt_list)
             self.photometry = np.c_[self.filter_set.eff_wavs, phot_nowavs]
+
+        # Perform setup in the case of separate covariance matrix for spectrum
+        if input_spec_cov_matrix:
+            self.spec_cov = self.spectrum[1]
+            self.spectrum = np.c_[self.spectrum[0],
+                                  np.sqrt(np.diagonal(self.spec_cov))]
+
+            self.spec_cov_inv = np.linalg.inv(self.spec_cov)
+            # self.spec_cov_det = np.linalg.det(self.spec_cov)
+
+        else:
+            self.spec_cov = None
 
         # Perform any unit conversions.
         self._convert_units()
@@ -110,6 +132,7 @@ class galaxy:
         # Mask the regions of the spectrum specified in masks/[ID].mask
         if self.spectrum_exists:
             self.spectrum = self._mask(self.spectrum)
+            self.spec_wavs = self.spectrum[:, 0]
 
             # Remove points at the edges of the spectrum with zero flux.
             startn = 0
@@ -155,9 +178,15 @@ class galaxy:
                     self.spectrum[:, 1] /= conversion
                     self.spectrum[:, 2] /= conversion
 
+                    if self.spec_cov is not None:
+                        self.spec_cov /= conversion
+
                 elif spec_units == "mujy":
                     self.spectrum[:, 1] *= conversion
                     self.spectrum[:, 2] *= conversion
+
+                    if self.spec_cov is not None:
+                        self.spec_cov *= conversion
 
         if self.photometry_exists:
             conversion = 10**-29*2.9979*10**18/self.photometry[:, 0]**2
@@ -176,6 +205,10 @@ class galaxy:
 
         if not os.path.exists("masks/" + self.ID + "_mask"):
             return spec
+
+        if self.spec_cov is not None:
+            raise ValueError("Automatic masking not supported where covariance"
+                             " matrix is specified, please do this manually.")
 
         mask = np.loadtxt("masks/" + self.ID + "_mask")
         if len(mask.shape) == 1:

@@ -186,24 +186,38 @@ class fitted_model(object):
         else:
             model = self.model_galaxy.spectrum[:, 1]
 
+        # Calculate differences between model and observed spectrum
         diff = (self.galaxy.spectrum[:, 1] - model)
 
         if "noise" in list(self.fit_instructions):
-            self.noise = noise_model(self.model_components["noise"],
-                                     self.galaxy.spectrum, model)
-        else:
-            self.noise = noise_model({}, self.galaxy.spectrum, model)
+            if self.galaxy.spec_cov is not None:
+                raise ValueError("Noise modelling is not currently supported "
+                                 "with manually specified covariance matrix.")
 
+            self.noise = noise_model(self.model_components["noise"],
+                                     self.galaxy, model)
+        else:
+            self.noise = noise_model({}, self.galaxy, model)
+
+        #
         if self.noise.corellated:
             lnlike_spec = self.noise.gp.lnlikelihood(self.noise.diff)
 
             return lnlike_spec
 
         else:
-            self.chisq_spec = np.sum(self.noise.inv_var*diff**2)
-            self.K_spec = np.sum(np.log(self.noise.inv_var))
+            # Allow for calculation of chi-squared with direct input
+            # covariance matrix - experimental!
+            if self.galaxy.spec_cov is not None:
+                diff_cov = np.dot(diff.T, self.galaxy.spec_cov_inv)
+                self.chisq_spec = np.dot(diff_cov, diff)
 
-            return self.K_spec - 0.5*self.chisq_spec
+                return -0.5*self.chisq_spec
+
+            self.chisq_spec = np.sum(self.noise.inv_var*diff**2)
+            # self.K_spec = -0.5*np.sum(np.log(2*np.pi*self.noise.inv_var))
+
+            return -0.5*self.chisq_spec
 
     def _lnlike_indices(self):
         """ Calculates the log-likelihood for spectral indices. """

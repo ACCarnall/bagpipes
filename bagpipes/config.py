@@ -147,15 +147,24 @@ except IOError:
 """ These variables tell the code where to find the raw IGM attenuation
 models, as well as some of their basic properties. """
 
-# If the IGM grid has not yet been calculated, calculate it now.
-if not os.path.exists(grid_dir + "/d_igm_grid_inoue14.fits"):
-    igm_inoue2014.make_table()
-
 # Redshift points for the IGM grid.
-igm_redshifts = np.arange(0.0, 10.01, 0.01)
+igm_redshifts = np.arange(0.0, max_redshift + 0.01, 0.01)
 
 # Wavelength points for the IGM grid.
 igm_wavelengths = np.arange(1.0, 1225.01, 1.0)
+
+# If the IGM grid has not yet been calculated, calculate it now.
+if not os.path.exists(grid_dir + "/d_igm_grid_inoue14.fits"):
+    igm_inoue2014.make_table(igm_redshifts, igm_wavelengths)
+
+else:
+    # Check that the wavelengths and redshifts in the igm file are right
+    igm_file = fits.open(grid_dir + "/d_igm_grid_inoue14.fits")
+    wav_check = np.min(igm_file[2].data == igm_wavelengths)
+    z_check = np.min(igm_file[3].data == igm_redshifts)
+
+    if not wav_check or not z_check:
+        igm_inoue2014.make_table(igm_redshifts, igm_wavelengths)
 
 # 2D numpy array containing the IGM attenuation grid.
 raw_igm_grid = fits.open(grid_dir + "/d_igm_grid_inoue14.fits")[1].data
