@@ -160,11 +160,16 @@ if not os.path.exists(grid_dir + "/d_igm_grid_inoue14.fits"):
 else:
     # Check that the wavelengths and redshifts in the igm file are right
     igm_file = fits.open(grid_dir + "/d_igm_grid_inoue14.fits")
-    wav_check = np.min(igm_file[2].data == igm_wavelengths)
-    z_check = np.min(igm_file[3].data == igm_redshifts)
 
-    if not wav_check or not z_check:
+    if len(igm_file) != 4:
         igm_inoue2014.make_table(igm_redshifts, igm_wavelengths)
+
+    else:
+        wav_check = np.min(igm_file[2].data == igm_wavelengths)
+        z_check = np.min(igm_file[3].data == igm_redshifts)
+
+        if not wav_check or not z_check:
+            igm_inoue2014.make_table(igm_redshifts, igm_wavelengths)
 
 # 2D numpy array containing the IGM attenuation grid.
 raw_igm_grid = fits.open(grid_dir + "/d_igm_grid_inoue14.fits")[1].data

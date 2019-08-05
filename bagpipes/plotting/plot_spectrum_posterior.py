@@ -64,10 +64,14 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
     spec_post = np.percentile(fit.posterior.samples["spectrum_full"],
                               (16, 84), axis=0).T*10**-y_scale
 
+    spec_post = spec_post.astype(float) #fixes weird isfinite error
+
     ax.plot(log_wavs, spec_post[:, 0], color="navajowhite", zorder=zorder-1)
     ax.plot(log_wavs, spec_post[:, 1], color="navajowhite", zorder=zorder-1)
+
     ax.fill_between(log_wavs, spec_post[:, 0], spec_post[:, 1],
                     zorder=zorder-1, color="navajowhite", linewidth=0)
+
 
     phot_post = np.percentile(fit.posterior.samples["photometry"],
                               (16, 84), axis=0).T

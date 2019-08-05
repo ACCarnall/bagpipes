@@ -28,14 +28,15 @@ def merge(run, mode="merge"):
     for file in files:
         while True:
             try:
-                cats.append(pd.read_table(file, delimiter="\t",
+                cats.append(pd.read_csv(file, delimiter="\t",
                                           names=header, skiprows=1))
 
                 if isinstance(cats[-1].loc[0, "#ID"], float):
                     m = np.invert(np.isnan(cats[-1].loc[:, "#ID"]))
                     cats[-1].loc[m, "#ID"] = cats[-1].loc[m, "#ID"].astype(int)
+                    cats[-1].loc[m, "#ID"] = cats[-1].loc[m, "#ID"].astype(str)
 
-                cats[-1].index = cats[-1]["#ID"].astype(str)
+                cats[-1].index = cats[-1]["#ID"]
                 break
 
             except ValueError:
@@ -45,12 +46,15 @@ def merge(run, mode="merge"):
     all_IDs = np.loadtxt("pipes/cats/" + run + "/IDs", dtype=str)
 
     finalcat = pd.concat(cats)
+    finalcat.loc[:, "#ID"] = finalcat.loc[:, "#ID"].astype(str)
     finalcat = finalcat.groupby(finalcat["#ID"].isnull()).get_group(False)
     finalcat = finalcat.drop_duplicates(subset="#ID")
     finalcat.to_csv("pipes/cats/" + run + ".cat", sep="\t", index=False)
 
     # If mode is clean, remove all of the separate input catalogues
     if mode == "clean":
+
+        # Delete separate input catalogues
         for file in files:
             call(["rm",  file])
 
@@ -62,19 +66,21 @@ def merge(run, mode="merge"):
         len_start = len("pipes/cats/" + run + "/")
         lock_files = glob.glob("pipes/cats/" + run + "/*.lock")
 
-        # Delete all output files and lock files for these objects
+        # Delete all output files and lock files for unfinished objects
         for lock_file in lock_files:
             ID = lock_file[len_start:-5]
+            obj_path = "pipes/posterior/" + run + "/" + ID
 
-            if ID not in finalcat.loc[:, "#ID"]:
-
+            if not np.isin(ID, finalcat.loc[:, "#ID"]):
                 remove = [lock_file]
-                remove += glob.glob("pipes/posterior/" + run + "/" + ID + "*")
+                remove += glob.glob(obj_path + "*.txt")
+                remove += glob.glob(obj_path + "*.dat")
+                remove += glob.glob(obj_path + "*.points")
 
                 for file in remove:
                     call(["rm", file])
 
-    # Print what has been done
+    # Print an update about the number of fitted objects
     print("Bagpipes:", finalcat.shape[0], "out of",
           all_IDs.shape[0], "objects completed.")
 
