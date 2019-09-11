@@ -193,8 +193,8 @@ class galaxy:
 
             if not self.phot_units == self.out_units:
                 if self.phot_units == "ergscma":
-                    self.spectrum[:, 1] /= conversion
-                    self.spectrum[:, 2] /= conversion
+                    self.photometry[:, 1] /= conversion
+                    self.photometry[:, 2] /= conversion
 
                 elif self.phot_units == "mujy":
                     self.photometry[:, 1] *= conversion

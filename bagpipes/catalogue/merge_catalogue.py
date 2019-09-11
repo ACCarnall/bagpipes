@@ -29,12 +29,14 @@ def merge(run, mode="merge"):
         while True:
             try:
                 cats.append(pd.read_csv(file, delimiter="\t",
-                                          names=header, skiprows=1))
+                                        names=header, skiprows=1))
+
+                nan_mask = cats[-1]["#ID"].isnull()
+                cats[-1] = cats[-1].groupby(nan_mask).get_group(False)
 
                 if isinstance(cats[-1].loc[0, "#ID"], float):
-                    m = np.invert(np.isnan(cats[-1].loc[:, "#ID"]))
-                    cats[-1].loc[m, "#ID"] = cats[-1].loc[m, "#ID"].astype(int)
-                    cats[-1].loc[m, "#ID"] = cats[-1].loc[m, "#ID"].astype(str)
+                    cats[-1]["#ID"] = cats[-1]["#ID"].astype(int)
+                    cats[-1]["#ID"] = cats[-1]["#ID"].astype(str)
 
                 cats[-1].index = cats[-1]["#ID"]
                 break
@@ -46,8 +48,6 @@ def merge(run, mode="merge"):
     all_IDs = np.loadtxt("pipes/cats/" + run + "/IDs", dtype=str)
 
     finalcat = pd.concat(cats)
-    finalcat.loc[:, "#ID"] = finalcat.loc[:, "#ID"].astype(str)
-    finalcat = finalcat.groupby(finalcat["#ID"].isnull()).get_group(False)
     finalcat = finalcat.drop_duplicates(subset="#ID")
     finalcat.to_csv("pipes/cats/" + run + ".cat", sep="\t", index=False)
 
@@ -62,23 +62,18 @@ def merge(run, mode="merge"):
         finalcat.to_csv("pipes/cats/" + run + "/" + run + ".txt_clean",
                         sep="\t", index=False)
 
-        # Get list of lock files
-        len_start = len("pipes/cats/" + run + "/")
-        lock_files = glob.glob("pipes/cats/" + run + "/*.lock")
-
-        # Delete all output files and lock files for unfinished objects
-        for lock_file in lock_files:
-            ID = lock_file[len_start:-5]
+        for ID in all_IDs:
             obj_path = "pipes/posterior/" + run + "/" + ID
+            remove = glob.glob("pipes/cats/" + run + "/" + ID + ".lock")
+            remove += glob.glob(obj_path + "*.txt")
+            remove += glob.glob(obj_path + "*.dat")
+            remove += glob.glob(obj_path + "*.points")
 
-            if not np.isin(ID, finalcat.loc[:, "#ID"]):
-                remove = [lock_file]
-                remove += glob.glob(obj_path + "*.txt")
-                remove += glob.glob(obj_path + "*.dat")
-                remove += glob.glob(obj_path + "*.points")
+            for file in remove:
+                call(["rm", file])
 
-                for file in remove:
-                    call(["rm", file])
+            if os.path.exists(obj_path + ".h5"):
+                os.system("touch pipes/cats/" + run + "/" + ID + ".lock")
 
     # Print an update about the number of fitted objects
     print("Bagpipes:", finalcat.shape[0], "out of",

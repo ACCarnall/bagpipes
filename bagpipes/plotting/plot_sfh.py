@@ -36,12 +36,13 @@ def plot_sfh(sfh, show=True, save=False):
     return fig, ax
 
 
-def add_sfh(sfh, ax, zorder=4, color="black", z_axis=True):
+def add_sfh(sfh, ax, zorder=4, color="black", z_axis=True, lw=2,
+            zvals=[0, 0.5, 1, 2, 4, 10]):
     """ Creates a plot of sfr(t) for a given star-formation history. """
 
     # Plot the sfh
     ax.plot((sfh.age_of_universe - sfh.ages)*10**-9, sfh.sfh,
-            color=color, zorder=zorder)
+            color=color, zorder=zorder, lw=lw)
 
     # Set limits
     ax.set_xlim(sfh.age_of_universe*10**-9, 0.)
@@ -49,7 +50,7 @@ def add_sfh(sfh, ax, zorder=4, color="black", z_axis=True):
 
     # Add redshift axis along the top
     if z_axis:
-        add_z_axis(ax)
+        add_z_axis(ax, zvals=zvals)
 
     # Add labels
     if tex_on:

@@ -52,9 +52,14 @@ class fit(object):
     time_calls : bool - optional
         Whether to print information on the average time taken for
         likelihood calls.
+
+    n_posterior : int - optional
+        How many equally weighted samples should be generated from the
+        posterior once fitting is complete. Default is 500.
     """
 
-    def __init__(self, galaxy, fit_instructions, run=".", time_calls=False):
+    def __init__(self, galaxy, fit_instructions, run=".", time_calls=False,
+                 n_posterior=500):
 
         self.run = run
         self.galaxy = galaxy
@@ -73,7 +78,8 @@ class fit(object):
         # If a posterior file already exists load it.
         if os.path.exists(self.fname[:-1] + ".h5"):
             self.results = dd.io.load(self.fname[:-1] + ".h5")
-            self.posterior = posterior(self.galaxy, run=run)
+            self.posterior = posterior(self.galaxy, run=run,
+                                       n_samples=n_posterior)
             self.fit_instructions = dd.io.load(self.fname[:-1] + ".h5",
                                                group="/fit_instructions")
 

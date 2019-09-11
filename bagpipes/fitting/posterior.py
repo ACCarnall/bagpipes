@@ -118,6 +118,9 @@ class posterior(object):
             size = getattr(self.model_galaxy, q).shape[0]
             self.samples[q] = np.zeros((self.n_samples, size))
 
+        if self.galaxy.photometry_exists:
+            self.samples["chisq_phot"] = np.zeros(self.n_samples)
+
         if "calib" in list(self.fitted_model.model_components):
             size = self.model_galaxy.spectrum.shape[0]
             self.samples["calib"] = np.zeros((self.n_samples, size))
@@ -132,6 +135,9 @@ class posterior(object):
             param = self.samples2d[self.indices[i], :]
             self.fitted_model._update_model_components(param)
             self.fitted_model.lnlike(param)
+
+            if self.galaxy.photometry_exists:
+                self.samples["chisq_phot"][i] = self.fitted_model.chisq_phot
 
             if "calib" in list(self.fitted_model.model_components):
                 self.samples["calib"][i] = self.fitted_model.calib.model
@@ -148,3 +154,5 @@ class posterior(object):
                     continue
 
                 self.samples[q][i] = getattr(self.fitted_model.model_galaxy, q)
+
+            self.samples["chisq_phot"][i]

@@ -7,9 +7,15 @@ from .. import config
 
 class dust_attenuation(object):
     """ Allows access to and maniuplation of dust attenuation models.
-    Three options are currently implemented as described in Carnall et
-    al. (2018): Calzetti et al. (2000), Cardelli et al. (1989) and a
-    model based on Charlot + Fall (2000).
+    This class calculates the absolute attenuation curve (A_lam/A_V)
+    for the specified model. Some curves have fixed shapes, so they are
+    pre-calculated when an instance is created, other curves have to be
+    re-computed when the parameters are changed. The model_galaxy class
+    uses the curves calculated to attenuate spectra, including dealing
+    with different levels of attenution for birth clouds.
+
+    The option for separate dust curve shapes for the general ISM and
+    for birth clouds has not yet been implemented.
 
     Parameters
     ----------
@@ -18,39 +24,65 @@ class dust_attenuation(object):
         1D array of wavelength values for the continuum.
 
     type : str
-        The type of dust model, either "Calzetti", "Cardelli" or "CF00".
+        The type of dust model.
     """
 
-    def __init__(self, wavelengths, type="Calzetti"):
+    def __init__(self, wavelengths, param):
         self.wavelengths = wavelengths
-        self.type = type
+        self.type = param["type"]
 
-        # Calculate A(lambda)/A(V) for the continuum and emission lines
-        if type == "Calzetti":
-            self.A_continuum = self._calzetti_attenuation(wavelengths)
-            self.A_lines = self._calzetti_attenuation(config.line_wavs)
+        # Pre-compute dust curve shape if fixed for the chosen model.
+        if self.type == "Calzetti":
+            self.A_cont = self._calzetti(wavelengths)
+            self.A_line = self._calzetti(config.line_wavs)
 
-        if type == "Cardelli":
-            self.A_continuum = self._cardelli_extinction(wavelengths)
-            self.A_lines = self._cardelli_extinction(config.line_wavs)
+        elif self.type == "Cardelli":
+            self.A_cont = self._cardelli(wavelengths)
+            self.A_line = self._cardelli(config.line_wavs)
 
-        if type == "CF00":
-            self.A_continuum = self._cf00_attenuation(wavelengths)
-            self.A_lines = self._cf00_attenuation(config.line_wavs)
+        # If Salim dust is selected, pre-compute Calzetti to start from.
+        elif self.type == "Salim":
+            self.A_cont_calz = self._calzetti(wavelengths)
+            self.A_line_calz = self._calzetti(config.line_wavs)
 
-    def trans(self, Av, n=1):
-        """ Return transmission as a function of wavelength for the
-        continuum wavelengths as a function of Av and (maybe) n. """
+        # Call update method (does nothing for Calzetti and Cardelli)
+        self.update(param)
 
-        return 10**(-Av*self.A_continuum**n/2.5)
+    def update(self, param):
 
-    def line_trans(self, Av, n=1):
-        """ Return transmission as a function of wavelength for the
-        emission line wavelengths as a function of Av and (maybe) n. """
+        # Fixed-shape dust laws are pre-computed in __init__.
+        if (self.type == "Calzetti") or (self.type == "Cardelli"):
+            return
 
-        return 10**(-Av*self.A_lines**n/2.5)
+        # Variable shape dust laws have to be computed every time.
+        self.A_cont, self.A_line = getattr(self, self.type)(param)
 
-    def _cardelli_extinction(self, wavs):
+    def CF00(self, param):
+        """ Modified Charlot + Fall (2000) model of Carnall et al.
+        (2018) and Carnall et al. (2019). """
+        A_cont = (5500./self.wavelengths)**param["n"]
+        A_line = (5500./config.line_wavs)**param["n"]
+
+        return A_cont, A_line
+
+    def Salim(self, param):
+        delta = param["delta"]
+        B = param["B"]
+        Rv_m = 4.05/((4.05+1)*(4400./5500.)**delta - 4.05)
+
+        drude = B*self.wavelengths**2*350.**2
+        drude /= (self.wavelengths**2 - 2175.**2)**2 + self.wavelengths**2*375.**2
+        A_cont = self.A_cont_calz*Rv_m*(self.wavelengths/5500.)**delta + drude
+        A_cont /= Rv_m
+
+        drude = B*config.line_wavs**2*350.**2
+        drude /= (config.line_wavs**2 - 2175.**2)**2 + config.line_wavs**2*375.**2
+        A_line = self.A_line_calz*Rv_m*(config.line_wavs/5500.)**delta + drude
+        A_line /= Rv_m
+
+        return A_cont, A_line
+
+    def _cardelli(self, wavs):
         """ Calculate the ratio A(lambda)/A(V) for the Cardelli et al.
         (1989) extinction curve. """
 
@@ -101,7 +133,7 @@ class dust_attenuation(object):
 
         return A_lambda
 
-    def _calzetti_attenuation(self, wavs):
+    def _calzetti(self, wavs):
         """ Calculate the ratio A(lambda)/A(V) for the Calzetti et al.
         (2000) attenuation curve. """
 
@@ -125,11 +157,3 @@ class dust_attenuation(object):
         A_lambda[mask3] = 2.659*(-1.857 + 1.040/wavs_mic[mask3]) + 4.05
 
         return A_lambda/4.05
-
-    def _cf00_attenuation(self, wavs):
-        """ Calculate the ratio A(lambda)/A(V) for the model based on
-        Charlot + Fall (2000) described in Carnall et al. (2018). This
-        will be raised to some power when the transmission values are
-        requested to produce a variable-slope dust curve. """
-
-        return 5500./wavs

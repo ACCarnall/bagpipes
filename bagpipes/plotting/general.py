@@ -57,7 +57,8 @@ latex_names = {"redshift": "z",
                "tau_q": "\\tau_\\mathrm{quench}",
                "length": "l",
                "norm": "n",
-               "scaling": "s"}
+               "scaling": "s",
+               "t_bc": "t_{BC}"}
 
 latex_units = {"metallicity": "Z_{\\odot}",
                "massformed": "M_{\\odot})}",
@@ -74,7 +75,8 @@ latex_units = {"metallicity": "Z_{\\odot}",
                "mass_weighted_age": "\\mathrm{Gyr}",
                "tform": "\\mathrm{Gyr}",
                "tau_q": "\\mathrm{Gyr}",
-               "tquench": "\\mathrm{Gyr}"}
+               "tquench": "\\mathrm{Gyr}",
+               "t_bc": "\\mathrm{Gyr}"}
 
 latex_comps = {"dblplaw": "dpl",
                "exponential": "exp",

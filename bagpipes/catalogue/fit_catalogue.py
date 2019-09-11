@@ -85,12 +85,21 @@ class fit_catalogue(object):
     time_calls : bool - optional
         Whether to print information on the average time taken for
         likelihood calls.
+
+    n_posterior : int - optional
+        How many equally weighted samples should be generated from the
+        posterior once fitting is complete for each object. Default 500.
+
+    full_catalogue : bool - optional
+        Should "best" chi-squared values and rest-frame UVJ mags be
+        added to the output catalogue, takes extra time, default False.
     """
 
     def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
                  photometry_exists=True, make_plots=False, cat_filt_list=None,
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
-                 run=".", analysis_function=None, time_calls=False):
+                 run=".", analysis_function=None, time_calls=False,
+                 n_posterior=500, full_catalogue=False):
 
         self.IDs = np.array(IDs).astype(str)
         self.fit_instructions = fit_instructions
@@ -105,7 +114,8 @@ class fit_catalogue(object):
         self.run = run
         self.analysis_function = analysis_function
         self.time_calls = time_calls
-
+        self.n_posterior = n_posterior
+        self.full_catalogue = full_catalogue
         self.n_objects = len(self.IDs)
 
         if rank == 0:
@@ -165,18 +175,36 @@ class fit_catalogue(object):
 
                 outcat.loc[n, "#ID"] = self.galaxy.ID
 
+                if self.full_catalogue:
+                    self.fit.posterior.get_advanced_quantities()
+
                 samples = self.fit.posterior.samples
 
                 for v in self.vars:
-                    outcat.loc[n, v + "_16"] = np.percentile(samples[v], 16)
-                    outcat.loc[n, v + "_50"] = np.percentile(samples[v], 50)
-                    outcat.loc[n, v + "_84"] = np.percentile(samples[v], 84)
+
+                    if v is "UV_colour":
+                        values = samples["uvj"][:, 0] - samples["uvj"][:, 1]
+
+                    elif v is "VJ_colour":
+                        values = samples["uvj"][:, 1] - samples["uvj"][:, 2]
+
+                    else:
+                        values = samples[v]
+
+                    outcat.loc[n, v + "_16"] = np.percentile(values, 16)
+                    outcat.loc[n, v + "_50"] = np.percentile(values, 50)
+                    outcat.loc[n, v + "_84"] = np.percentile(values, 84)
 
                 if self.redshifts is not None:
                     outcat.loc[n, "input_redshift"] = self.redshifts[i]
 
                 outcat.loc[n, "log_evidence"] = self.fit.results["lnz"]
                 outcat.loc[n, "log_evidence_err"] = self.fit.results["lnz_err"]
+
+                if self.full_catalogue and self.photometry_exists:
+                    outcat.loc[n, "chisq_phot"] = np.min(samples["chisq_phot"])
+                    n_bands = np.sum(self.galaxy.photometry[:, 1] != 0.)
+                    outcat.loc[n, "n_bands"] = n_bands
 
                 # Check to see if the kill switch has been set
                 if os.path.exists("pipes/cats/" + self.run + "/kill"):
@@ -235,7 +263,8 @@ class fit_catalogue(object):
 
         # Fit the object
         self.fit = fit(self.galaxy, self.fit_instructions, run=self.run,
-                       time_calls=self.time_calls)
+                       time_calls=self.time_calls,
+                       n_posterior=self.n_posterior)
 
         self.fit.fit(verbose=verbose, n_live=n_live)
 
@@ -260,11 +289,17 @@ class fit_catalogue(object):
         self.vars += ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
                       "mass_weighted_age", "tform", "tquench"]
 
+        if self.full_catalogue:
+            self.vars += ["UV_colour", "VJ_colour"]
+
         cols = ["#ID"]
         for var in self.vars:
             cols += [var + "_16", var + "_50", var + "_84"]
 
         cols += ["input_redshift", "log_evidence", "log_evidence_err"]
+
+        if self.full_catalogue and self.photometry_exists:
+            cols += ["chisq_phot", "n_bands"]
 
         outcat = pd.DataFrame(np.zeros((10, len(cols))), columns=cols)
         outcat.loc[:, "#ID"] = np.nan
