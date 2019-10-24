@@ -173,8 +173,6 @@ class model_galaxy(object):
         """ Generate an appropriate spec_wavs array for covering the
         spectral indices specified in index_list. """
 
-        redshift = (1. + model_components["redshift"])
-
         min = 9.9*10**99
         max = 0.
 
@@ -201,9 +199,9 @@ class model_galaxy(object):
 
         min = np.round(0.95*min, 2)
         max = np.round(1.05*max, 2)
-        sampling = np.round(np.mean([min, max])/config.R_spec/2., 2)
+        sampling = np.round(np.mean([min, max])/5000., 2)
 
-        return np.arange(min, max, sampling)*redshift
+        return np.arange(min, max*(1. + config.max_redshift), sampling)
 
     def update(self, model_components):
         """ Update the model outputs to reflect new parameter values in
