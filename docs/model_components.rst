@@ -88,15 +88,21 @@ Dust attenuation and emission component
 
 The dust component governs attenuation and emission processes due to dust. Energy balance is assumed, such that all attenuated light is re-radiated.
 
-Three dust attenuation models are implemented in Bagpipes, the Calzetti et al. (2000) model, the Cardelli et al. (1989) model and a model based on Charlot & Fall (2001). The dust emission models come from Draine + Li (2007).
+Three dust attenuation models are implemented in Bagpipes, the Calzetti et al. (2000) model, the Cardelli et al. (1989) model, a model based on Charlot & Fall (2001) and the model of Salim et al. (2018). The dust emission models come from Draine + Li (2007).
 
 .. code:: python
 
 	dust = {}
-	dust["type"] = "Calzetti"  # Attenuation law: "Calzetti", "Cardelli" or "CF00"
+	dust["type"] = mandatory   # Attenuation law: "Calzetti", "Cardelli", "CF00" or "Salim"
 	dust["Av"] = mandatory     # Absolute attenuation in the V band: magnitudes
 	dust["eta"] = 1.           # Multiplicative factor on Av for stars in birth clouds
+
 	dust["n"] = 1.             # Power-law slope of attenuation law ("CF00" only)
+
+	dust["delta"] = 0.         # Deviation from Calzetti slope ("Salim" only)
+	dust["B"] = 0.             # 2175A bump strength ("Salim" only)
+
+	# Dust emission parameters
 	dust["qpah"] = 2.          # PAH mass fraction
 	dust["umin"] = 1.          # Lower limit of starlight intensity distribution
 	dust["gamma"] = 0.01       # Fraction of stars at umin

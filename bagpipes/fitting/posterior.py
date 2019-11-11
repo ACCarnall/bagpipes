@@ -154,5 +154,3 @@ class posterior(object):
                     continue
 
                 self.samples[q][i] = getattr(self.fitted_model.model_galaxy, q)
-
-            self.samples["chisq_phot"][i]

@@ -83,14 +83,14 @@ class fit(object):
             self.fit_instructions = dd.io.load(self.fname[:-1] + ".h5",
                                                group="/fit_instructions")
 
-            if  rank == 0:
+            if rank == 0:
                 print("\nResults loaded from " + self.fname[:-1] + ".h5\n")
 
         # Set up the model which is to be fitted to the data.
         self.fitted_model = fitted_model(galaxy, self.fit_instructions,
                                          time_calls=time_calls)
 
-    def fit(self, verbose=False, n_live=400):
+    def fit(self, verbose=False, n_live=400, mpi_off=False):
         """ Fit the specified model to the input galaxy data.
 
         Parameters
@@ -112,7 +112,7 @@ class fit(object):
 
             return
 
-        if rank == 0:
+        if rank == 0 or mpi_off:
             print("\nBagpipes: fitting object " + self.galaxy.ID + "\n")
 
             start_time = time.time()
@@ -123,9 +123,10 @@ class fit(object):
                     self.fitted_model.prior.transform,
                     self.fitted_model.ndim, importance_nested_sampling=False,
                     verbose=verbose, sampling_efficiency="model",
-                    n_live_points=n_live, outputfiles_basename=self.fname)
+                    n_live_points=n_live, outputfiles_basename=self.fname,
+                    mpi_off=mpi_off)
 
-        if rank == 0:
+        if rank == 0 or mpi_off:
             runtime = time.time() - start_time
 
             print("\nCompleted in " + str("%.1f" % runtime) + " seconds.\n")
@@ -153,7 +154,6 @@ class fit(object):
 
             # Create a posterior object to hold the results of the fit.
             self.posterior = posterior(self.galaxy, run=self.run)
-
 
     def _print_results(self):
         """ Print the 16th, 50th, 84th percentiles of the posterior. """

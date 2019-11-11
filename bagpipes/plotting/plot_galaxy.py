@@ -63,7 +63,7 @@ def plot_galaxy(galaxy, show=True, return_y_scale=False):
     return fig, axes
 
 
-def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
+def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4, ptsize=40):
     """ Adds photometric data to the passed axes. """
 
     # Sort out axis limits
@@ -85,7 +85,7 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4):
                 color="black")
 
     ax.scatter(np.log10(galaxy.photometry[:, 0]),
-               galaxy.photometry[:, 1]*10**-y_scale, color="blue", s=40,
+               galaxy.photometry[:, 1]*10**-y_scale, color="blue", s=ptsize,
                zorder=zorder, linewidth=1, facecolor="blue", edgecolor="black")
 
     # Sort out x tick locations

@@ -15,39 +15,12 @@ API documentation: fit_catalogue
 Saving of output catalogues
 ---------------------------
 
-``fit_catalogue`` will generate an output catalogue of posterior percentiles for all fit parameters plus some basic derived parameters. This is saved in the ``pipes/cats`` folder as ``<run>.cat``. By default the code merges results into a catalogue every tenth object. You can manually refresh the output catalogue by running the command.
-
-.. code:: python
-
-    import bagpipes as pipes
-
-    run = "name_of_run"
-    pipes.catalogue.merge(run)
-
-Note that this will not interfere with a ``fit_catalogue`` instance in progress.
+``fit_catalogue`` will generate an output catalogue of posterior percentiles for all fit parameters plus some basic derived parameters. This is saved in the ``pipes/cats`` folder as ``<run>.fits``.
 
 
 Parallelisation
 ---------------
 
-The ``fit_catalogue`` object is designed to be run in parallel, in the sense that if multiple separate threads are running, different objects will automatically be parcelled out to different processes. There is currently no mechanism for distributing the computations for a single object amongst multiple cores, however normally the number of objects one wishes to fit will be larger than the number of available cores.
+Bagpipes now supports parallelisation with MPI using the python package mpi4py. You can run both fit or fit_catalogue with MPI, just do ``mpirun/mpiexec -n nproc python fit_with_bagpipes.py``. The default behaviour is to fit one object at a time using all available cores, this is useful for complicated models (e.g. fitting spectroscopy).
 
-
-Cleaning the catalogue and killing processes
---------------------------------------------
-
-Because of the way objects are parcelled out to different processes, if a process crashes or is killed mid-fit the merge routine will assume that this object has been successfully finished and will not attempt to fit it again.
-
-In order to clean up any failed or killed fits the clean function will check for objects which have not been successfully completed and set them as available to be parcelled out to new processes. As part of this process, all running ``fit_catalogue`` instances will be killed. To start this process run:
-
-.. code:: python
-
-    import bagpipes as pipes
-
-    run = "name_of_run"
-    pipes.catalogue.clean(run)
-
-MPI parallelisation
--------------------
-
-As of v0.7.5 the code now also supports parallelisation with MPI. You can run both fit or fit_catalogue with MPI, just do ``mpirun -n nproc python fit_with_bagpipes.py``. You can also run multiple objects in parallel each with MPI, e.g. if you have two nodes with eight cores each.
+For catalogue fitting an alternative approach is also available, in which multiple objects are fitted at once, each using one core. This option can be activated using the ``mpi_serial`` keyword argument of fit_catalogue. This is better for fitting relatively simple models to large catalogues of photometry. This option currently requires a slightly modified version of pymultinest, which can be downloaded from `this github repository <https://www.github.com/ACCarnall/pymultinest>`_. Please get in touch if you're having difficulty getting this to work.

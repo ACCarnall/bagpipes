@@ -1,27 +1,26 @@
 from __future__ import print_function, division, absolute_import
 
 import numpy as np
-import sys
 import os
-import time
 import pandas as pd
+import copy
 
-from subprocess import call
+from astropy.table import Table
 
 # detect if run through mpiexec/mpirun
 try:
     from mpi4py import MPI
-    rank = MPI.COMM_WORLD.Get_rank()
-    nproc = MPI.COMM_WORLD.Get_size()
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
 
 except ImportError:
     rank = 0
-    nproc = 1
+    size = 1
 
 from ..input.galaxy import galaxy
 from ..fitting.fit import fit
 from .. import utils
-from .merge_catalogue import merge
 
 
 class fit_catalogue(object):
@@ -91,8 +90,8 @@ class fit_catalogue(object):
         posterior once fitting is complete for each object. Default 500.
 
     full_catalogue : bool - optional
-        Should "best" chi-squared values and rest-frame UVJ mags be
-        added to the output catalogue, takes extra time, default False.
+        Adds minimum chi-squared values and rest-frame UVJ mags to the
+        output catalogue, takes extra time, default False.
     """
 
     def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
@@ -116,20 +115,17 @@ class fit_catalogue(object):
         self.time_calls = time_calls
         self.n_posterior = n_posterior
         self.full_catalogue = full_catalogue
+
         self.n_objects = len(self.IDs)
+        self.done = np.zeros(self.IDs.shape[0]).astype(bool)
+        self.cat = None
+        self.vars = None
 
         if rank == 0:
-            utils.make_dirs()
+            utils.make_dirs(run=run)
 
-            # Set up the directory for the output catalogues to be saved
-            if not os.path.exists("pipes/cats/" + self.run):
-                os.mkdir("pipes/cats/" + self.run)
-
-            np.savetxt("pipes/cats/" + self.run + "/IDs", self.IDs, fmt="%s")
-
-    def fit(self, verbose=False, n_live=400):
-        """ Run through the catalogue, only fitting objects which have
-        not already been started by another thread.
+    def fit(self, verbose=False, n_live=400, mpi_serial=False):
+        """ Run through the catalogue fitting each object.
 
         Parameters
         ----------
@@ -140,84 +136,111 @@ class fit_catalogue(object):
         n_live : int - optional
             Number of live points: reducing speeds up the code but may
             lead to unreliable results.
-        """
-        if rank == 0:
-            if os.path.exists("pipes/cats/" + self.run + "/kill"):
-                call(["rm", "pipes/cats/" + self.run + "/kill"])
 
-            n = 0
+        mpi_serial : bool - optional
+            When running through mpirun/mpiexec, the default behaviour
+            is to fit one object at a time, using all available cores.
+            When mpi_serial=True, each core will fit different objects.
+        """
+
+        if rank == 0:
+            cat_file = "pipes/cats/" + self.run + ".fits"
+            if os.path.exists(cat_file):
+                self.cat = Table.read(cat_file).to_pandas()
+                self.cat.index = self.IDs
+                self.done = (self.cat.loc[:, "log_evidence"] != 0.).values
+
+        if size > 1 and mpi_serial:
+            self.fit_mpi_serial()
+            return
 
         for i in range(self.n_objects):
 
+            # Check to see if the object has been fitted already
             if rank == 0:
-                done = os.path.exists("pipes/cats/" + self.run + "/"
-                                      + self.IDs[i] + ".lock")
+                obj_done = self.done[i]
 
-                for proc in range(1, nproc):
-                    MPI.COMM_WORLD.send(done, dest=proc)
+                for j in range(1, size):
+                    comm.send(obj_done, dest=j)
 
             else:
-                done = MPI.COMM_WORLD.recv(source=0)
+                obj_done = comm.recv(source=0)
 
-            if done:
+            if obj_done:
                 continue
 
+            # If not fit the object and update the output catalogue
             self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live)
 
+            self.done[i] = True
+
+            # Save the updated output catalogue.
             if rank == 0:
-                if n == 10:
-                    n = 0
+                save_cat = Table.from_pandas(self.cat)
+                save_cat.write("pipes/cats/" + self.run + ".fits",
+                               format="fits", overwrite=True)
 
-                # Set up output catalogue
-                if n == 0:
-                    self.time0 = time.time()
-                    outcat = self._setup_catalogue()
+                print("Bagpipes:", np.sum(self.done), "out of",
+                      self.done.shape[0], "objects completed.")
 
-                outcat.loc[n, "#ID"] = self.galaxy.ID
+    def fit_mpi_serial(self, verbose=False, n_live=400):
+        """ Run through the catalogue fitting multiple objects at once
+        on different cores. """
 
-                if self.full_catalogue:
-                    self.fit.posterior.get_advanced_quantities()
+        self.done = self.done.astype(int)
+        self.done[self.done == 1] += 1
 
-                samples = self.fit.posterior.samples
+        if rank == 0:  # The 0 process manages others, does no fitting
+            for i in range(1, size):
+                if not np.min(self.done):  # give out first IDs to fit
+                    newID = self.IDs[np.argmin(self.done)]
+                    comm.send(newID, dest=i)
+                    self.done[np.argmin(self.done)] += 1
 
-                for v in self.vars:
+                else:  # Alternatively tell process all objects are done
+                    comm.send(None, dest=i)
 
-                    if v is "UV_colour":
-                        values = samples["uvj"][:, 0] - samples["uvj"][:, 1]
+            if np.min(self.done) == 2:  # If all objects are done end
+                return
 
-                    elif v is "VJ_colour":
-                        values = samples["uvj"][:, 1] - samples["uvj"][:, 2]
+            while True:  # Add results to catalogue + distribute new IDs
+                # Wait for an object to be finished by any process
+                oldID, done_rank = comm.recv(source=MPI.ANY_SOURCE)
+                self.done[self.IDs == oldID] += 1  # mark as done
 
-                    else:
-                        values = samples[v]
+                if not np.min(self.done):  # Send new ID to process
+                    newID = self.IDs[np.argmin(self.done != 0)]
+                    self.done[self.IDs == newID] += 1   # mark in prep
+                    comm.send(newID, dest=done_rank)   # send new ID
 
-                    outcat.loc[n, v + "_16"] = np.percentile(values, 16)
-                    outcat.loc[n, v + "_50"] = np.percentile(values, 50)
-                    outcat.loc[n, v + "_84"] = np.percentile(values, 84)
+                else:  # Alternatively tell process all objects are done
+                    comm.send(None, dest=done_rank)
 
-                if self.redshifts is not None:
-                    outcat.loc[n, "input_redshift"] = self.redshifts[i]
+                # Load posterior for finished object to update catalogue
+                self._fit_object(oldID, mpi_off=True, verbose=False,
+                                 n_live=n_live)
 
-                outcat.loc[n, "log_evidence"] = self.fit.results["lnz"]
-                outcat.loc[n, "log_evidence_err"] = self.fit.results["lnz_err"]
+                save_cat = Table.from_pandas(self.cat)
+                save_cat.write("pipes/cats/" + self.run + ".fits",
+                               format="fits", overwrite=True)
 
-                if self.full_catalogue and self.photometry_exists:
-                    outcat.loc[n, "chisq_phot"] = np.min(samples["chisq_phot"])
-                    n_bands = np.sum(self.galaxy.photometry[:, 1] != 0.)
-                    outcat.loc[n, "n_bands"] = n_bands
+                print("Bagpipes:", np.sum(self.done == 2), "out of",
+                      self.done.shape[0], "objects completed.")
 
-                # Check to see if the kill switch has been set
-                if os.path.exists("pipes/cats/" + self.run + "/kill"):
-                    sys.exit("Kill command received")
+                if np.min(self.done) == 2:  # if all objects done end
+                    return
 
-                # Save the updated output catalogue.
-                outcat.to_csv("pipes/cats/" + self.run + "/" + self.run
-                              + ".txt" + str(self.time0), sep="\t",
-                              index=False)
+        else:  # All ranks other than 0 fit objects as directed by 0
+            while True:
+                ID = comm.recv(source=0)  # receive new ID to fit
 
-                merge(self.run)
+                if ID is None:  # If no new ID is given then end
+                    return
 
-                n += 1
+                self._fit_object(ID, mpi_off=True, verbose=False,
+                                 n_live=n_live)
+
+                comm.send([ID, rank], dest=0)  # Tell 0 object is done
 
     def _set_redshift(self, ID):
         """ Sets the corrrect redshift (range) in self.fit_instructions
@@ -236,17 +259,8 @@ class fit_catalogue(object):
             else:
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
-    def _fit_object(self, ID, verbose=False, n_live=400):
-        """ Fit the specified object. """
-
-        # Check to see if the kill switch has been set and if so stop.
-        if os.path.exists("pipes/cats/" + self.run + "/kill"):
-            sys.exit("Kill command received")
-
-        # Save lock file to stop other threads from fitting this object
-        if rank == 0:
-            np.savetxt(utils.working_dir + "/pipes/cats/" + self.run
-                       + "/" + str(ID) + ".lock", np.array([0.]))
+    def _fit_object(self, ID, verbose=False, n_live=400, mpi_off=False):
+        """ Fit the specified object and update the catalogue. """
 
         # Set the correct redshift for this object
         self._set_redshift(ID)
@@ -262,35 +276,74 @@ class fit_catalogue(object):
                              photometry_exists=self.photometry_exists)
 
         # Fit the object
-        self.fit = fit(self.galaxy, self.fit_instructions, run=self.run,
-                       time_calls=self.time_calls,
-                       n_posterior=self.n_posterior)
+        self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,
+                           time_calls=self.time_calls,
+                           n_posterior=self.n_posterior)
 
-        self.fit.fit(verbose=verbose, n_live=n_live)
+        self.obj_fit.fit(verbose=verbose, n_live=n_live, mpi_off=mpi_off)
 
         if rank == 0:
+            if self.vars is None:
+                self._setup_vars()
+
+            if self.cat is None:
+                self._setup_catalogue()
+
             if self.analysis_function is not None:
-                self.analysis_function(self.fit)
+                self.analysis_function(self.obj_fit)
 
             # Make plots if necessary
             if self.make_plots:
-                self.fit.plot_spectrum_posterior()
-                self.fit.plot_corner()
-                self.fit.plot_1d_posterior()
-                self.fit.plot_sfh_posterior()
+                self.obj_fit.plot_spectrum_posterior()
+                self.obj_fit.plot_corner()
+                self.obj_fit.plot_1d_posterior()
+                self.obj_fit.plot_sfh_posterior()
 
-                if "calib" in list(self.fit.fitted_model.fit_instructions):
-                    self.fit.plot_calibration()
+                if "calib" in list(self.obj_fit.fitted_model.fit_instructions):
+                    self.obj_fit.plot_calibration()
 
-    def _setup_catalogue(self):
-        """ Set up and save the initial blank output catalogue. """
+            # Add fitting results to output catalogue
+            if self.full_catalogue:
+                self.obj_fit.posterior.get_advanced_quantities()
 
-        self.vars = self.fit.fitted_model.params
+            samples = self.obj_fit.posterior.samples
+
+            for v in self.vars:
+
+                if v is "UV_colour":
+                    values = samples["uvj"][:, 0] - samples["uvj"][:, 1]
+
+                elif v is "VJ_colour":
+                    values = samples["uvj"][:, 1] - samples["uvj"][:, 2]
+
+                else:
+                    values = samples[v]
+
+                self.cat.loc[ID, v + "_16"] = np.percentile(values, 16)
+                self.cat.loc[ID, v + "_50"] = np.percentile(values, 50)
+                self.cat.loc[ID, v + "_84"] = np.percentile(values, 84)
+
+            results = self.obj_fit.results
+            self.cat.loc[ID, "log_evidence"] = results["lnz"]
+            self.cat.loc[ID, "log_evidence_err"] = results["lnz_err"]
+
+            if self.full_catalogue and self.photometry_exists:
+                self.cat.loc[ID, "chisq_phot"] = np.min(samples["chisq_phot"])
+                n_bands = np.sum(self.galaxy.photometry[:, 1] != 0.)
+                self.cat.loc[ID, "n_bands"] = n_bands
+
+    def _setup_vars(self):
+        """ Set up list of variables to go in the output catalogue. """
+
+        self.vars = copy.copy(self.obj_fit.fitted_model.params)
         self.vars += ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
                       "mass_weighted_age", "tform", "tquench"]
 
         if self.full_catalogue:
             self.vars += ["UV_colour", "VJ_colour"]
+
+    def _setup_catalogue(self):
+        """ Set up the initial blank output catalogue. """
 
         cols = ["#ID"]
         for var in self.vars:
@@ -301,7 +354,11 @@ class fit_catalogue(object):
         if self.full_catalogue and self.photometry_exists:
             cols += ["chisq_phot", "n_bands"]
 
-        outcat = pd.DataFrame(np.zeros((10, len(cols))), columns=cols)
-        outcat.loc[:, "#ID"] = np.nan
+        self.cat = pd.DataFrame(np.zeros((self.IDs.shape[0], len(cols))),
+                                columns=cols)
 
-        return outcat
+        self.cat.loc[:, "#ID"] = self.IDs
+        self.cat.index = self.IDs
+
+        if self.redshifts is not None:
+            self.cat.loc[:, "input_redshift"] = self.redshifts

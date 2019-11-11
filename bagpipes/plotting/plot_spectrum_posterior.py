@@ -35,8 +35,8 @@ def plot_spectrum_posterior(fit, show=False, save=True):
         plt.close(fig)
 
     if show:
-        plt.close(fig)
         plt.show()
+        plt.close(fig)
 
     return fig, ax
 

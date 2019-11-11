@@ -8,6 +8,7 @@ filters/f105w
 filters/f125w
 filters/f160w
 filters/ISAAC_Ks
+filters/HAWKI_K
 filters/IRAC1
 filters/IRAC2
 filters/IRAC3

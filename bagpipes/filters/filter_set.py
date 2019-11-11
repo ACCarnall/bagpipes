@@ -6,7 +6,8 @@ from .. import utils
 
 
 class filter_set(object):
-    """ Class for loading and manipulating sets of filter curves.
+    """ Class for loading and manipulating sets of filter curves. This
+    is where integration over filter curves to get photometry happens.
 
     Parameters
     ----------
@@ -84,7 +85,13 @@ class filter_set(object):
         """ Resamples the filter curves onto a new set of wavelengths
         and creates a 2D array of filter curves on this sampling. """
 
+        self.wavelengths = wavelengths  # Wavelengths for new sampling
+
+        # Array containing filter profiles on new wavelength sampling
         self.filt_array = np.zeros((wavelengths.shape[0], len(self.filt_list)))
+
+        # Array containing the width in wavelength space for each point
+        self.widths = utils.make_bins(wavelengths)[1]
 
         for i in range(len(self.filt_list)):
             filt = self.filt_list[i]
@@ -93,14 +100,24 @@ class filter_set(object):
                                               self.filt_dict[filt][:, 1],
                                               left=0, right=0)
 
-        model_widths = utils.make_bins(wavelengths)[1]
-
-        # wav_widths: An array containing the width in wavelength space
-        # for each point in the spectrum.
-        self.widths = model_widths*wavelengths
-        self.wavelengths = wavelengths
-
     def get_photometry(self, spectrum, redshift, unit_conv=None):
+        """ Calculates photometric fluxes. The filters are first re-
+        sampled onto the same wavelength grid with transmission values
+        blueshifted by (1+z). This is followed by an integration over
+        the observed spectrum in the rest frame:
+
+        flux = integrate[(f_lambda*lambda*T(lambda*(1+z))*dlambda)]
+        norm = integrate[(lambda*T(lambda*(1+z))*dlambda))]
+        photometry = flux/norm
+
+        lambda:            rest-frame wavelength array
+        f_lambda:          observed spectrum
+        T(lambda*(1+z)):   transmission of blueshifted filters
+        dlambda:           width of each wavelength bin
+
+        The integrals over all filters are done in one array operation
+        to improve the speed of the code.
+        """
 
         if self.wavelengths is None:
             raise ValueError("Please use resample_filter_curves method to set"
@@ -108,18 +125,27 @@ class filter_set(object):
 
         redshifted_wavs = self.wavelengths*(1. + redshift)
 
+        # Array containing blueshifted filter curves
         filters_z = np.zeros_like(self.filt_array)
 
+        # blueshift filter curves to sample right bit of rest frame spec
         for i in range(len(self.filt_list)):
             filters_z[:, i] = np.interp(redshifted_wavs, self.wavelengths,
                                         self.filt_array[:, i],
                                         left=0, right=0)
 
-        spec_energy = np.expand_dims(spectrum*self.widths, axis=1)
-        filt_weights = filters_z*np.expand_dims(self.widths, axis=1)
-        photometry = np.squeeze(np.sum(spec_energy*filters_z, axis=0)
-                                / np.sum(filt_weights, axis=0))
+        # Calculate numerator of expression
+        flux = np.expand_dims(spectrum*self.widths*self.wavelengths, axis=1)
+        flux = np.sum(flux*filters_z, axis=0)
 
+        # Calculate denominator of expression
+        norm = filters_z*np.expand_dims(self.widths*self.wavelengths, axis=1)
+        norm = np.sum(norm, axis=0)
+
+        photometry = np.squeeze(flux/norm)
+
+        # This is a little dodgy as pointed out by Ivo, it should depend
+        # on the spectral shape however only currently used for UVJ mags
         if unit_conv == "cgs_to_mujy":
             photometry /= (10**-29*2.9979*10**18/self.eff_wavs**2)
 
