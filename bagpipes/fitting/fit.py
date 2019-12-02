@@ -119,12 +119,20 @@ class fit(object):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            pmn.run(self.fitted_model.lnlike,
-                    self.fitted_model.prior.transform,
-                    self.fitted_model.ndim, importance_nested_sampling=False,
-                    verbose=verbose, sampling_efficiency="model",
-                    n_live_points=n_live, outputfiles_basename=self.fname,
-                    mpi_off=mpi_off)
+            if mpi_off:
+                pmn.run(self.fitted_model.lnlike,
+                        self.fitted_model.prior.transform,
+                        self.fitted_model.ndim, n_live_points=n_live,
+                        importance_nested_sampling=False, verbose=verbose,
+                        sampling_efficiency="model",
+                        outputfiles_basename=self.fname, mpi_off=True)
+            else:
+                pmn.run(self.fitted_model.lnlike,
+                        self.fitted_model.prior.transform,
+                        self.fitted_model.ndim, n_live_points=n_live,
+                        importance_nested_sampling=False, verbose=verbose,
+                        sampling_efficiency="model",
+                        outputfiles_basename=self.fname)
 
         if rank == 0 or mpi_off:
             runtime = time.time() - start_time
