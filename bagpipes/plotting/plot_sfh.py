@@ -50,7 +50,7 @@ def add_sfh(sfh, ax, zorder=4, color="black", z_axis=True, lw=2,
 
     # Add redshift axis along the top
     if z_axis:
-        add_z_axis(ax, zvals=zvals)
+        z_axis = add_z_axis(ax, zvals=zvals)
 
     # Add labels
     if tex_on:
@@ -60,3 +60,5 @@ def add_sfh(sfh, ax, zorder=4, color="black", z_axis=True, lw=2,
     else:
         ax.set_ylabel("SFR / M_sol yr^-1")
         ax.set_xlabel("Age of Universe / Gyr")
+
+    return z_axis

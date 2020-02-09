@@ -2,6 +2,8 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 
+from scipy.interpolate import CubicSpline
+
 from .. import config
 
 
@@ -40,6 +42,10 @@ class dust_attenuation(object):
             self.A_cont = self._cardelli(wavelengths)
             self.A_line = self._cardelli(config.line_wavs)
 
+        elif self.type == "SMC":
+            self.A_cont = self._smc_gordon(wavelengths)
+            self.A_line = self._smc_gordon(config.line_wavs)
+
         # If Salim dust is selected, pre-compute Calzetti to start from.
         elif self.type == "Salim":
             self.A_cont_calz = self._calzetti(wavelengths)
@@ -51,7 +57,7 @@ class dust_attenuation(object):
     def update(self, param):
 
         # Fixed-shape dust laws are pre-computed in __init__.
-        if (self.type == "Calzetti") or (self.type == "Cardelli"):
+        if self.type in ["Calzetti", "Cardelli", "SMC"]:
             return
 
         # Variable shape dust laws have to be computed every time.
@@ -59,7 +65,7 @@ class dust_attenuation(object):
 
     def CF00(self, param):
         """ Modified Charlot + Fall (2000) model of Carnall et al.
-        (2018) and Carnall et al. (2019). """
+        (2018) and Carnall et al. (2019b). """
         A_cont = (5500./self.wavelengths)**param["n"]
         A_line = (5500./config.line_wavs)**param["n"]
 
@@ -156,4 +162,56 @@ class dust_attenuation(object):
 
         A_lambda[mask3] = 2.659*(-1.857 + 1.040/wavs_mic[mask3]) + 4.05
 
-        return A_lambda/4.05
+        A_lambda /= 4.05
+
+        return A_lambda
+
+    def _smc_gordon(self, wavs):
+        """ Calculate the ratio A(lambda)/A(V) for the Gordon et al.
+        (2003) Small Magellanic Cloud extinction curve. Warning: this
+        currently diverges at small wavelengths, probably some sort of
+        power law interpolation at the blue end should be added. """
+
+        A_lambda = np.zeros_like(wavs)
+
+        inv_mic = 1./(wavs*10.**-4.)
+
+        c1 = -4.959
+        c2 = 2.264
+        c3 = 0.389
+        c4 = 0.461
+        x0 = 4.6
+        gamma = 1.0
+        Rv = 2.74
+
+        D = inv_mic**2/((inv_mic**2 - x0**2)**2 + inv_mic**2*gamma**2)
+        F = 0.5392*(inv_mic - 5.9)**2 + 0.05644*(inv_mic - 5.9)**3
+        F[inv_mic < 5.9] = 0.
+        # values at 2.198 and 1.25 changed to provide smooth interpolation
+        # as noted in Gordon et al. (2016, ApJ, 826, 104)
+
+        A_lambda = (c1 + c2*inv_mic + c3*D + c4*F)/Rv + 1.
+
+        # Generate region redder than 2760AA by interpolation
+        ref_wavs = np.array([0.276, 0.296, 0.37, 0.44, 0.55,
+                             0.65, 0.81, 1.25, 1.65, 2.198, 3.1])*10**4
+
+        ref_ext = np.array([2.220, 2.000, 1.672, 1.374, 1.00,
+                            0.801, 0.567, 0.25, 0.169, 0.11, 0.])
+
+        if np.max(wavs) > 2760.:
+            A_lambda[wavs > 2760.] = np.interp(wavs[wavs > 2760.],
+                                               ref_wavs, ref_ext, right=0.)
+
+        """
+        import matplotlib.pyplot as plt
+        print(np.c_[wavs, inv_mic])
+        plt.figure()
+        plt.plot(wavs, c3*D/Rv, color="blue")
+        plt.plot(wavs, c4*F/Rv, color="red")
+        plt.plot(wavs, c1/Rv + np.zeros_like(wavs), color="yellow")
+        plt.plot(wavs, c2*inv_mic/Rv, color="green")
+        plt.plot(wavs, A_lambda, color="black")
+        plt.show()
+        """
+        return A_lambda

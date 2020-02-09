@@ -3,9 +3,21 @@ Bagpipes
 
 Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation is a state of the art Python code for modelling galaxy spectra and fitting spectroscopic and photometric observations.
 
-Bagpipes is currently in a state of active development in the run-up to the release of version 1. Please email me if you have any queries, or find things which don't work as they're supposed to.
+I hope you will find everything you need to know here, however feel free to get in touch if you have further questions, or to get an opinion on specific use cases.
 
-.. image:: images/front_page.jpg
+
+What can Bagpipes do?
+---------------------
+
+.. image:: images/sfh_from_spec.png
+
+Star-formation history recovery from spectroscopy (see `Carnall et al. 2019b <https://arxiv.org/abs/1903.11082>`_)
+
+.. image:: images/z3_passive.png
+
+Identification of z > 3 quiescent galaxies from photometry (see `Carnall et al. 2020 <https://arxiv.org/abs/2001.11975>`_)
+
+See also `Carnall et al. (2019a) <https://arxiv.org/abs/1811.03635>`_, `Williams et al. (2019) <https://arxiv.org/abs/1905.11996>`_ and `Wild et al. (2020) <https://arxiv.org/abs/2001.09154>`_.
 
 
 Source and installation
@@ -38,7 +50,7 @@ In my experience, the sequence of commands necessary to install MultiNest on a m
 Citation
 --------
 
-Bagpipes is described in Section 3 of `Carnall et al. 2018 <https://arxiv.org/abs/1712.04452>`_, if you make use of Bagpipes, please include a citation to this work in any publications. Please note development of the code has been ongoing since this work was published, so certain parts of the code are no longer as described.
+Bagpipes is described in Section 3 of `Carnall et al. (2018) <https://arxiv.org/abs/1712.04452>`_, if you make use of Bagpipes, please include a citation to this work in any publications. Please note development of the code has been ongoing since this work was published, so certain parts of the code are no longer as described.
 
 
 Getting started
@@ -58,8 +70,8 @@ Acknowledgements
 
 A few of the excellent projects Bagpipes relies on are:
 
- - The `Bruzual \& Charlot 2003 <https://arxiv.org/abs/astro-ph/0309134>`_ stellar population models.
- - The `Draine \& Li 2007 <https://arxiv.org/abs/astro-ph/0608003>`_ dust emission models.
+ - The `Bruzual \& Charlot (2003) <https://arxiv.org/abs/astro-ph/0309134>`_ stellar population models.
+ - The `Draine \& Li (2007) <https://arxiv.org/abs/astro-ph/0608003>`_ dust emission models.
  - The `MultiNest <https://ccpforge.cse.rl.ac.uk/gf/project/multinest>`_ nested sampling algorithm `(Feroz et al. 2013) <https://arxiv.org/abs/1306.2144>`_
  - The `PyMultiNest <https://johannesbuchner.github.io/PyMultiNest>`_ Python interface for Multinest `(Buchner et al. 2014) <https://arxiv.org/abs/1402.0004>`_.
  - The `Cloudy <https://www.nublado.org>`_ photoionization code `(Ferland et al. 2017) <https://arxiv.org/abs/1705.10877>`_.

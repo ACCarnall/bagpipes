@@ -121,6 +121,10 @@ class posterior(object):
         if self.galaxy.photometry_exists:
             self.samples["chisq_phot"] = np.zeros(self.n_samples)
 
+        if "dust" in list(self.fitted_model.model_components):
+            size = self.model_galaxy.spectrum_full.shape[0]
+            self.samples["dust_curve"] = np.zeros((self.n_samples, size))
+
         if "calib" in list(self.fitted_model.model_components):
             size = self.model_galaxy.spectrum.shape[0]
             self.samples["calib"] = np.zeros((self.n_samples, size))
@@ -138,6 +142,10 @@ class posterior(object):
 
             if self.galaxy.photometry_exists:
                 self.samples["chisq_phot"][i] = self.fitted_model.chisq_phot
+
+            if "dust" in list(self.fitted_model.model_components):
+                dust_curve = self.fitted_model.model_galaxy.dust_atten.A_cont
+                self.samples["dust_curve"][i] = dust_curve
 
             if "calib" in list(self.fitted_model.model_components):
                 self.samples["calib"][i] = self.fitted_model.calib.model

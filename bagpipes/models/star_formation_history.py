@@ -161,26 +161,41 @@ class star_formation_history:
     def burst(self, sfr, param):
         """ A delta function burst of star-formation. """
 
-        age = param["age"]*10**9
+        if "age" in list(param):
+            age = param["age"]*10**9
+
+        elif "tform" in list(param):
+            age = self.age_of_universe - param["tform"]*10**9
+
         sfr[np.argmin(np.abs(self.ages - age))] += 1
 
     def constant(self, sfr, param):
         """ Constant star-formation between some limits. """
 
-        if param["age_max"] == "age_of_universe":
-            age_max = self.age_of_universe
+        if "age_min" in list(param):
+            if param["age_max"] == "age_of_universe":
+                age_max = self.age_of_universe
+
+            else:
+                age_max = param["age_max"]*10**9
+
+            age_min = param["age_min"]*10**9
 
         else:
-            age_max = param["age_max"]*10**9
-
-        age_min = param["age_min"]*10**9
+            age_max = self.age_of_universe - param["tstart"]*10**9
+            age_min = self.age_of_universe - param["tstop"]*10**9
 
         mask = (self.ages > age_min) & (self.ages < age_max)
         sfr[mask] += 1.
 
     def exponential(self, sfr, param):
 
-        age = param["age"]*10**9
+        if "age" in list(param):
+            age = param["age"]*10**9
+
+        else:
+            age = (param["tstart"] - self.age_of_universe)*10**9
+
         tau = param["tau"]*10**9
 
         t = age - self.ages[self.ages < age]

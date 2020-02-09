@@ -178,15 +178,26 @@ raw_igm_grid = fits.open(grid_dir + "/d_igm_grid_inoue14.fits")[1].data
 """ These variables are alternatives to those given in the stellar
 section, they are for using the BPASS stellar population models.
 
-metallicities = np.array([0.00001, 0.0001, 0.001, 0.002, 0.003, 0.004, 0.006,
-                          0.008, 0.010, 0.014, 0.020, 0.030, 0.040])/0.02
+    # Name of the fits file storing the stellar models
+    stellar_file = "bpass_bin-imf135_300_stellar_grids.fits"
 
-wavelengths = fits.open(grid_dir
-                      + "/bpass_bin_stellar_grids.fits")[-1].data
+    # The metallicities of the stellar grids in units of Z_Solar
+    metallicities = np.array([10**-5, 10**-4, 0.001, 0.002, 0.003, 0.004,
+                              0.006, 0.008, 0.010, 0.014, 0.020, 0.030,
+                              0.040])/0.02
 
-raw_stellar_ages = fits.open(grid_dir
-                             + "/bpass_bin_stellar_grids.fits")[-2].data
+    # The wavelengths of the grid points in Angstroms
+    wavelengths = fits.open(grid_dir + "/" + stellar_file)[-1].data
 
-live_frac = fits.open(grid_dir
-                      + "/bpass_bin_stellar_grids.fits")[-3].data
+    # The ages of the grid points in Gyr
+    raw_stellar_ages = fits.open(grid_dir + "/" + stellar_file)[-2].data
+
+    # The fraction of stellar mass still living (1 - return fraction).
+    # Axis 0 runs over metallicity, axis 1 runs over age.
+    live_frac = fits.open(grid_dir + "/" + stellar_file)[-3].data
+
+    # The raw stellar grids, stored as a FITS HDUList.
+    # The different HDUs are the grids at different metallicities.
+    # Axis 0 of each grid runs over wavelength, axis 1 over age.
+    raw_stellar_grid = fits.open(grid_dir + "/" + stellar_file)[1:14]
 """

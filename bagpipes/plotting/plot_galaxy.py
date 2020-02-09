@@ -63,7 +63,8 @@ def plot_galaxy(galaxy, show=True, return_y_scale=False):
     return fig, axes
 
 
-def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4, ptsize=40):
+def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4, ptsize=40,
+                            y_scale=None, lw=1.):
     """ Adds photometric data to the passed axes. """
 
     # Sort out axis limits
@@ -73,20 +74,21 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4, ptsize=40):
     mask = (galaxy.photometry[:, 1] > 0.)
     ymax = 1.1*np.max((galaxy.photometry[:, 1]+galaxy.photometry[:, 2])[mask])
 
-    y_scale = int(np.log10(ymax))-1
+    if y_scale is None:
+        y_scale = int(np.log10(ymax))-1
 
     ax.set_ylim(0., ymax*10**-y_scale)
 
     # Plot the data
     ax.errorbar(np.log10(galaxy.photometry[:, 0]),
                 galaxy.photometry[:, 1]*10**-y_scale,
-                yerr=galaxy.photometry[:, 2]*10**-y_scale, lw=1.0,
+                yerr=galaxy.photometry[:, 2]*10**-y_scale, lw=lw,
                 linestyle=" ", capsize=3, capthick=1, zorder=zorder-1,
                 color="black")
 
     ax.scatter(np.log10(galaxy.photometry[:, 0]),
                galaxy.photometry[:, 1]*10**-y_scale, color="blue", s=ptsize,
-               zorder=zorder, linewidth=1, facecolor="blue", edgecolor="black")
+               zorder=zorder, linewidth=lw, facecolor="blue", edgecolor="black")
 
     # Sort out x tick locations
     if x_ticks is None:
