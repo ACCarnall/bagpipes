@@ -151,7 +151,7 @@ class fit_catalogue(object):
                 self.done = (self.cat.loc[:, "log_evidence"] != 0.).values
 
         if size > 1 and mpi_serial:
-            self.fit_mpi_serial(n_live=n_live)
+            self._fit_mpi_serial(n_live=n_live)
             return
 
         for i in range(self.n_objects):
@@ -183,7 +183,7 @@ class fit_catalogue(object):
                 print("Bagpipes:", np.sum(self.done), "out of",
                       self.done.shape[0], "objects completed.")
 
-    def fit_mpi_serial(self, verbose=False, n_live=400):
+    def _fit_mpi_serial(self, verbose=False, n_live=400):
         """ Run through the catalogue fitting multiple objects at once
         on different cores. """
 
