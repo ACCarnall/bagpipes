@@ -13,7 +13,7 @@ from .prior import prior
 class check_priors:
 
     def __init__(self, fit_instructions, filt_list=None, spec_wavs=None,
-                 n_draws=10000):
+                 n_draws=10000, phot_units="ergscma"):
 
         self.fit_instructions = deepcopy(fit_instructions)
         self.model_components = deepcopy(fit_instructions)
@@ -30,7 +30,8 @@ class check_priors:
         self.sfh = star_formation_history(self.model_components)
         self.model_galaxy = model_galaxy(self.model_components,
                                          filt_list=self.filt_list,
-                                         spec_wavs=self.spec_wavs)
+                                         spec_wavs=self.spec_wavs,
+                                         phot_units=phot_units)
 
         self.samples = {}
         self.samples2d = np.zeros((self.n_draws, self.ndim))

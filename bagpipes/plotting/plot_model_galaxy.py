@@ -53,8 +53,8 @@ def add_model_photometry(model, ax, x_ticks=None, zorder=4):
     """ Adds model photometry to the passed axis. """
 
     # Sort out axis limits
-    xmin = np.log10(model.filter_set.eff_wavs[0])-0.025
-    xmax = np.log10(model.filter_set.eff_wavs[-1])+0.025
+    xmin = np.log10(model.filter_set.eff_wavs.min())-0.025
+    xmax = np.log10(model.filter_set.eff_wavs.max())+0.025
     ax.set_xlim(xmin, xmax)
 
     redshifted_wavs = model.wavelengths*(1.+model.model_comp["redshift"])

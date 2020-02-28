@@ -215,9 +215,15 @@ class fitted_model(object):
                 return -0.5*self.chisq_spec
 
             self.chisq_spec = np.sum(self.noise.inv_var*diff**2)
-            # self.K_spec = -0.5*np.sum(np.log(2*np.pi*self.noise.inv_var))
 
-            return -0.5*self.chisq_spec
+            if "noise" in list(self.fit_instructions):
+                c_spec = -np.log(self.model_components["noise"]["scaling"])
+                K_spec = self.galaxy.spectrum.shape[0]*c_spec
+
+            else:
+                K_spec = 0.
+
+            return K_spec - 0.5*self.chisq_spec
 
     def _lnlike_indices(self):
         """ Calculates the log-likelihood for spectral indices. """
