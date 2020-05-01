@@ -162,3 +162,37 @@ class posterior(object):
                     continue
 
                 self.samples[q][i] = getattr(self.fitted_model.model_galaxy, q)
+
+    def predict(self, filt_list=None, spec_wavs=None, spec_units="ergscma",
+                phot_units="ergscma", index_list=None):
+        """Obtain posterior predictions for new observables not included
+        in the data. """
+
+        self.prediction = {}
+
+        self.fitted_model._update_model_components(self.samples2d[0, :])
+        model = model_galaxy(self.fitted_model.model_components,
+                             filt_list=filt_list, phot_units=phot_units,
+                             spec_wavs=spec_wavs, index_list=index_list)
+
+        all_names = ["photometry", "spectrum", "indices"]
+
+        all_model_keys = dir(model)
+        quantity_names = [q for q in all_names if q in all_model_keys]
+
+        for q in quantity_names:
+            size = getattr(model, q).shape[0]
+            self.prediction[q] = np.zeros((self.n_samples, size))
+
+        for i in range(self.n_samples):
+            param = self.samples2d[self.indices[i], :]
+            self.fitted_model._update_model_components(param)
+            model.update(self.fitted_model.model_components)
+
+            for q in quantity_names:
+                if q == "spectrum":
+                    spectrum = getattr(model, q)[:, 1]
+                    self.prediction[q][i] = spectrum
+                    continue
+
+                self.prediction[q][i] = getattr(model, q)

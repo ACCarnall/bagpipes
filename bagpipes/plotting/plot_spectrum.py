@@ -13,12 +13,13 @@ from .general import *
 
 
 def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
-                 y_scale=None):
+                 y_scale=None, ymax=None):
     """ Add a spectrum to the passed axes. Adds errors if they are
     included in the spectrum object as a third column. """
 
     # Sort out axis limits
-    ymax = 1.05*np.max(spectrum[:, 1])
+    if not ymax:
+        ymax = 1.05*np.max(spectrum[:, 1])
 
     if y_scale is None:
         y_scale = int(np.log10(ymax))-1
