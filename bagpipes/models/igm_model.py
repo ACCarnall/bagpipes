@@ -38,9 +38,15 @@ class igm(object):
                          config.igm_redshifts.shape[0]))
 
         for i in range(config.igm_redshifts.shape[0]):
-            grid[:, i] = interp_discont(self.wavelengths, config.igm_wavelengths,
-                                   config.raw_igm_grid[i, :], 1215.67,
-                                   left=0., right=1.)
+            grid[:, i] = interp_discont(self.wavelengths,
+                                        config.igm_wavelengths,
+                                        config.raw_igm_grid[i, :], 1215.67,
+                                        left=0., right=1.)
+                                   
+        # Make sure the pixel containing Lya is always IGM attenuated
+        lya_ind = np.abs(self.wavelengths - 1215.67).argmin()
+        if self.wavelengths[lya_ind] > 1215.67:
+            grid[lya_ind, :] = grid[lya_ind-1, :]
 
         return grid
 
