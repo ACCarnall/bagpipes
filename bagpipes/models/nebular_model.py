@@ -135,7 +135,7 @@ class nebular(object):
 
                 sfh_ceh[:, index-1] /= weight
 
-        spectrum = (spectrum_low_logU*(1 - logU_weight)
-                    + spectrum_high_logU*logU_weight)
+        spectrum = (spectrum_high_logU*(1 - logU_weight)
+                    + spectrum_low_logU*logU_weight)
 
         return spectrum
