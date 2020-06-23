@@ -41,7 +41,7 @@ def plot_1d_posterior(fit, fit2=False, show=False, save=True):
                 axes.append(plt.subplot(gs[i, j]))
                 plt.setp(axes[-1].get_yticklabels(), visible=False)
 
-    #
+    j = 0
     for i in range(len(names)):
         name = names[i]
         label = labels[i]
@@ -62,6 +62,20 @@ def plot_1d_posterior(fit, fit2=False, show=False, save=True):
 
             else:
                 label = "log_10(" + label + ")"
+
+        # Replace any r params for Dirichlet distributions with t_x vals
+        if "dirichlet" in name:
+            comp = name.split(":")[0]
+            samples = fit.posterior.samples[comp + ":tx"][:, j]
+            n_x = fit.fitted_model.model_components[comp]["bins"]
+            t_percentile = int(np.round(100*(j+1)/n_x))
+            j += 1
+
+            if tex_on:
+                label = "$t_{" + str(t_percentile) + "}\ /\ \mathrm{Gyr}$"
+
+            else:
+                label = "t" + str(t_percentile) + " / Gyr"
 
         try:
             hist1d(samples[np.invert(np.isnan(samples))], axes[i],

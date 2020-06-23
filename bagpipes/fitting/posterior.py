@@ -6,9 +6,12 @@ import os
 import deepdish as dd
 
 from .fitted_model import fitted_model
+from .prior import dirichlet
 
 from ..models.star_formation_history import star_formation_history
 from ..models.model_galaxy import model_galaxy
+
+from .. import utils
 
 
 class posterior(object):
@@ -59,12 +62,57 @@ class posterior(object):
 
         self.samples = {}  # Store all posterior samples
 
+        dirichlet_comps = []  # Do any parameters follow Dirichlet dist
+
         # Add 1D posteriors for fitted params to the samples dictionary
         for i in range(self.fitted_model.ndim):
             param_name = self.fitted_model.params[i]
+
+            if "dirichlet" in param_name:
+                dirichlet_comps.append(param_name.split(":")[0])
+
             self.samples[param_name] = self.samples2d[self.indices, i]
 
+        self.get_dirichlet_tx(dirichlet_comps)
+
         self.get_basic_quantities()
+
+    def get_dirichlet_tx(self, dirichlet_comps):
+        """ Calculate tx vals for any Dirichlet distributed params. """
+
+        if len(dirichlet_comps) > 0:
+            comp = dirichlet_comps[0]
+
+            r_samples = []
+
+            # Pull out the values of the fitted "r" parameters
+            for i in range(len(self.fitted_model.params)):
+                split = self.fitted_model.params[i].split(":")
+                if (split[0] == comp) and ("dirichlet" in split[1]):
+                    r_samples.append(self.samples2d[:, i])
+
+            r_values = np.c_[r_samples].T
+            self.samples[comp + ":r"] = r_values
+            self.samples[comp + ":tx"] = np.zeros_like(r_values)
+
+            # Convert the fitted "r" params into tx values.
+            for i in range(self.samples2d.shape[0]):
+                alpha = self.fit_instructions[comp]["alpha"]
+                r = self.samples[comp + ":r"][i, :]
+                self.samples[comp + ":tx"][i, :] = dirichlet(r, alpha)[:-1]
+
+            # Get the age of the Universe to convert tx into Gyr.
+            if "redshift" in self.fitted_model.params:
+                redshift_ind = self.fitted_model.params.index("redshift")
+                age_of_universe = np.interp(self.samples2d[:, redshift_ind],
+                                            utils.z_array, utils.age_at_z)
+                age_of_universe = np.expand_dims(age_of_universe, axis=1)
+
+            else:
+                age_of_universe = np.interp(self.fit_instructions["redshift"],
+                                            utils.z_array, utils.age_at_z)
+
+            self.samples[comp + ":tx"] *= age_of_universe
 
     def get_basic_quantities(self):
         """Calculates basic posterior quantities, these are fast as they

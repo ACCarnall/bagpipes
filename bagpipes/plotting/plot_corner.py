@@ -40,6 +40,23 @@ def plot_corner(fit, show=False, save=True, bins=25, type="fit_params"):
             else:
                 labels[i] = "log_10(" + labels[i] + ")"
 
+    # Replace any r parameters for Dirichlet distributions with t_x vals
+    j = 0
+    for i in range(fit.fitted_model.ndim):
+        if "dirichlet" in fit.fitted_model.params[i]:
+            comp = fit.fitted_model.params[i].split(":")[0]
+            n_x = fit.fitted_model.model_components[comp]["bins"]
+            t_percentile = int(np.round(100*(j+1)/n_x))
+
+            samples[:, i] = fit.posterior.samples[comp + ":tx"][:, j]
+            j += 1
+
+            if tex_on:
+                labels[i] = "$t_{" + str(t_percentile) + "}\ /\ \mathrm{Gyr}$"
+
+            else:
+                labels[i] = "t" + str(t_percentile) + " / Gyr"
+
     # Make the corner plot
     fig = corner.corner(samples, labels=labels, quantiles=[0.16, 0.5, 0.84],
                         show_titles=True, title_kwargs={"fontsize": 13},

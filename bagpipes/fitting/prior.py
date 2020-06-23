@@ -3,6 +3,33 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 from scipy.special import erf, erfinv
+from scipy.stats import beta
+
+
+def dirichlet(r, alpha):
+    """ This function samples from a Dirichlet distribution based on N-1
+    independent random variables (r) in the range (0, 1). The method is
+    that of http://www.arxiv.org/abs/1010.3436 by Michael Betancourt."""
+
+    n = r.shape[0]+1
+    x = np.zeros(n)
+    z = np.zeros(n-1)
+    alpha_tilda = np.zeros(n-1)
+
+    if isinstance(alpha, (float, int)):
+        alpha = np.repeat(alpha, n)
+
+    for i in range(n-1):
+        alpha_tilda[i] = np.sum(alpha[i+1:])
+
+        z[i] = beta.ppf(r[i], alpha_tilda[i], alpha[i])
+
+    for i in range(n-1):
+        x[i] = np.prod(z[:i])*(1-z[i])
+
+    x[-1] = np.prod(z)
+
+    return np.cumsum(x)
 
 
 class prior(object):

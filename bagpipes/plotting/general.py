@@ -58,7 +58,9 @@ latex_names = {"redshift": "z",
                "length": "l",
                "norm": "n",
                "scaling": "s",
-               "t_bc": "t_{BC}"}
+               "t_bc": "t_{BC}",
+               "B": "B",
+               "delta": "\delta"}
 
 latex_units = {"metallicity": "Z_{\\odot}",
                "massformed": "M_{\\odot})}",
@@ -84,7 +86,8 @@ latex_comps = {"dblplaw": "dpl",
                "delayed": "del",
                "calibration": "calib",
                "nebular": "neb",
-               "lognormal": "lnorm"}
+               "lognormal": "lnorm",
+               "iyer2019": "GP"}
 
 
 def update_rcParams():

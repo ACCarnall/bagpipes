@@ -2,6 +2,12 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 
+try:
+    import dense_basis as db
+
+except ImportError:
+    pass
+
 from scipy.optimize import fsolve
 from copy import copy, deepcopy
 
@@ -252,6 +258,15 @@ class star_formation_history:
 
         if tau > self.age_of_universe:
             self.unphysical = True
+
+    def iyer2019(self, sfr, param):
+        tx = param["tx"]
+        iyer_param = np.hstack([10., np.log10(param["sfr"]), len(tx), tx])
+        iyer_sfh, iyer_times = db.tuple_to_sfh(iyer_param, self.redshift)
+        iyer_ages = self.age_of_universe - iyer_times[::-1]*10**9
+
+        mask = self.ages < self.age_of_universe
+        sfr[mask] = np.interp(self.ages[mask], iyer_ages, iyer_sfh[::-1])
 
     def custom(self, sfr, param):
         history = param["history"]
