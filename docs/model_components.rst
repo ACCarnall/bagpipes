@@ -67,6 +67,12 @@ All SFH components also take one or more additional parameters describing their 
 	dblplaw["beta"] = mandatory          # Rising slope index
 	dblplaw["tau"] = mandatory           # Age of Universe at turnover: Gyr
 
+	iyer = {}                            # The model of Iyer et al. (2019)
+	iyer["sfr"] = mandatory              # Solar masses per year
+	iyer["bins"] = mandatory             # Integer
+	iyer["bins_prior"] = "dirichlet"     # This prior distribution must be used
+	iyer["alpha"] = mandatory            # Either integer or list of integers
+
 	custom = {}                          # A custom array of SFR values
 	custom["history"] = mandatory        # sfhist_array or "sfhist.txt": M_Solar/yr
 
