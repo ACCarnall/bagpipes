@@ -96,7 +96,7 @@ class fit_catalogue(object):
 
     def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
                  photometry_exists=True, make_plots=False, cat_filt_list=None,
-                 vary_filt_list=False, redshifts=None, redshift_sigma=0.,
+                 vary_filt_list=False, redshifts=None, redshift_sigma=None,
                  run=".", analysis_function=None, time_calls=False,
                  n_posterior=500, full_catalogue=False):
 
@@ -249,9 +249,16 @@ class fit_catalogue(object):
         if self.redshifts is not None:
             ind = np.argmax(self.IDs == ID)
 
-            if self.redshift_sigma > 0.:
+            if isinstance(self.redshift_sigma, float) & (self.redshift_sigma > 0.):
                 z = self.redshifts[ind]
                 sig = self.redshift_sigma
+                self.fit_instructions["redshift_prior_mu"] = z
+                self.fit_instructions["redshift_prior_sigma"] = sig
+                self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
+
+            elif isinstance(self.redshift_sigma, list) & (self.redshift_sigma[ind] > 0.):
+                z = self.redshifts[ind]
+                sig = self.redshift_sigma[ind]
                 self.fit_instructions["redshift_prior_mu"] = z
                 self.fit_instructions["redshift_prior_sigma"] = sig
                 self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
