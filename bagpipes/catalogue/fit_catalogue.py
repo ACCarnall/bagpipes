@@ -249,22 +249,25 @@ class fit_catalogue(object):
         if self.redshifts is not None:
             ind = np.argmax(self.IDs == ID)
 
-            if isinstance(self.redshift_sigma, float):
-                if self.redshift_sigma > 0.:
+            if self.redshift_sigma is not None:
+                if isinstance(self.redshift_sigma, float):
+                    if self.redshift_sigma > 0.:
+                        z = self.redshifts[ind]
+                        sig = self.redshift_sigma
+                        self.fit_instructions["redshift_prior_mu"] = z
+                        self.fit_instructions["redshift_prior_sigma"] = sig
+                        self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
+                    else:
+                        self.fit_instructions["redshift"] = self.redshifts[ind]
+
+                elif isinstance(self.redshift_sigma, list) & (self.redshift_sigma[ind] > 0.):
                     z = self.redshifts[ind]
-                    sig = self.redshift_sigma
+                    sig = self.redshift_sigma[ind]
                     self.fit_instructions["redshift_prior_mu"] = z
                     self.fit_instructions["redshift_prior_sigma"] = sig
                     self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
                 else:
                     self.fit_instructions["redshift"] = self.redshifts[ind]
-
-            elif isinstance(self.redshift_sigma, list) & (self.redshift_sigma[ind] > 0.):
-                z = self.redshifts[ind]
-                sig = self.redshift_sigma[ind]
-                self.fit_instructions["redshift_prior_mu"] = z
-                self.fit_instructions["redshift_prior_sigma"] = sig
-                self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
 
             else:
                 self.fit_instructions["redshift"] = self.redshifts[ind]
