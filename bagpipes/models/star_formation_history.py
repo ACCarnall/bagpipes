@@ -202,7 +202,11 @@ class star_formation_history:
         else:
             age = (param["tstart"] - self.age_of_universe)*10**9
 
-        tau = param["tau"]*10**9
+        if "tau" in list(param):
+            tau = param["tau"]*10**9
+
+        elif "efolds" in list(param):
+            tau = (param["age"]/param["efolds"])*10**9
 
         t = age - self.ages[self.ages < age]
 
