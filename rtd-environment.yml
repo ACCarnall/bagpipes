@@ -13,4 +13,3 @@ dependencies:
       - msgpack
       - deepdish
       - pandas<=1.1.5
-      - sphinx_navtree
