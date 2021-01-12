@@ -119,7 +119,7 @@ def make_hist_arrays(x, y):
 
 
 def hist1d(samples, ax, smooth=False, label=None, color="orange",
-           percentiles=True, zorder=4, bins=50):
+           percentiles=True, zorder=4, bins=50, lw=2):
 
     if color == "orange":
         color1 = "darkorange"
@@ -135,6 +135,12 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         color1 = "blue"
         color2 = "dodgerblue"
         alpha = 0.6
+
+    if color == "gray":
+       color1 = "black"
+       color2 = "gray"
+       alpha = 0.7
+
 
     if label is not None:
         x_label = fix_param_names([label])
@@ -154,10 +160,10 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         ax.fill_between(x_midp, np.zeros_like(y), y,
                         color=color2, alpha=alpha, zorder=zorder-2)
         ax.plot([x_midp[0], x_midp[0]], [0, y[0]],
-                color=color1, zorder=zorder-1)
+                color=color1, zorder=zorder-1, lw=lw)
 
         ax.plot([x_midp[-1], x_midp[-1]], [0, y[-1]],
-                color=color1, zorder=zorder-1)
+                color=color1, zorder=zorder-1, lw=lw)
 
     else:
         x_hist, y_hist = make_hist_arrays(x, y)

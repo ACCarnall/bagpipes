@@ -58,6 +58,11 @@ class model_galaxy(object):
         if (spec_wavs is not None) and (index_list is not None):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
 
+        if model_components["redshift"] > config.max_redshift:
+            raise ValueError("Bagpipes attempted to create a model with too "\
+                             "high redshift. Please increase the max_redshift"\
+                             "parameter in config.py")
+
         self.spec_wavs = spec_wavs
         self.filt_list = filt_list
         self.spec_units = spec_units
@@ -318,9 +323,9 @@ class model_galaxy(object):
                                               utils.z_array, utils.ldist_at_z,
                                               left=0, right=0)
 
-            self.lum_flux = (4*np.pi*ldist_cm**2)*(1. + model_comp["redshift"])
+            self.lum_flux = 4*np.pi*ldist_cm**2
 
-        spectrum /= self.lum_flux
+        spectrum /= self.lum_flux*(1. + model_comp["redshift"])
         em_lines /= self.lum_flux
 
         # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.

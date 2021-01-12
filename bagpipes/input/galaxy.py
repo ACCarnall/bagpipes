@@ -181,7 +181,7 @@ class galaxy:
                     if self.spec_cov is not None:
                         self.spec_cov /= conversion
 
-                elif spec_units == "mujy":
+                elif self.spec_units == "mujy":
                     self.spectrum[:, 1] *= conversion
                     self.spectrum[:, 2] *= conversion
 

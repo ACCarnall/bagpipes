@@ -13,7 +13,8 @@ from .general import *
 
 
 def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
-                 y_scale=None, ymax=None):
+                 y_scale=None, ymax=None, color="default", lw=2., label=None,
+                 alpha=1):
     """ Add a spectrum to the passed axes. Adds errors if they are
     included in the spectrum object as a third column. """
 
@@ -29,12 +30,18 @@ def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
 
     # Plot the data
     if spectrum.shape[1] == 2:
+        if color == "default":
+            color = "sandybrown"
+
         ax.plot(spectrum[:, 0], spectrum[:, 1]*10**-y_scale,
-                color="sandybrown", zorder=zorder)
+                color=color, zorder=zorder, lw=lw, label=label, alpha=alpha)
 
     elif spectrum.shape[1] == 3:
+        if color == "default":
+            color = "dodgerblue"
+
         ax.plot(spectrum[:, 0], spectrum[:, 1]*10**-y_scale,
-                color="dodgerblue", zorder=zorder, lw=1)
+                color=color, zorder=zorder, lw=lw, alpha=alpha)
 
         lower = (spectrum[:, 1] - spectrum[:, 2])*10**-y_scale
         upper = (spectrum[:, 1] + spectrum[:, 2])*10**-y_scale

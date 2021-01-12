@@ -1,8 +1,8 @@
 name: bagpipes
 
 dependencies:
-    - python=2.7
-    - astropy=2.0.5
+    - python
+    - astropy
     - scipy
     - matplotlib>=2.2.2
     - numpy>=1.14.2
@@ -12,5 +12,5 @@ dependencies:
       - pymultinest
       - msgpack
       - deepdish
-      - pandas
+      - pandas<=1.1.5
       - sphinx_navtree

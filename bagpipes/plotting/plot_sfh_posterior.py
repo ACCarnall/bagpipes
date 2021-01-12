@@ -37,7 +37,8 @@ def plot_sfh_posterior(fit, show=False, save=True, colorscheme="bw"):
     return fig, ax
 
 
-def add_sfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4):
+def add_sfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4,
+                      label=None, zvals=[0, 0.5, 1, 2, 4, 10]):
 
     color1 = "black"
     color2 = "gray"
@@ -52,6 +53,11 @@ def add_sfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4):
         color1 = "purple"
         color2 = "purple"
         alpha = 0.4
+
+    if colorscheme == "blue":
+        color1 = "dodgerblue"
+        color2 = "dodgerblue"
+        alpha = 0.7
 
     # Calculate median redshift and median age of Universe
     if "redshift" in fit.fitted_model.params:
@@ -70,14 +76,14 @@ def add_sfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4):
 
     ax.plot(x, post[:, 1], color=color1, zorder=zorder+1)
     ax.fill_between(x, post[:, 0], post[:, 2], color=color2,
-                    alpha=alpha, zorder=zorder, lw=0)
+                    alpha=alpha, zorder=zorder, lw=0, label=label)
 
     ax.set_ylim(0., np.max([ax.get_ylim()[1], 1.1*np.max(post[:, 2])]))
     ax.set_xlim(age_of_universe, 0)
 
     # Add redshift axis along the top
     if z_axis:
-        ax2 = add_z_axis(ax)
+        ax2 = add_z_axis(ax, zvals=zvals)
 
     # Set axis labels
     if tex_on:

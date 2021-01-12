@@ -90,7 +90,7 @@ class fit(object):
         self.fitted_model = fitted_model(galaxy, self.fit_instructions,
                                          time_calls=time_calls)
 
-    def fit(self, verbose=False, n_live=400, mpi_off=False):
+    def fit(self, verbose=False, n_live=400, use_MPI=True):
         """ Fit the specified model to the input galaxy data.
 
         Parameters
@@ -112,29 +112,21 @@ class fit(object):
 
             return
 
-        if rank == 0 or mpi_off:
+        if rank == 0 or not use_MPI:
             print("\nBagpipes: fitting object " + self.galaxy.ID + "\n")
 
             start_time = time.time()
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            if mpi_off:
-                pmn.run(self.fitted_model.lnlike,
-                        self.fitted_model.prior.transform,
-                        self.fitted_model.ndim, n_live_points=n_live,
-                        importance_nested_sampling=False, verbose=verbose,
-                        sampling_efficiency="model",
-                        outputfiles_basename=self.fname, mpi_off=True)
-            else:
-                pmn.run(self.fitted_model.lnlike,
-                        self.fitted_model.prior.transform,
-                        self.fitted_model.ndim, n_live_points=n_live,
-                        importance_nested_sampling=False, verbose=verbose,
-                        sampling_efficiency="model",
-                        outputfiles_basename=self.fname)
+            pmn.run(self.fitted_model.lnlike,
+                    self.fitted_model.prior.transform,
+                    self.fitted_model.ndim, n_live_points=n_live,
+                    importance_nested_sampling=False, verbose=verbose,
+                    sampling_efficiency="model",
+                    outputfiles_basename=self.fname, use_MPI=use_MPI)
 
-        if rank == 0 or mpi_off:
+        if rank == 0 or not use_MPI:
             runtime = time.time() - start_time
 
             print("\nCompleted in " + str("%.1f" % runtime) + " seconds.\n")

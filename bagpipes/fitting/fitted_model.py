@@ -237,7 +237,7 @@ class fitted_model(object):
     def _lnlike_indices(self):
         """ Calculates the log-likelihood for spectral indices. """
 
-        diff = (self.galaxy.indices[:, 1] - self.model_galaxy.indices)**2
+        diff = (self.galaxy.indices[:, 0] - self.model_galaxy.indices)**2
         self.chisq_ind = np.sum(diff*self.inv_sigma_sq_ind)
 
         return self.K_ind - 0.5*self.chisq_ind

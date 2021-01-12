@@ -98,7 +98,8 @@ class fit_catalogue(object):
                  photometry_exists=True, make_plots=False, cat_filt_list=None,
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
                  run=".", analysis_function=None, time_calls=False,
-                 n_posterior=500, full_catalogue=False):
+                 n_posterior=500, full_catalogue=False, load_indices=None,
+                 index_list=None):
 
         self.IDs = np.array(IDs).astype(str)
         self.fit_instructions = fit_instructions
@@ -115,6 +116,8 @@ class fit_catalogue(object):
         self.time_calls = time_calls
         self.n_posterior = n_posterior
         self.full_catalogue = full_catalogue
+        self.load_indices = load_indices
+        self.index_list = index_list
 
         self.n_objects = len(self.IDs)
         self.done = np.zeros(self.IDs.shape[0]).astype(bool)
@@ -217,7 +220,7 @@ class fit_catalogue(object):
                     comm.send(None, dest=done_rank)
 
                 # Load posterior for finished object to update catalogue
-                self._fit_object(oldID, mpi_off=True, verbose=False,
+                self._fit_object(oldID, use_MPI=False, verbose=False,
                                  n_live=n_live)
 
                 save_cat = Table.from_pandas(self.cat)
@@ -237,7 +240,7 @@ class fit_catalogue(object):
                 if ID is None:  # If no new ID is given then end
                     return
 
-                self._fit_object(ID, mpi_off=True, verbose=False,
+                self._fit_object(ID, use_MPI=False, verbose=False,
                                  n_live=n_live)
 
                 comm.send([ID, rank], dest=0)  # Tell 0 object is done
@@ -259,7 +262,7 @@ class fit_catalogue(object):
             else:
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
-    def _fit_object(self, ID, verbose=False, n_live=400, mpi_off=False):
+    def _fit_object(self, ID, verbose=False, n_live=400, use_MPI=True):
         """ Fit the specified object and update the catalogue. """
 
         # Set the correct redshift for this object
@@ -273,14 +276,16 @@ class fit_catalogue(object):
         # Load up the observational data for this object
         self.galaxy = galaxy(ID, self.load_data, filt_list=filt_list,
                              spectrum_exists=self.spectrum_exists,
-                             photometry_exists=self.photometry_exists)
+                             photometry_exists=self.photometry_exists,
+                             load_indices=self.load_indices,
+                             index_list=self.index_list)
 
         # Fit the object
         self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,
                            time_calls=self.time_calls,
                            n_posterior=self.n_posterior)
 
-        self.obj_fit.fit(verbose=verbose, n_live=n_live, mpi_off=mpi_off)
+        self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI)
 
         if rank == 0:
             if self.vars is None:

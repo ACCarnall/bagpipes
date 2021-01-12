@@ -41,7 +41,8 @@ def plot_spectrum_posterior(fit, show=False, save=True):
     return fig, ax
 
 
-def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
+def add_photometry_posterior(fit, ax, zorder=4, y_scale=None,
+                             skip_no_obs=False, background_spectrum=True):
 
     mask = (fit.galaxy.photometry[:, 1] > 0.)
     upper_lims = fit.galaxy.photometry[:, 1] + fit.galaxy.photometry[:, 2]
@@ -61,22 +62,30 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
     log_wavs = np.log10(fit.posterior.model_galaxy.wavelengths*(1.+redshift))
     log_eff_wavs = np.log10(fit.galaxy.filter_set.eff_wavs)
 
-    spec_post = np.percentile(fit.posterior.samples["spectrum_full"],
-                              (16, 84), axis=0).T*10**-y_scale
+    if background_spectrum:
+        spec_post = np.percentile(fit.posterior.samples["spectrum_full"],
+                                  (16, 84), axis=0).T*10**-y_scale
 
-    spec_post = spec_post.astype(float) #fixes weird isfinite error
+        spec_post = spec_post.astype(float)  # fixes weird isfinite error
 
-    ax.plot(log_wavs, spec_post[:, 0], color="navajowhite", zorder=zorder-1)
-    ax.plot(log_wavs, spec_post[:, 1], color="navajowhite", zorder=zorder-1)
+        ax.plot(log_wavs, spec_post[:, 0], color="navajowhite",
+                zorder=zorder-1)
 
-    ax.fill_between(log_wavs, spec_post[:, 0], spec_post[:, 1],
-                    zorder=zorder-1, color="navajowhite", linewidth=0)
+        ax.plot(log_wavs, spec_post[:, 1], color="navajowhite",
+                zorder=zorder-1)
+
+        ax.fill_between(log_wavs, spec_post[:, 0], spec_post[:, 1],
+                        zorder=zorder-1, color="navajowhite", linewidth=0)
 
 
     phot_post = np.percentile(fit.posterior.samples["photometry"],
                               (16, 84), axis=0).T
 
     for j in range(fit.galaxy.photometry.shape[0]):
+
+        if skip_no_obs and fit.galaxy.photometry[j, 1] == 0.:
+            continue
+
         phot_band = fit.posterior.samples["photometry"][:, j]
         mask = (phot_band > phot_post[j, 0]) & (phot_band < phot_post[j, 1])
         phot_1sig = phot_band[mask]*10**-y_scale
