@@ -3,8 +3,7 @@ Bagpipes
 
 Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation is a state of the art Python code for modelling galaxy spectra and fitting spectroscopic and photometric observations.
 
-I hope you will find everything you need to know here, however feel free to get in touch if you have further questions, or to get an opinion on specific use cases.
-
+I hope you will find everything you need to know here, however feel free to get in touch if you have further questions, or to get an opinion on specific use cases. I've recently added a :ref:`latest news <latest-news>` page, which I'll use to track updates to the code and any issues people make me aware of.
 
 What can Bagpipes do?
 ---------------------
@@ -17,7 +16,7 @@ Star-formation history recovery from spectroscopy (see `Carnall et al. 2019b <ht
 
 Identification of z > 3 quiescent galaxies from photometry (see `Carnall et al. 2020 <https://arxiv.org/abs/2001.11975>`_)
 
-See also `Carnall et al. (2019a) <https://arxiv.org/abs/1811.03635>`_, `Williams et al. (2019) <https://arxiv.org/abs/1905.11996>`_ and `Wild et al. (2020) <https://arxiv.org/abs/2001.09154>`_.
+Bagpipes has been used in ~30 refereed publications as of Jan 2021. For more example use cases take a look at `papers that cite the bagpipes paper <https://ui.adsabs.harvard.edu/abs/2018MNRAS.480.4379C/citations>`_, e.g. `Carnall et al. (2019a) <https://arxiv.org/abs/1811.03635>`_, `Williams et al. (2019) <https://arxiv.org/abs/1905.11996>`_ and `Wild et al. (2020) <https://arxiv.org/abs/2001.09154>`_.
 
 
 Source and installation
@@ -32,7 +31,7 @@ Bagpipes is `developed at GitHub <https://github.com/ACCarnall/bagpipes>`_, howe
 
 All of the code's Python dependencies will be automatically installed. The only non-Python dependency is the MultiNest nested sampling algorithm (used only for fitting). To install MultiNest see point 1 of the "on your own computer" section of the `PyMultiNest installation instructions <http://johannesbuchner.github.io/pymultinest-tutorial/install.html>`_.
 
-In my experience, the sequence of commands necessary to install MultiNest on a mac is as follows:
+In my experience, the sequence of commands necessary to install MultiNest on a mac (with Homebrew installed) is as follows:
 
 .. code::
 
@@ -46,6 +45,7 @@ In my experience, the sequence of commands necessary to install MultiNest on a m
     cd ../..
     rm -r MultiNest
 
+If you have MacPorts instead of Homebrew you may run into additional issues. I may be able to provide advice if you get stuck.
 
 Citation
 --------
@@ -83,6 +83,7 @@ A few of the excellent projects Bagpipes relies on are:
     :hidden:
 
     index.rst
+    latest_news.rst
     model_galaxies.rst
     model_components.rst
     loading_galaxies.rst

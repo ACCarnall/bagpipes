@@ -3,9 +3,9 @@
 The model_components dictionary
 ===============================
 
-All of the physical parameters the user desires to specify for a ``model_galaxy`` object are passed in the ``model_components`` dictionary. This page will take you though all of the available options. For a quick introduction take a look at the `first iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%201%20-%20Making%20model%20galaxies.ipynb>`_.
+All of the physical parameters the user provides when creating a ``model_galaxy`` object are passed within the ``model_components`` dictionary. This page will take you though all of the available options. For a quick introduction take a look at the `first iPython notebook example <https://github.com/ACCarnall/bagpipes/blob/master/examples/Example%201%20-%20Making%20model%20galaxies.ipynb>`_.
 
-Parameters are equal to mandatory if they must be specified, or equal to their default values if not.
+In the below blocks of example code, parameters are set equal to "mandatory" if they must be specified, or equal to their default values if they do not need to be specified.
 
 Global parameters
 -----------------
@@ -22,14 +22,14 @@ There are a few global parameters which can be inserted directly into ``model_co
 
 	model_components["sfh_comp"] = sfh_comp   # Dict containing SFH info
 
-All other parameter values must first be placed within component dictionaries which are then inserted into ``model_components``. Aside from observed redshift, the only other requirement is that at least one star-formation history component must be added to ``model_components`` for it to be valid.
+All other parameter values must first be placed within component dictionaries, which are then inserted into ``model_components``. Aside from observed redshift, the only other thing ``model_components`` must contain to be valid is at least one star-formation history component.
 
 Star-formation history components
 ---------------------------------
 
-Each SFH component is an individual parametric model for the SFH of the galaxy. Bagpipes can build up complex star-formation histories by superimposing multiple components. Components of the same type should be labelled sequentially in ``model_components`` e.g. ``burst1``, ``burst2`` etc.
+Each SFH component is an individual parametric (or non-parametric) model for the SFH of the galaxy. Bagpipes can build up complex star-formation histories by superimposing multiple components. Components of the same type should be labelled sequentially in ``model_components`` e.g. ``burst1``, ``burst2`` etc.
 
-All star-formation history components take the following keys:
+All star-formation history components require the following mandatory keys to be specified:
 
 .. code:: python
 
@@ -76,7 +76,7 @@ All SFH components also take one or more additional parameters describing their 
 	custom = {}                          # A custom array of SFR values
 	custom["history"] = mandatory        # sfhist_array or "sfhist.txt": M_Solar/yr
 
-If a custom SFH component is specified, the "history" key must contain either an array containing or a string giving the path to a file containing the star formation history. In both cases the format is a column of ages in years followed by a column of star formation rates in Solar masses per year.
+If a custom SFH component is specified, the "history" key must contain either an array or a string giving the path to a file containing the star formation history. In both cases the format is a column of ages in years followed by a column of star formation rates in Solar masses per year.
 
 Nebular component
 -----------------
@@ -94,7 +94,7 @@ Dust attenuation and emission component
 
 The dust component governs attenuation and emission processes due to dust. Energy balance is assumed, such that all attenuated light is re-radiated.
 
-Three dust attenuation models are implemented in Bagpipes, the Calzetti et al. (2000) model, the Cardelli et al. (1989) model, a model based on Charlot & Fall (2001) and the model of Salim et al. (2018). The dust emission models come from Draine + Li (2007).
+Four dust attenuation models are implemented in Bagpipes, the Calzetti et al. (2000) model, the Cardelli et al. (1989) model, a model based on Charlot & Fall (2001) and the model of Salim et al. (2018). The dust emission models come from Draine + Li (2007).
 
 .. code:: python
 
@@ -103,10 +103,10 @@ Three dust attenuation models are implemented in Bagpipes, the Calzetti et al. (
 	dust["Av"] = mandatory     # Absolute attenuation in the V band: magnitudes
 	dust["eta"] = 1.           # Multiplicative factor on Av for stars in birth clouds
 
-	dust["n"] = 1.             # Power-law slope of attenuation law ("CF00" only)
+	dust["n"] = 1.             # Power-law slope of attenuation law ("CF00" type only)
 
-	dust["delta"] = 0.         # Deviation from Calzetti slope ("Salim" only)
-	dust["B"] = 0.             # 2175A bump strength ("Salim" only)
+	dust["delta"] = 0.         # Deviation from Calzetti slope ("Salim" type only)
+	dust["B"] = 0.             # 2175A bump strength ("Salim" type only)
 
 	# Dust emission parameters
 	dust["qpah"] = 2.          # PAH mass fraction

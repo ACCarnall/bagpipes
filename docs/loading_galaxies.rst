@@ -47,3 +47,5 @@ By default, Bagpipes expects spectroscopic and photometric data to be returned b
 The format of the spectrum returned by ``load_data`` should be a 2D array with three columns: wavelengths in Angstroms, fluxes in erg/s/cm^2/A and flux errors in the same units (can be changed to microJansksys with the ``spec_units`` keyword argument). These will be stored in ``galaxy.spectrum``.
 
 The format of the photometry returned by ``load_data`` should be a 2D array with a column of fluxes in microJanskys and a column of flux errors in the same units (can be changed to erg/s/cm^2/A  with the ``phot_units`` keyword argument). The fluxes should be in the same order as the filters in your ``filt_list``. Bagpipes will calculate effective wavelengths for each filter and store these along with the input data in ``galaxy.photometry``.
+
+For information about filter lists (``filt_list``), see the :ref:`model_galaxy <making-model-galaxies>` page.
