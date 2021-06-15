@@ -65,7 +65,7 @@ def plot_galaxy(galaxy, show=True, return_y_scale=False):
 
 def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4, ptsize=40,
                             y_scale=None, lw=1., skip_no_obs=False,
-                            label=None, color="blue"):
+                            label=None, color="blue", marker="o"):
     """ Adds photometric data to the passed axes. """
 
     photometry = np.copy(galaxy.photometry)
@@ -96,7 +96,7 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4, ptsize=40,
     ax.scatter(np.log10(photometry[:, 0]),
                photometry[:, 1]*10**-y_scale, color=color, s=ptsize,
                zorder=zorder, linewidth=lw, facecolor=color,
-               edgecolor="black", label=label)
+               edgecolor="black", label=label, marker=marker)
 
     # Sort out x tick locations
     if x_ticks is None:

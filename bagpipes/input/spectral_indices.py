@@ -20,13 +20,11 @@ def measure_index(ind_dict, spectrum, redshift):
             n += 1
 
         n -= 1
-        weights = np.zeros(n)
+
         values = np.zeros(n)
         errs = np.zeros(n)
 
         for i in range(n):
-            weights[i] = ind_dict["component" + str(i+1)]["weight"]
-
             result = single_index(ind_dict["component" + str(i+1)], spectrum,
                                   redshift, calculate_errs=calculate_errs)
 
@@ -38,13 +36,13 @@ def measure_index(ind_dict, spectrum, redshift):
                 values[i] = result
 
         if calculate_errs:
-            value = np.sum(values*weights)
-            err = (1./float(n))*np.sqrt(np.sum((weights*errs)**2))
+            value, err = ind_dict["function"](values, errs)
 
-            return np.c_[value, err]
+            return np.array([value, err])
 
         else:
-            return np.sum(values*weights)
+            value = ind_dict["function"](values)
+            return value
 
     else:
         return single_index(ind_dict, spectrum, redshift,
@@ -59,6 +57,12 @@ def single_index(ind_dict, spectrum, redshift, calculate_errs=False):
 
     continuum = ind_dict["continuum"]
     type = ind_dict["type"]
+
+    if "units" in list(ind_dict):
+        units = ind_dict["units"]
+
+    else:
+        units = "AA"
 
     wavs = spectrum[:, 0]/(1. + redshift)
 
@@ -104,9 +108,22 @@ def single_index(ind_dict, spectrum, redshift, calculate_errs=False):
             ew_sig = np.abs(ew)*np.sqrt(np.sum(np.c_[ew_num_sig/ew_num,
                                                      cont_sig/cont_flux]**2))
 
-            return np.c_[ew, ew_sig]
+        if units == "mag":
+            index = -2.5*np.log10(1 - ew/feature_width)
 
-        return ew
+            if calculate_errs:
+                index_sig = np.abs(2.5*np.log10(np.e)/(feature_width-ew))*ew_sig
+
+        else:
+            index = ew
+
+            if calculate_errs:
+                index_sig = ew_sig
+
+        if calculate_errs:
+            return np.array([index, index_sig])
+
+        return index
 
     elif type == "break":
         if not len(continuum) == 2:
@@ -121,6 +138,6 @@ def single_index(ind_dict, spectrum, redshift, calculate_errs=False):
 
             ratio_sig = np.abs(ratio)*np.sqrt(np.sum(snrs**2))
 
-            return np.c_[ratio, ratio_sig]
+            return np.array([ratio, ratio_sig])
 
         return ratio
