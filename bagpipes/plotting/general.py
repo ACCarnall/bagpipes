@@ -137,10 +137,9 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         alpha = 0.6
 
     if color == "gray":
-       color1 = "black"
-       color2 = "gray"
-       alpha = 0.7
-
+        color1 = "black"
+        color2 = "gray"
+        alpha = 0.7
 
     if label is not None:
         x_label = fix_param_names([label])
@@ -182,29 +181,30 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
 
 def auto_x_ticks(ax, nticks=5.):
 
-        spacing = 1./nticks
+    spacing = 1./nticks
 
-        width = ax.get_xlim()[1] - ax.get_xlim()[0]
+    width = ax.get_xlim()[1] - ax.get_xlim()[0]
+    tick_locs = np.arange(ax.get_xlim()[0] + spacing/2.*width,
+                          ax.get_xlim()[1], spacing*width)
+
+    if tick_locs.max() < 0:
+        n_decimals = 0
+
+    else:
+        n_decimals = -int(np.log10(tick_locs.max()))+1
+
+    for i in range(tick_locs.shape[0]):
+        tick_locs[i] = np.round(tick_locs[i], decimals=n_decimals)
+
+    while ((tick_locs[1:] - tick_locs[:-1])/width).min() < (1./(nticks+1)):
         tick_locs = np.arange(ax.get_xlim()[0] + spacing/2.*width,
                               ax.get_xlim()[1], spacing*width)
+        n_decimals += 1
 
-        if tick_locs.max() < 0:
-            n_decimals = 0
+    for i in range(tick_locs.shape[0]):
+        tick_locs[i] = np.round(tick_locs[i], decimals=n_decimals)
 
-        else:
-            n_decimals = -int(np.log10(tick_locs.max()))+1
-
-        for i in range(tick_locs.shape[0]):
-            tick_locs[i] = np.round(tick_locs[i], decimals=n_decimals)
-
-        while ((tick_locs[1:] - tick_locs[:-1])/width).min() < (1./(nticks+1)):
-            tick_locs = np.arange(ax.get_xlim()[0] + spacing/2.*width,
-                                  ax.get_xlim()[1], spacing*width)
-            n_decimals += 1
-            for i in range(tick_locs.shape[0]):
-                tick_locs[i] = np.round(tick_locs[i], decimals=n_decimals)
-
-        ax.set_xticks(tick_locs)
+    ax.set_xticks(tick_locs)
 
 
 def fix_param_names(fit_params):

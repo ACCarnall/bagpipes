@@ -272,14 +272,14 @@ class star_formation_history:
         mask = self.ages < self.age_of_universe
         sfr[mask] = np.interp(self.ages[mask], iyer_ages, iyer_sfh[::-1])
 
-    def psb(self, sfr, param):
+    def psb_wild2020(self, sfr, param):
         """
-        A 2-component SFH for post-starburst galaxies. An older exponential
-        decay compoent represents the existing stellar population before the
-        starburst, while a recent double power-law component makes up the burst.
-        The weight of mass formed between the two is controled by a fburst factor,
-        denoting the fraction of mass formed in the burst component. For detailed
-        equations, see Wild et al. 2020
+        A 2-component SFH for post-starburst galaxies. An exponential
+        compoent represents the existing stellar population before the
+        starburst, while a double power law makes up the burst.
+        The weight of mass formed between the two is controlled by a
+        fburst factor: thefraction of mass formed in the burst.
+        For more detail, see Wild et al. 2020
         (https://ui.adsabs.harvard.edu/abs/2020MNRAS.494..529W/abstract)
         """
         age = param["age"]*10**9
@@ -291,17 +291,19 @@ class star_formation_history:
 
         ind = (np.where((self.ages < age) & (self.ages > burstage)))[0]
         texp = age - self.ages[ind]
-        sfr_exp = np.exp(-texp/tau) 
+        sfr_exp = np.exp(-texp/tau)
         sfr_exp_tot = np.sum(sfr_exp*self.age_widths[ind])
-        
+
         mask = self.ages < self.age_of_universe
         tburst = self.age_of_universe - self.ages[mask]
         tau_plaw = self.age_of_universe - burstage
         sfr_burst = ((tburst/tau_plaw)**alpha + (tburst/tau_plaw)**-beta)**-1
         sfr_burst_tot = np.sum(sfr_burst*self.age_widths[mask])
-  
+
         sfr[ind] = (1-fburst) * np.exp(-texp/tau) / sfr_exp_tot
-        sfr[mask] += fburst * (((tburst/tau_plaw)**alpha + (tburst/tau_plaw)**-beta)**-1) / sfr_burst_tot
+
+        dpl_form = ((tburst/tau_plaw)**alpha + (tburst/tau_plaw)**-beta)**-1
+        sfr[mask] += fburst * dpl_form / sfr_burst_tot
 
     def custom(self, sfr, param):
         history = param["history"]

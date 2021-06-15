@@ -49,8 +49,11 @@ class calib_model(object):
         x_blue = self.wavs[self.wavs < self.param["wav_cut"]]
         x_red = self.wavs[self.wavs > self.param["wav_cut"]]
 
-        self.x_blue = 2.*(x_blue - (x_blue[0] + (x_blue[-1] - x_blue[0])/2.))/(x_blue[-1] - x_blue[0])
-        self.x_red = 2.*(x_red - (x_red[0] + (x_red[-1] - x_red[0])/2.))/(x_red[-1] - x_red[0])
+        self.x_blue = 2.*(x_blue - (x_blue[0] + (x_blue[-1] - x_blue[0])/2.))
+        self.x_blue /= (x_blue[-1] - x_blue[0])
+
+        self.x_red = 2.*(x_red - (x_red[0] + (x_red[-1] - x_red[0])/2.))
+        self.x_red /= (x_red[-1] - x_red[0])
 
         blue_coefs = []
         red_coefs = []
@@ -65,8 +68,11 @@ class calib_model(object):
         self.red_poly_coefs = np.array(red_coefs)
 
         model = np.zeros_like(self.x)
-        model[self.wavs < self.param["wav_cut"]] = chebval(self.x_blue, blue_coefs)
-        model[self.wavs > self.param["wav_cut"]] = chebval(self.x_red, red_coefs)
+        model[self.wavs < self.param["wav_cut"]] = chebval(self.x_blue,
+                                                           blue_coefs)
+
+        model[self.wavs > self.param["wav_cut"]] = chebval(self.x_red,
+                                                           red_coefs)
 
         self.model = model
 

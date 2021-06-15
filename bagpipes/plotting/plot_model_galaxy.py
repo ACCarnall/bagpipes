@@ -119,8 +119,8 @@ def plot_full_spectrum(model, show=True):
     # Set axis labels
     if tex_on:
 
-        ax.set_ylabel("$\\mathrm{log_{10}}\\big(\\mathrm{\\lambda L_{\\lambda}}\\ \\mathrm{/\\ erg"
-                      + "\\ s^{-1}}\\big)$")
+        ax.set_ylabel("$\\mathrm{log_{10}}\\big(\\mathrm{\\lambda "
+                      + "L_{\\lambda}}\\ \\mathrm{/\\ erg\\ s^{-1}}\\big)$")
 
         ax.set_xlabel("$\\mathrm{log_{10}}\\big(\\lambda / \\mathrm{\\AA}"
                       + "\\big)$")

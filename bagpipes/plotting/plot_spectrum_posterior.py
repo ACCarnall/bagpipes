@@ -77,7 +77,6 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None,
         ax.fill_between(log_wavs, spec_post[:, 0], spec_post[:, 1],
                         zorder=zorder-1, color="navajowhite", linewidth=0)
 
-
     phot_post = np.percentile(fit.posterior.samples["photometry"],
                               (16, 84), axis=0).T
 
