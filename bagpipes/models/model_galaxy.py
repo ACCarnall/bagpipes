@@ -59,9 +59,9 @@ class model_galaxy(object):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
 
         if model_components["redshift"] > config.max_redshift:
-            raise ValueError("Bagpipes attempted to create a model with too "\
-                             "high redshift. Please increase the max_redshift"\
-                             "parameter in config.py")
+            raise ValueError("Bagpipes attempted to create a model with too "
+                             "high redshift. Please increase max_redshift in "
+                             "bagpipes/config.py before making this model.")
 
         self.spec_wavs = spec_wavs
         self.filt_list = filt_list
@@ -372,10 +372,10 @@ class model_galaxy(object):
             vres = 3*10**5/config.R_spec/2.
             sigma_pix = model_comp["veldisp"]/vres
             k_size = 4*int(sigma_pix+1)
-            x_kernel_pix = np.arange(-k_size, k_size+1, 1.)
+            x_kernel_pix = np.arange(-k_size, k_size+1)
 
-            kernel = ((1./np.sqrt(2*np.pi)/sigma_pix)
-                      * np.exp(-(x_kernel_pix**2)/(2*sigma_pix**2)))
+            kernel = np.exp(-(x_kernel_pix**2)/(2*sigma_pix**2))
+            kernel /= np.trapz(kernel)  # Explicitly normalise kernel
 
             spectrum = np.convolve(self.spectrum_full, kernel, mode="valid")
             redshifted_wavs = zplusone*self.wavelengths[k_size:-k_size]

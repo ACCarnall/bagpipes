@@ -5,6 +5,19 @@ Latest News
 
 I'm going to attempt to keep this page updated with news about the code, including updates to the code and documentation, as well as issues people make me aware of.
 
+
+June 2021
+------------
+
+**Wednesday 16th:** Version 0.8.6 of the code has been released today.
+
+This update fixes a bug when specifying low velocity dispersions, which caused spectroscopy to be multiplied by a factor when the veldisp argument was supplied (e.g. 1.002 at 150 km/s, 1.09 at 100 km/s). This had no effect on photometry, or any models that didn't have the "veldisp" argument set. Thanks to Phil Short, Hin Leung and Vivienne Wild for pointing this out.
+
+It's also recently been brought to my attention by Renske Smit that unexpected things can happen when asking the code to produce spectra with very low sampling (e.g. something like spec_wavs = np.arange(5000., 1000., 100.)). See Renske's issue on the GitHub repository for more info on this.
+
+I've also done some more updating of the spectral index fitting functionality, which isn't documented at the moment, but I've now managed to get working for a few different problems.
+
+
 January 2021
 ------------
 
