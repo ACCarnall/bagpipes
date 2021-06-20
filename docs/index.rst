@@ -45,12 +45,16 @@ In my experience, the sequence of commands necessary to install MultiNest on a m
     cd ../..
     rm -r MultiNest
 
-If you have MacPorts instead of Homebrew you may run into additional issues. I may be able to provide advice if you get stuck.
+If you are running a Linux operating system, or have MacPorts instead of Homebrew, you may run into additional issues. I may be able to provide advice if you get stuck.
 
-Citation
---------
+Published papers and citing the code
+------------------------------------
 
-Bagpipes is described in Section 3 of `Carnall et al. (2018) <https://arxiv.org/abs/1712.04452>`_, if you make use of Bagpipes, please include a citation to this work in any publications. Please note development of the code has been ongoing since this work was published, so certain parts of the code are no longer as described.
+Bagpipes is described primarily in Section 3 of `Carnall et al. (2018) <https://arxiv.org/abs/1712.04452>`_, with further development specific to spectroscopic fitting described in Section 4 of `Carnall et al. (2019b) <https://arxiv.org/abs/1903.11082>`_. These papers are the best place to start if you want to understand how the code works.
+
+If you make use of Bagpipes, please include a citation to `Carnall et al. (2018) <https://arxiv.org/abs/1712.04452>`_ in any publications. You may also consider citing `Carnall et al. (2019b) <https://arxiv.org/abs/1903.11082>`_, particularly if you are fitting spectroscopy.
+
+Please note development of the code has been ongoing since these works were published, so certain parts of the code are no longer as described. Please inquire if in doubt.
 
 
 Getting started
