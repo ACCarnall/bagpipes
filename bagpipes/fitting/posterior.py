@@ -5,6 +5,8 @@ import numpy as np
 import os
 import deepdish as dd
 
+from copy import deepcopy
+
 from .fitted_model import fitted_model
 from .prior import dirichlet
 
@@ -244,3 +246,45 @@ class posterior(object):
                     continue
 
                 self.prediction[q][i] = getattr(model, q)
+
+    def predict_basic_quantities_at_redshift(self, redshift,
+                                             sfh_type="dblplaw"):
+        """ Predicts basic (SFH-based) quantities at a specified higher
+        redshift. This is a bit experimental, there's probably a better
+        way. Only works for models with a single SFH component. """
+
+        self.prediction_at_z = {}
+
+        #if "stellar_mass" in list(self.prediction_at_z):
+        #    return
+
+        self.fitted_model._update_model_components(self.samples2d[0, :])
+        self.sfh = star_formation_history(self.fitted_model.model_components)
+
+        quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
+                          "mass_weighted_age", "tform", "tquench"]
+
+        for q in quantity_names:
+            self.prediction_at_z[q] = np.zeros(self.n_samples)
+
+        self.prediction_at_z["sfh"] = np.zeros((self.n_samples,
+                                                self.sfh.ages.shape[0]))
+
+        quantity_names += ["sfh"]
+
+        for i in range(self.n_samples):
+            param = self.samples2d[self.indices[i], :]
+            self.fitted_model._update_model_components(param)
+            self.sfh.update(self.fitted_model.model_components)
+
+            formed_mass_at_z = self.sfh.massformed_at_redshift(redshift)
+
+            model_comp = deepcopy(self.fitted_model.model_components)
+
+            model_comp["redshift"] = redshift
+            model_comp[sfh_type]["massformed"] = formed_mass_at_z
+
+            self.sfh.update(model_comp)
+
+            for q in quantity_names:
+                self.prediction_at_z[q][i] = getattr(self.sfh, q)

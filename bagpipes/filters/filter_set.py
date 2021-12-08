@@ -77,9 +77,9 @@ class filter_set(object):
             filt = self.filt_list[i]
             dlambda = utils.make_bins(self.filt_dict[filt][:, 0])[1]
             filt_weights = dlambda*self.filt_dict[filt][:, 1]
-            self.eff_wavs[i] = np.sqrt(np.sum(filt_weights)
+            self.eff_wavs[i] = np.sqrt(np.sum(filt_weights*self.filt_dict[filt][:, 0])
                                        / np.sum(filt_weights
-                                       / self.filt_dict[filt][:, 0]**2))
+                                       / self.filt_dict[filt][:, 0]))
 
     def resample_filter_curves(self, wavelengths):
         """ Resamples the filter curves onto a new set of wavelengths

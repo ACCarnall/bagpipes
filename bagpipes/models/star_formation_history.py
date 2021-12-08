@@ -164,6 +164,15 @@ class star_formation_history:
                                                   config.raw_stellar_ages,
                                                   raw_live_frac_grid[:, i])
 
+    def massformed_at_redshift(self, redshift):
+        t_hubble_at_z = 10**9*np.interp(redshift, utils.z_array, utils.age_at_z)
+
+        mass_assembly = np.cumsum(self.sfh[::-1]*self.age_widths[::-1])[::-1]
+
+        ind = np.argmin(np.abs(self.ages - (self.age_of_universe - t_hubble_at_z)))
+
+        return np.log10(mass_assembly[ind])
+
     def burst(self, sfr, param):
         """ A delta function burst of star-formation. """
 
