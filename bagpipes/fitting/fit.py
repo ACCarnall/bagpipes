@@ -64,6 +64,7 @@ class fit(object):
         self.run = run
         self.galaxy = galaxy
         self.fit_instructions = deepcopy(fit_instructions)
+        self.n_posterior = n_posterior
 
         # Set up the directory structure for saving outputs.
         if rank == 0:
@@ -153,7 +154,8 @@ class fit(object):
             self._print_results()
 
             # Create a posterior object to hold the results of the fit.
-            self.posterior = posterior(self.galaxy, run=self.run)
+            self.posterior = posterior(self.galaxy, run=self.run,
+                                       n_samples=self.n_posterior)
 
     def _print_results(self):
         """ Print the 16th, 50th, 84th percentiles of the posterior. """

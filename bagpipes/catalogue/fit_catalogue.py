@@ -6,6 +6,7 @@ import pandas as pd
 import copy
 
 from astropy.table import Table
+from glob import glob
 
 # detect if run through mpiexec/mpirun
 try:
@@ -99,7 +100,7 @@ class fit_catalogue(object):
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
                  run=".", analysis_function=None, time_calls=False,
                  n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None):
+                 index_list=None, track_backlog=False):
 
         self.IDs = np.array(IDs).astype(str)
         self.fit_instructions = fit_instructions
@@ -127,7 +128,8 @@ class fit_catalogue(object):
         if rank == 0:
             utils.make_dirs(run=run)
 
-    def fit(self, verbose=False, n_live=400, mpi_serial=False):
+    def fit(self, verbose=False, n_live=400, mpi_serial=False,
+            track_backlog=False):
         """ Run through the catalogue fitting each object.
 
         Parameters
@@ -144,6 +146,12 @@ class fit_catalogue(object):
             When running through mpirun/mpiexec, the default behaviour
             is to fit one object at a time, using all available cores.
             When mpi_serial=True, each core will fit different objects.
+
+        track_backlog : bool - optional
+            When using mpi_serial, report the number of objects waiting
+            to be added to the catalogue by the "zero" core that
+            compiles results from all the others. High numbers mean
+            cores are waiting around doing nothing.
         """
 
         if rank == 0:
@@ -154,7 +162,7 @@ class fit_catalogue(object):
                 self.done = (self.cat.loc[:, "log_evidence"] != 0.).values
 
         if size > 1 and mpi_serial:
-            self._fit_mpi_serial(n_live=n_live)
+            self._fit_mpi_serial(n_live=n_live, track_backlog=track_backlog)
             return
 
         for i in range(self.n_objects):
@@ -186,7 +194,8 @@ class fit_catalogue(object):
                 print("Bagpipes:", np.sum(self.done), "out of",
                       self.done.shape[0], "objects completed.")
 
-    def _fit_mpi_serial(self, verbose=False, n_live=400):
+    def _fit_mpi_serial(self, verbose=False, n_live=400,
+                        track_backlog=False):
         """ Run through the catalogue fitting multiple objects at once
         on different cores. """
 
@@ -227,8 +236,17 @@ class fit_catalogue(object):
                 save_cat.write("pipes/cats/" + self.run + ".fits",
                                format="fits", overwrite=True)
 
-                print("Bagpipes:", np.sum(self.done == 2), "out of",
-                      self.done.shape[0], "objects completed.")
+                if track_backlog:
+                    n_done = len(glob("pipes/posterior/" + self.run + "/*.h5"))
+                    n_cat = np.sum(self.cat["stellar_mass_50"] > 0.)
+                    backlog = n_done - n_cat
+
+                    print("Bagpipes:", np.sum(self.done == 2), "out of",
+                          self.done.shape[0], "objects completed.",
+                          "Backlog:", backlog, "/", size-1, "cores")
+                else:
+                    print("Bagpipes:", np.sum(self.done == 2), "out of",
+                          self.done.shape[0], "objects completed.")
 
                 if np.min(self.done) == 2:  # if all objects done end
                     return
@@ -240,6 +258,7 @@ class fit_catalogue(object):
                 if ID is None:  # If no new ID is given then end
                     return
 
+                self.n_posterior = 5 # hacky, these don't get used
                 self._fit_object(ID, use_MPI=False, verbose=False,
                                  n_live=n_live)
 
