@@ -274,6 +274,7 @@ class fit_catalogue(object):
             if self.redshift_sigma > 0.:
                 z = self.redshifts[ind]
                 sig = self.redshift_sigma
+                self.fit_instructions["redshift_prior"] = "Gaussian"
                 self.fit_instructions["redshift_prior_mu"] = z
                 self.fit_instructions["redshift_prior_sigma"] = sig
                 self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
