@@ -129,6 +129,9 @@ class fitted_model(object):
         if self.time_calls:
             time0 = time.time()
 
+            if self.n_calls == 0:
+                self.wall_time0 = time.time()
+
         # Update the model_galaxy with the parameters from the sampler.
         self._update_model_components(x)
 
@@ -167,7 +170,8 @@ class fitted_model(object):
 
             if self.n_calls == 1000:
                 self.n_calls = 0
-                print("Mean likelihood call time:", np.mean(self.times))
+                print("Mean likelihood call time:", np.round(np.mean(self.times), 4))
+                print("Wall time per lnlike call:", np.round((time.time() - self.wall_time0)/1000., 4))
 
         return lnlike
 

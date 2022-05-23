@@ -49,8 +49,15 @@ def plot_model_galaxy(model, show=True):
     return fig, axes
 
 
-def add_model_photometry(model, ax, x_ticks=None, zorder=4):
+def add_model_photometry(model, ax, x_ticks=None, zorder=4, colorscheme=None):
     """ Adds model photometry to the passed axis. """
+
+    color1 = "navajowhite"
+    color2 = "darkorange"
+
+    if colorscheme == "bw":
+        color1 = "gray"
+        color2 = "black"
 
     # Sort out axis limits
     xmin = np.log10(model.filter_set.eff_wavs.min())-0.025
@@ -69,12 +76,12 @@ def add_model_photometry(model, ax, x_ticks=None, zorder=4):
 
     # Plot the data
     ax.plot(np.log10(redshifted_wavs),
-            model.spectrum_full*10**-y_scale, color="navajowhite",
+            model.spectrum_full*10**-y_scale, color=color1,
             zorder=zorder-1)
 
     ax.scatter(np.log10(model.filter_set.eff_wavs),
                model.photometry*10**-y_scale,
-               color="darkorange", s=150, zorder=zorder)
+               color=color2, s=150, zorder=zorder)
 
     # Sort out x tick locations
     if x_ticks is None:
