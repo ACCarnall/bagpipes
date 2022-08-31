@@ -213,13 +213,13 @@ class galaxy:
         mask = np.loadtxt("masks/" + self.ID + "_mask")
         if len(mask.shape) == 1:
             wl_mask = (spec[:, 0] > mask[0]) & (spec[:, 0] < mask[1])
-            if spec[wl_mask, 2].shape[0] is not 0:
+            if spec[wl_mask, 2].shape[0] != 0:
                 spec[wl_mask, 2] = 9.9*10**99.
 
         if len(mask.shape) == 2:
             for i in range(mask.shape[0]):
                 wl_mask = (spec[:, 0] > mask[i, 0]) & (spec[:, 0] < mask[i, 1])
-                if spec[wl_mask, 2].shape[0] is not 0:
+                if spec[wl_mask, 2].shape[0] != 0:
                     spec[wl_mask, 2] = 9.9*10**99.
 
         return spec

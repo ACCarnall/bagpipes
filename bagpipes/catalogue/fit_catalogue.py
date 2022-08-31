@@ -335,10 +335,10 @@ class fit_catalogue(object):
 
             for v in self.vars:
 
-                if v is "UV_colour":
+                if v == "UV_colour":
                     values = samples["uvj"][:, 0] - samples["uvj"][:, 1]
 
-                elif v is "VJ_colour":
+                elif v == "VJ_colour":
                     values = samples["uvj"][:, 1] - samples["uvj"][:, 2]
 
                 else:
