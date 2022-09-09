@@ -20,7 +20,7 @@ def make_dirs(run="."):
     if not os.path.exists(working_dir + "/pipes/cats"):
         os.mkdir(working_dir + "/pipes/cats")
 
-    if run is not ".":
+    if run != ".":
         if not os.path.exists("pipes/posterior/" + run):
             os.mkdir("pipes/posterior/" + run)
 

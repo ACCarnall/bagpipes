@@ -18,7 +18,7 @@ class chemical_enrichment_history(object):
                               config.age_sampling.shape[0]))
 
         for comp in list(sfh_weights):
-            if comp is not "total":
+            if comp != "total":
                 self.grid_comp[comp] = self.delta(model_comp[comp],
                                                   sfh_weights[comp])
 
