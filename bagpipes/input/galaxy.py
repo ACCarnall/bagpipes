@@ -224,5 +224,7 @@ class galaxy:
 
         return spec
 
-    def plot(self, show=True):
-        return plotting.plot_galaxy(self, show=show)
+    def plot(self, show=True, return_y_scale=False, y_scale_spec=None):
+        return plotting.plot_galaxy(self, show=show,
+                                    return_y_scale=return_y_scale,
+                                    y_scale_spec=y_scale_spec)

@@ -231,10 +231,13 @@ def extract_cloudy_results(age, zmet, logU, path):
     cloudy_cont = np.loadtxt(path + "/cloudy_temp_files/"
                              + "logU_" + "%.1f" % logU + "_zmet_"
                              + "%.3f" % zmet + "/" + "%.5f" % age + ".econ",
-                             usecols=(0, 2))[::-1, :]
+                             usecols=(0, 3, 8))[::-1, :]
 
     # wavelengths from microns to angstroms
     cloudy_cont[:, 0] *= 10**4
+
+    # subtract lines from nebular continuum model
+    cloudy_cont[:, 1] -= cloudy_cont[:, 2]
 
     # continuum from erg/s to erg/s/A.
     cloudy_cont[:, 1] /= cloudy_cont[:, 0]

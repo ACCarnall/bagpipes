@@ -93,3 +93,6 @@ def add_sfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4,
     else:
         ax.set_ylabel("SFR / M_sol yr^-1")
         ax.set_xlabel("Age of Universe / Gyr")
+
+    if z_axis:
+        return ax2

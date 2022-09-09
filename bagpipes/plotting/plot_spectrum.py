@@ -20,7 +20,7 @@ def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
 
     # Sort out axis limits
     if not ymax:
-        ymax = 1.05*np.max(spectrum[:, 1])
+        ymax = 1.05*np.nanmax(spectrum[:, 1])
 
     if y_scale is None:
         y_scale = int(np.log10(ymax))-1
@@ -41,7 +41,7 @@ def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
             color = "dodgerblue"
 
         ax.plot(spectrum[:, 0], spectrum[:, 1]*10**-y_scale,
-                color=color, zorder=zorder, lw=lw, alpha=alpha)
+                color=color, zorder=zorder, lw=lw, label=label, alpha=alpha)
 
         lower = (spectrum[:, 1] - spectrum[:, 2])*10**-y_scale
         upper = (spectrum[:, 1] + spectrum[:, 2])*10**-y_scale
@@ -49,7 +49,7 @@ def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
         upper[upper > ymax*10**-y_scale] = ymax*10**-y_scale
         lower[lower < 0.] = 0.
 
-        ax.fill_between(spectrum[:, 0], lower, upper, color="dodgerblue",
+        ax.fill_between(spectrum[:, 0], lower, upper, color=color,
                         zorder=zorder-1, alpha=0.75, linewidth=0)
 
     # Sort out x tick locations

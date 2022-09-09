@@ -119,7 +119,8 @@ def make_hist_arrays(x, y):
 
 
 def hist1d(samples, ax, smooth=False, label=None, color="orange",
-           percentiles=True, zorder=4, bins=50, lw=2):
+           percentiles=True, zorder=4, bins=50, lw=2, color1=None, color2=None,
+           alpha=None):
 
     if color == "orange":
         color1 = "darkorange"

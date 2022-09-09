@@ -13,7 +13,7 @@ from .general import *
 from .plot_spectrum import add_spectrum
 
 
-def plot_galaxy(galaxy, show=True, return_y_scale=False):
+def plot_galaxy(galaxy, show=True, return_y_scale=False, y_scale_spec=None):
     """ Make a quick plot of the data loaded into a galaxy object. """
 
     update_rcParams()
@@ -31,7 +31,8 @@ def plot_galaxy(galaxy, show=True, return_y_scale=False):
     if galaxy.spectrum_exists:
         spec_ax = plt.subplot(gs[0, 0])
 
-        y_scale_spec = add_spectrum(galaxy.spectrum, spec_ax)
+        y_scale_spec = add_spectrum(galaxy.spectrum, spec_ax,
+                                    y_scale=y_scale_spec)
 
         if galaxy.photometry_exists:
             add_observed_photometry_linear(galaxy, spec_ax,
@@ -79,7 +80,7 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4, ptsize=40,
                 (np.log10(galaxy.filter_set.eff_wavs.max()) + 0.025))
 
     mask = (photometry[:, 1] > 0.)
-    ymax = 1.1*np.max((photometry[:, 1]+photometry[:, 2])[mask])
+    ymax = 1.1*np.nanmax((photometry[:, 1]+photometry[:, 2])[mask])
 
     if y_scale is None:
         y_scale = int(np.log10(ymax))-1
@@ -115,7 +116,7 @@ def add_observed_photometry(galaxy, ax, x_ticks=None, zorder=4, ptsize=40,
 
 def add_observed_photometry_linear(galaxy, ax, zorder=4, y_scale=None,
                                    skip_no_obs=False, ptsize=40, lw=1.,
-                                   marker="o", label=None):
+                                   marker="o", label=None, color="blue"):
     """ Adds photometric data to the passed axes without doing any
     manipulation of the axes or labels. """
 
@@ -126,7 +127,7 @@ def add_observed_photometry_linear(galaxy, ax, zorder=4, y_scale=None,
         photometry = photometry[mask, :]
 
     mask = (photometry[:, 1] > 0.)
-    ymax = 1.05*np.max((photometry[:, 1]+photometry[:, 2])[mask])
+    ymax = 1.05*np.nanmax((photometry[:, 1]+photometry[:, 2])[mask])
 
     if not y_scale:
         y_scale = int(np.log10(ymax))-1
@@ -137,8 +138,10 @@ def add_observed_photometry_linear(galaxy, ax, zorder=4, y_scale=None,
                 linestyle=" ", capsize=3, capthick=lw, zorder=zorder-1,
                 color="black")
 
-    ax.scatter(photometry[:, 0], photometry[:, 1]*10**-y_scale, color="blue",
-               s=ptsize, zorder=zorder, linewidth=lw, facecolor="blue",
+    ax.scatter(photometry[:, 0], photometry[:, 1]*10**-y_scale, color=color,
+               s=ptsize, zorder=zorder, linewidth=lw, facecolor=color,
                edgecolor="black", marker=marker, label=label)
+
+    auto_axis_label(ax, y_scale, log_x=False)
 
     return ax

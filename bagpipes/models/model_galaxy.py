@@ -3,6 +3,8 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 import warnings
 
+from copy import deepcopy
+
 from .. import utils
 from .. import config
 from .. import filters
@@ -100,6 +102,9 @@ class model_galaxy(object):
 
         if "nebular" in list(model_components):
             self.nebular = nebular(self.wavelengths)
+
+            if "metallicity" in list(model_components["nebular"]):
+                self.neb_sfh = star_formation_history(model_components)
 
         if "dust" in list(model_components):
             self.dust_emission = dust_emission(self.wavelengths)
@@ -262,12 +267,24 @@ class model_galaxy(object):
         em_lines = np.zeros(config.line_wavs.shape)
 
         if self.nebular:
-            em_lines += self.nebular.line_fluxes(self.sfh.ceh.grid, t_bc,
+            grid = np.copy(self.sfh.ceh.grid)
+
+            if "metallicity" in list(model_comp["nebular"]):
+                nebular_metallicity = model_comp["nebular"]["metallicity"]
+                neb_comp = deepcopy(model_comp)
+                for comp in list(neb_comp):
+                    if isinstance(neb_comp[comp], dict):
+                        neb_comp[comp]["metallicity"] = nebular_metallicity
+
+                self.neb_sfh.update(neb_comp)
+                grid = self.neb_sfh.ceh.grid
+
+            em_lines += self.nebular.line_fluxes(grid, t_bc,
                                                  model_comp["nebular"]["logU"])
 
             # All stellar emission below 912A goes into nebular emission
             spectrum_bc[self.wavelengths < 912.] = 0.
-            spectrum_bc += self.nebular.spectrum(self.sfh.ceh.grid, t_bc,
+            spectrum_bc += self.nebular.spectrum(grid, t_bc,
                                                  model_comp["nebular"]["logU"])
 
         # Add attenuation due to stellar birth clouds.
@@ -299,6 +316,7 @@ class model_galaxy(object):
             dust_flux += np.trapz(spectrum - dust_spectrum, x=self.wavelengths)
 
             spectrum = dust_spectrum
+            self.spectrum_bc = spectrum_bc*trans
 
             # Add dust emission.
             qpah, umin, gamma = 2., 1., 0.01
@@ -316,6 +334,9 @@ class model_galaxy(object):
 
         spectrum *= self.igm.trans(model_comp["redshift"])
 
+        if self.dust_atten:
+            self.spectrum_bc *= self.igm.trans(model_comp["redshift"])
+
         # Convert from luminosity to observed flux at redshift z.
         self.lum_flux = 1.
         if model_comp["redshift"] > 0.:
@@ -326,10 +347,18 @@ class model_galaxy(object):
             self.lum_flux = 4*np.pi*ldist_cm**2
 
         spectrum /= self.lum_flux*(1. + model_comp["redshift"])
+
+        if self.dust_atten:
+            self.spectrum_bc /= self.lum_flux*(1. + model_comp["redshift"])
+
         em_lines /= self.lum_flux
 
         # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
         spectrum *= 3.826*10**33
+
+        if self.dust_atten:
+            self.spectrum_bc *= 3.826*10**33
+            
         em_lines *= 3.826*10**33
 
         self.line_fluxes = dict(zip(config.line_names, em_lines))
