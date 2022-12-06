@@ -91,3 +91,28 @@ class calib_model(object):
 
         self.poly_coefs = np.array(coefs)
         self.model = chebval(self.x, coefs)
+
+    def multi_polynomial_max_like(self):
+
+        slice_order = int(self.param["slice_order"])
+        n_slices = int(self.param["n_slices"])
+
+        sect_length = (self.x[-1] - self.x[0])/n_slices
+
+        poly = np.zeros_like(self.x)
+
+        for i in range(n_slices):
+            mask = (self.x >= self.x[0] + sect_length*i) & (self.x < self.x[0] + sect_length*(i+1))
+
+            if i == n_slices - 1:
+                mask = (self.x >= self.x[0] + sect_length*i) & (self.x <= self.x[0] + sect_length*(i+1))
+
+            ratio = self.y_model[mask]/self.y[mask]
+            errs = np.abs(self.y_err[mask]*self.y_model[mask]/self.y[mask]**2)
+
+            coefs = chebfit(self.x[mask], ratio, slice_order, w=1./errs)
+            model = chebval(self.x[mask], coefs)
+
+            poly[mask] = model
+
+            self.model = poly

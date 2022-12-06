@@ -134,6 +134,10 @@ class star_formation_history:
         self.mass_weighted_age = np.sum(self.sfh*self.age_widths*self.ages)
         self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
 
+        self.mass_weighted_metallicity = np.sum(self.live_frac_grid*self.ceh.grid, axis=1)
+        self.mass_weighted_metallicity /= np.sum(self.live_frac_grid*self.ceh.grid)
+        self.mass_weighted_metallicity = np.sum(self.mass_weighted_metallicity*config.metallicities)
+
         self.tform = self.age_of_universe - self.mass_weighted_age
 
         self.tform *= 10**-9
@@ -313,6 +317,15 @@ class star_formation_history:
 
         dpl_form = ((tburst/tau_plaw)**alpha + (tburst/tau_plaw)**-beta)**-1
         sfr[mask] += fburst * dpl_form / sfr_burst_tot
+
+    def continuity(self, sfr, param):
+        bin_edges = np.array(param["bin_edges"])[::-1]*10**6
+        n_bins = len(bin_edges) - 1
+        dsfrs = [param["dsfr" + str(i)] for i in range(1, n_bins)]
+
+        for i in range(1, n_bins+1):
+            mask = (self.ages < bin_edges[i-1]) & (self.ages > bin_edges[i])
+            sfr[mask] += 10**np.sum(dsfrs[:i])
 
     def custom(self, sfr, param):
         history = param["history"]

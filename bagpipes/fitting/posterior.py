@@ -127,7 +127,8 @@ class posterior(object):
         self.sfh = star_formation_history(self.fitted_model.model_components)
 
         quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
-                          "mass_weighted_age", "tform", "tquench"]
+                          "mass_weighted_age", "tform", "tquench",
+                          "mass_weighted_metallicity"]
 
         for q in quantity_names:
             self.samples[q] = np.zeros(self.n_samples)

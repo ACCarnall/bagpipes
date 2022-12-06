@@ -21,7 +21,7 @@ negatively affects one or both of these things. """
 max_redshift = 10.
 
 # Sets the R = lambda/dlambda value for spectroscopic outputs.
-R_spec = 600.
+R_spec = 1000.
 
 # Sets the R = lambda/dlambda value for photometric outputs.
 R_phot = 100.
