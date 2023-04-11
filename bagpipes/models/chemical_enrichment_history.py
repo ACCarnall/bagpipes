@@ -24,6 +24,70 @@ class chemical_enrichment_history(object):
 
                 self.grid += self.grid_comp[comp]
 
+    def metallicity_bins(self, comp, sfh):
+        bin_edges = np.array(comp["bin_edges"])[::-1]*10**6
+        n_bins = len(bin_edges) - 1
+        ages = config.age_sampling
+        grid = np.zeros((self.zmet_vals.shape[0], sfh.shape[0]))
+
+        for i in range(1, n_bins+1):
+            zmet = comp["metallicity" + str(i)]
+
+            weights = np.zeros(self.zmet_vals.shape[0])
+
+            high_ind = self.zmet_vals[self.zmet_vals < zmet].shape[0]
+
+            if high_ind == self.zmet_vals.shape[0]:
+                weights[-1] = 1.
+
+            elif high_ind == 0:
+                weights[0] = 1.
+
+            else:
+                low_ind = high_ind - 1
+                width = (self.zmet_vals[high_ind] - self.zmet_vals[low_ind])
+                weights[high_ind] = (zmet - self.zmet_vals[low_ind])/width
+                weights[high_ind-1] = 1 - weights[high_ind]
+
+            mask = (ages < bin_edges[i-1]) & (ages > bin_edges[i])
+            grid[:, mask] = np.expand_dims(weights, axis=1)
+
+        return grid*sfh
+
+    def metallicity_bins_continuity(self, comp, sfh):
+        bin_edges = np.array(comp["bin_edges"])[::-1]*10**6
+        n_bins = len(bin_edges) - 1
+        ages = config.age_sampling
+        grid = np.zeros((self.zmet_vals.shape[0], sfh.shape[0]))
+        dzmet = [comp["dzmet" + str(i)] for i in range(1, n_bins)]
+        for i in range(1, n_bins+1):
+
+            zmet = comp["metallicity1"]
+            if i >= 2:
+                zmet = 10**(np.log10(comp["metallicity1"])
+                            + np.sum(dzmet[:i-1]))
+
+            weights = np.zeros(self.zmet_vals.shape[0])
+
+            high_ind = self.zmet_vals[self.zmet_vals < zmet].shape[0]
+
+            if high_ind == self.zmet_vals.shape[0]:
+                weights[-1] = 1.
+
+            elif high_ind == 0:
+                weights[0] = 1.
+
+            else:
+                low_ind = high_ind - 1
+                width = (self.zmet_vals[high_ind] - self.zmet_vals[low_ind])
+                weights[high_ind] = (zmet - self.zmet_vals[low_ind])/width
+                weights[high_ind-1] = 1 - weights[high_ind]
+
+            mask = (ages < bin_edges[i-1]) & (ages > bin_edges[i])
+            grid[:, mask] = np.expand_dims(weights, axis=1)
+
+        return grid*sfh
+
     def delta(self, comp, sfh):
         """ Delta function metallicity history. """
 

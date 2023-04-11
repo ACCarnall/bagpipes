@@ -16,7 +16,7 @@ Star-formation history recovery from spectroscopy (see `Carnall et al. 2019b <ht
 
 Identification of z > 3 quiescent galaxies from photometry (see `Carnall et al. 2020 <https://arxiv.org/abs/2001.11975>`_)
 
-Bagpipes has been used in ~30 refereed publications as of Jan 2021. For more example use cases take a look at `papers that cite the bagpipes paper <https://ui.adsabs.harvard.edu/abs/2018MNRAS.480.4379C/citations>`_, e.g. `Carnall et al. (2019a) <https://arxiv.org/abs/1811.03635>`_, `Williams et al. (2019) <https://arxiv.org/abs/1905.11996>`_ and `Wild et al. (2020) <https://arxiv.org/abs/2001.09154>`_.
+Bagpipes has been used in ~130 papers as of April 2023. For more example use cases take a look at this `ADS library listing papers that use Bagpipes <https://ui.adsabs.harvard.edu/public-libraries/VOrR8ITjTTSYNXVYiQ1oag>`_.
 
 
 Source and installation

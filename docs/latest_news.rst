@@ -6,6 +6,23 @@ Latest News
 I'm going to attempt to keep this page updated with news about the code, including updates to the code and documentation, as well as issues people make me aware of.
 
 
+April 2023
+------------
+
+**Tuesday 11th:** Version 1.0.1 of the code has been released today.
+
+The code now includes the ability for the user to specify a custom spectral resolving power curve as a function of wavelength, which will be convolved with spectral models prior to fitting to data.
+
+This has been included with the help of several people in response largely to the flood of data being produced by the JWST NIRSpec prism. You can find a tutorial on how to implement this in the examples folder on GitHub under Further Examples 3.
+
+December 2022
+------------
+
+**Thursday 8th:** Version 1.0.0 of the code has been released today.
+
+The code now includes the ability to fit the Leja et al. (2019) continuity non-parametric star-formation history model. You can find a tutorial on this in the examples folder on GitHub under Further Examples 2.
+
+
 June 2021
 ------------
 

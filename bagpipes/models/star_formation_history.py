@@ -134,9 +134,11 @@ class star_formation_history:
         self.mass_weighted_age = np.sum(self.sfh*self.age_widths*self.ages)
         self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
 
-        self.mass_weighted_metallicity = np.sum(self.live_frac_grid*self.ceh.grid, axis=1)
-        self.mass_weighted_metallicity /= np.sum(self.live_frac_grid*self.ceh.grid)
-        self.mass_weighted_metallicity = np.sum(self.mass_weighted_metallicity*config.metallicities)
+        self.mass_weighted_met = np.sum(self.live_frac_grid*self.ceh.grid,
+                                        axis=1)
+        self.mass_weighted_met /= np.sum(self.live_frac_grid*self.ceh.grid)
+        self.mass_weighted_met *= config.metallicities
+        self.mass_weighted_met = np.sum(self.mass_weighted_met)
 
         self.tform = self.age_of_universe - self.mass_weighted_age
 
@@ -169,11 +171,13 @@ class star_formation_history:
                                                   raw_live_frac_grid[:, i])
 
     def massformed_at_redshift(self, redshift):
-        t_hubble_at_z = 10**9*np.interp(redshift, utils.z_array, utils.age_at_z)
+        t_hubble_at_z = np.interp(redshift, utils.z_array, utils.age_at_z)
+        t_hubble_at_z *= 10**9
 
         mass_assembly = np.cumsum(self.sfh[::-1]*self.age_widths[::-1])[::-1]
 
-        ind = np.argmin(np.abs(self.ages - (self.age_of_universe - t_hubble_at_z)))
+        indices = np.abs(self.ages - (self.age_of_universe - t_hubble_at_z))
+        ind = np.argmin(indices)
 
         return np.log10(mass_assembly[ind])
 
