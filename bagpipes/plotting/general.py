@@ -255,12 +255,12 @@ def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
     if tex_on:
         if z_non_zero:
             ax.set_ylabel("$\\mathrm{f_{\\lambda}}\\ \\mathrm{/\\ 10^{"
-                          + str(y_scale)
+                          + str(int(y_scale))
                           + "}\\ erg\\ s^{-1}\\ cm^{-2}\\ \\AA^{-1}}$")
 
         else:
             ax.set_ylabel("$\\mathrm{f_{\\lambda}}\\ \\mathrm{/\\ 10^{"
-                          + str(y_scale)
+                          + str(int(y_scale))
                           + "}\\ erg\\ s^{-1}\\ \\AA^{-1}}$")
 
         if log_x:

@@ -56,7 +56,7 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None, color1=None,
     ymax = 1.05*np.max(upper_lims[mask])
 
     if not y_scale:
-        y_scale = int(np.log10(ymax))-1
+        y_scale = float(int(np.log10(ymax))-1)
 
     # Calculate posterior median redshift.
     if "redshift" in fit.fitted_model.params:
@@ -106,7 +106,7 @@ def add_spectrum_posterior(fit, ax, zorder=4, y_scale=None):
     ymax = 1.05*np.max(fit.galaxy.spectrum[:, 1])
 
     if not y_scale:
-        y_scale = int(np.log10(ymax))-1
+        y_scale = float(int(np.log10(ymax))-1)
 
     wavs = fit.galaxy.spectrum[:, 0]
     spec_post = np.copy(fit.posterior.samples["spectrum"])

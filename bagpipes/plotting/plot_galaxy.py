@@ -44,7 +44,7 @@ def plot_galaxy(galaxy, show=True, return_y_scale=False, y_scale_spec=None):
     # Add observed photometry to plot
     if galaxy.photometry_exists and galaxy.spectrum_exists:
         phot_ax = plt.subplot(gs[1, 0])
-        y_scale_phot = add_observed_photometry(galaxy, phot_ax)
+        y_scale_phot = add_observed_photometry(galaxy, phot_ax).astype(float)
         y_scale.append(y_scale_phot)
         axes.append(phot_ax)
 

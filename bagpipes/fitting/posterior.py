@@ -3,7 +3,7 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 import os
-import deepdish as dd
+import h5py
 
 from copy import deepcopy
 
@@ -48,11 +48,13 @@ class posterior(object):
             raise IOError("Fit results not found for " + self.galaxy.ID + ".")
 
         # Reconstruct the fitted model.
-        self.fit_instructions = dd.io.load(fname, group="/fit_instructions")
+        file = h5py.File(fname, "r")
+
+        self.fit_instructions = eval(file.attrs["fit_instructions"])
         self.fitted_model = fitted_model(self.galaxy, self.fit_instructions)
 
         # 2D array of samples for the fitted parameters only.
-        self.samples2d = dd.io.load(fname, group="/samples2d")
+        self.samples2d = np.array(file["samples2d"])
 
         # If fewer than n_samples exist in posterior, reduce n_samples
         if self.samples2d.shape[0] < self.n_samples:
@@ -128,7 +130,7 @@ class posterior(object):
 
         quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
                           "mass_weighted_age", "tform", "tquench",
-                          "mass_weighted_metallicity"]
+                          "mass_weighted_zmet"]
 
         for q in quantity_names:
             self.samples[q] = np.zeros(self.n_samples)

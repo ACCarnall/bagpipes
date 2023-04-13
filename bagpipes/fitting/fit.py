@@ -4,7 +4,7 @@ import numpy as np
 import os
 import time
 import warnings
-import deepdish as dd
+import h5py
 
 from copy import deepcopy
 
@@ -74,15 +74,21 @@ class fit(object):
         self.fname = "pipes/posterior/" + run + "/" + self.galaxy.ID + "_"
 
         # A dictionary containing properties of the model to be saved.
-        self.results = {"fit_instructions": self.fit_instructions}
+        self.results = {}
 
         # If a posterior file already exists load it.
         if os.path.exists(self.fname[:-1] + ".h5"):
-            self.results = dd.io.load(self.fname[:-1] + ".h5")
+            file = h5py.File(self.fname[:-1] + ".h5", "r")
+
             self.posterior = posterior(self.galaxy, run=run,
                                        n_samples=n_posterior)
-            self.fit_instructions = dd.io.load(self.fname[:-1] + ".h5",
-                                               group="/fit_instructions")
+
+            self.fit_instructions = eval(file.attrs["fit_instructions"])
+
+            for k in file.keys():
+                self.results[k] = np.array(file[k])
+                if np.sum(self.results[k].shape) == 1:
+                    self.results[k] = self.results[k][0]
 
             if rank == 0:
                 print("\nResults loaded from " + self.fname[:-1] + ".h5\n")
@@ -136,6 +142,10 @@ class fit(object):
             samples2d = np.loadtxt(self.fname + "post_equal_weights.dat")
             lnz_line = open(self.fname + "stats.dat").readline().split()
 
+            file = h5py.File(self.fname[:-1] + ".h5", "w")
+
+            file.attrs["fit_instructions"] = str(self.fit_instructions)
+
             self.results["samples2d"] = samples2d[:, :-1]
             self.results["lnlike"] = samples2d[:, -1]
             self.results["lnz"] = float(lnz_line[-3])
@@ -143,11 +153,12 @@ class fit(object):
             self.results["median"] = np.median(samples2d, axis=0)
             self.results["conf_int"] = np.percentile(self.results["samples2d"],
                                                      (16, 84), axis=0)
+            for k in self.results.keys():
+                file.create_dataset(k, data=self.results[k])
 
-            # Save re-formatted outputs as HDF5 and remove MultiNest output.
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                dd.io.save(self.fname[:-1] + ".h5", self.results)
+            self.results["fit_instructions"] = self.fit_instructions
+
+            file.close()
 
             os.system("rm " + self.fname + "*")
 

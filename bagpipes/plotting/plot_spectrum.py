@@ -23,7 +23,7 @@ def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
         ymax = 1.05*np.nanmax(spectrum[:, 1])
 
     if y_scale is None:
-        y_scale = int(np.log10(ymax))-1
+        y_scale = float(int(np.log10(ymax))-1)
 
     ax.set_ylim(0., ymax*10**-y_scale)
     ax.set_xlim(spectrum[0, 0], spectrum[-1, 0])

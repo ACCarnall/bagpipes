@@ -5,12 +5,12 @@ dependencies:
     - astropy
     - scipy
     - matplotlib>=2.2.2
-    - numpy>=1.14.2
+    - numpy
     - pybind11
+    - h5py
     - pip:
       - corner
       - pymultinest
       - msgpack
-      - deepdish
-      - pandas<=1.1.5
+      - pandas
       - spectres

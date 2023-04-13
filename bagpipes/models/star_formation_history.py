@@ -134,11 +134,11 @@ class star_formation_history:
         self.mass_weighted_age = np.sum(self.sfh*self.age_widths*self.ages)
         self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
 
-        self.mass_weighted_met = np.sum(self.live_frac_grid*self.ceh.grid,
+        self.mass_weighted_zmet = np.sum(self.live_frac_grid*self.ceh.grid,
                                         axis=1)
-        self.mass_weighted_met /= np.sum(self.live_frac_grid*self.ceh.grid)
-        self.mass_weighted_met *= config.metallicities
-        self.mass_weighted_met = np.sum(self.mass_weighted_met)
+        self.mass_weighted_zmet /= np.sum(self.live_frac_grid*self.ceh.grid)
+        self.mass_weighted_zmet *= config.metallicities
+        self.mass_weighted_zmet = np.sum(self.mass_weighted_zmet)
 
         self.tform = self.age_of_universe - self.mass_weighted_age
 
