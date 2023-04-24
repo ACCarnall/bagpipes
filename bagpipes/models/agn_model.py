@@ -37,8 +37,8 @@ class agn(object):
         agn_spec[mask1] /= agn_spec[mask1][-1]
         agn_spec[mask2] /= agn_spec[mask2][0]
 
-        agn_spec *= param["f5100A"]
         agn_spec /= agn_spec[np.argmin(np.abs(self.wavelengths - 5100.))]
+        agn_spec *= param["f5100A"]
 
         agn_spec += self.gaussian_model(4861.35, param["sigma"],
                                         param["hanorm"]/2.86)
