@@ -14,13 +14,28 @@ try:
 except (ImportError, RuntimeError, SystemExit) as e:
     print("Bagpipes: PyMultiNest import failed, fitting will be unavailable.")
 
+try:
+    from nautilus import Sampler
+
+except (ImportError, RuntimeError, SystemExit) as e:
+    pass
+
 # detect if run through mpiexec/mpirun
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.Get_rank()
+    size = MPI.COMM_WORLD.Get_size()
+    from mpi4py.futures import MPIPoolExecutor
+
+    if size == 1:
+        pool = None
+
+    else:
+        pool = MPIPoolExecutor(size)
 
 except ImportError:
     rank = 0
+    pool = None
 
 from .. import utils
 from .. import plotting
@@ -97,7 +112,7 @@ class fit(object):
         self.fitted_model = fitted_model(galaxy, self.fit_instructions,
                                          time_calls=time_calls)
 
-    def fit(self, verbose=False, n_live=400, use_MPI=True):
+    def fit(self, verbose=False, n_live=400, use_MPI=True, sampler="multinest"):
         """ Fit the specified model to the input galaxy data.
 
         Parameters
@@ -126,12 +141,23 @@ class fit(object):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            pmn.run(self.fitted_model.lnlike,
-                    self.fitted_model.prior.transform,
-                    self.fitted_model.ndim, n_live_points=n_live,
-                    importance_nested_sampling=False, verbose=verbose,
-                    sampling_efficiency="model",
-                    outputfiles_basename=self.fname, use_MPI=use_MPI)
+
+            if sampler == "multinest":
+                pmn.run(self.fitted_model.lnlike,
+                        self.fitted_model.prior.transform,
+                        self.fitted_model.ndim, n_live_points=n_live,
+                        importance_nested_sampling=False, verbose=verbose,
+                        sampling_efficiency="model",
+                        outputfiles_basename=self.fname, use_MPI=use_MPI)
+
+            elif sampler == "nautilus":
+                n_sampler = Sampler(self.fitted_model.prior.transform,
+                                        self.fitted_model.lnlike, n_live=n_live,
+                                        n_networks=1, pool=pool,
+                                        n_dim=self.fitted_model.ndim,
+                                        filepath=self.fname + "temp.h5")
+
+                n_sampler.run(verbose=verbose)
 
         if rank == 0 or not use_MPI:
             runtime = time.time() - start_time
@@ -139,20 +165,29 @@ class fit(object):
             print("\nCompleted in " + str("%.1f" % runtime) + " seconds.\n")
 
             # Load MultiNest outputs and save basic quantities to file.
-            samples2d = np.loadtxt(self.fname + "post_equal_weights.dat")
-            lnz_line = open(self.fname + "stats.dat").readline().split()
+            if sampler == "multinest":
+                samples2d = np.loadtxt(self.fname + "post_equal_weights.dat")
+                lnz_line = open(self.fname + "stats.dat").readline().split()
+                self.results["samples2d"] = samples2d[:, :-1]
+                self.results["lnlike"] = samples2d[:, -1]
+                self.results["lnz"] = float(lnz_line[-3])
+                self.results["lnz_err"] = float(lnz_line[-1])
+
+            elif sampler == "nautilus":
+                samples2d, log_w, log_l = n_sampler.posterior(equal_weight=True)
+                self.results["samples2d"] = samples2d
+                self.results["lnlike"] = log_l
+                self.results["lnz"] = n_sampler.evidence()
+                self.results["lnz_err"] = -99
+
+            self.results["median"] = np.median(samples2d, axis=0)
+            self.results["conf_int"] = np.percentile(self.results["samples2d"],
+                                                     (16, 84), axis=0)
 
             file = h5py.File(self.fname[:-1] + ".h5", "w")
 
             file.attrs["fit_instructions"] = str(self.fit_instructions)
 
-            self.results["samples2d"] = samples2d[:, :-1]
-            self.results["lnlike"] = samples2d[:, -1]
-            self.results["lnz"] = float(lnz_line[-3])
-            self.results["lnz_err"] = float(lnz_line[-1])
-            self.results["median"] = np.median(samples2d, axis=0)
-            self.results["conf_int"] = np.percentile(self.results["samples2d"],
-                                                     (16, 84), axis=0)
             for k in self.results.keys():
                 file.create_dataset(k, data=self.results[k])
 

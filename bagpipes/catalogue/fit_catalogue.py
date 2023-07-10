@@ -129,7 +129,7 @@ class fit_catalogue(object):
             utils.make_dirs(run=run)
 
     def fit(self, verbose=False, n_live=400, mpi_serial=False,
-            track_backlog=False):
+            track_backlog=False, sampler="multinest"):
         """ Run through the catalogue fitting each object.
 
         Parameters
@@ -181,7 +181,8 @@ class fit_catalogue(object):
                 continue
 
             # If not fit the object and update the output catalogue
-            self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live)
+            self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live,
+                             sampler=sampler)
 
             self.done[i] = True
 
@@ -195,7 +196,7 @@ class fit_catalogue(object):
                       self.done.shape[0], "objects completed.")
 
     def _fit_mpi_serial(self, verbose=False, n_live=400,
-                        track_backlog=False):
+                        track_backlog=False, sampler="multinest"):
         """ Run through the catalogue fitting multiple objects at once
         on different cores. """
 
@@ -230,7 +231,7 @@ class fit_catalogue(object):
 
                 # Load posterior for finished object to update catalogue
                 self._fit_object(oldID, use_MPI=False, verbose=False,
-                                 n_live=n_live)
+                                 n_live=n_live, sampler=sampler)
 
                 save_cat = Table.from_pandas(self.cat)
                 save_cat.write("pipes/cats/" + self.run + ".fits",
@@ -260,7 +261,7 @@ class fit_catalogue(object):
 
                 self.n_posterior = 5 # hacky, these don't get used
                 self._fit_object(ID, use_MPI=False, verbose=False,
-                                 n_live=n_live)
+                                 n_live=n_live, sampler=sampler)
 
                 comm.send([ID, rank], dest=0)  # Tell 0 object is done
 
@@ -282,7 +283,8 @@ class fit_catalogue(object):
             else:
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
-    def _fit_object(self, ID, verbose=False, n_live=400, use_MPI=True):
+    def _fit_object(self, ID, verbose=False, n_live=400, use_MPI=True,
+                    sampler="multinest"):
         """ Fit the specified object and update the catalogue. """
 
         # Set the correct redshift for this object
@@ -305,7 +307,8 @@ class fit_catalogue(object):
                            time_calls=self.time_calls,
                            n_posterior=self.n_posterior)
 
-        self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI)
+        self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI,
+                         sampler=sampler)
 
         if rank == 0:
             if self.vars is None:
