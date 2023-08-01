@@ -98,7 +98,10 @@ class fit(object):
             self.posterior = posterior(self.galaxy, run=run,
                                        n_samples=n_posterior)
 
-            self.fit_instructions = eval(file.attrs["fit_instructions"])
+            fit_info_str = file.attrs["fit_instructions"]
+            fit_info_str = fit_info_str.replace("array", "np.array")
+            fit_info_str = fit_info_str.replace("float", "np.float")
+            self.fit_instructions = eval(fit_info_str)
 
             for k in file.keys():
                 self.results[k] = np.array(file[k])
@@ -186,7 +189,10 @@ class fit(object):
 
             file = h5py.File(self.fname[:-1] + ".h5", "w")
 
+            # This is necessary for converting large arrays to strings
+            np.set_printoptions(threshold=10**7)
             file.attrs["fit_instructions"] = str(self.fit_instructions)
+            np.set_printoptions(threshold=10**4)
 
             for k in self.results.keys():
                 file.create_dataset(k, data=self.results[k])

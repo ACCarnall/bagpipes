@@ -50,7 +50,11 @@ class posterior(object):
         # Reconstruct the fitted model.
         file = h5py.File(fname, "r")
 
-        self.fit_instructions = eval(file.attrs["fit_instructions"])
+        fit_info_str = file.attrs["fit_instructions"]
+        fit_info_str = fit_info_str.replace("array", "np.array")
+        fit_info_str = fit_info_str.replace("float", "np.float")
+        self.fit_instructions = eval(fit_info_str)
+
         self.fitted_model = fitted_model(self.galaxy, self.fit_instructions)
 
         # 2D array of samples for the fitted parameters only.
