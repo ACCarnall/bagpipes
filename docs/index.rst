@@ -31,7 +31,8 @@ Bagpipes is `developed at GitHub <https://github.com/ACCarnall/bagpipes>`_, howe
 
 All of the code's Python dependencies will be automatically installed. The only non-Python dependency is the MultiNest nested sampling algorithm (used only for fitting). To install MultiNest see point 1 of the "on your own computer" section of the `PyMultiNest installation instructions <http://johannesbuchner.github.io/pymultinest-tutorial/install.html>`_.
 
-In my experience, the sequence of commands necessary to install MultiNest on a mac (with Homebrew installed) is as follows:
+In my experience, the sequence of commands necessary to install MultiNest on a **intel** mac (with `Homebrew
+<https://brew.sh/>`_ installed) is as follows:
 
 .. code::
 
@@ -44,6 +45,22 @@ In my experience, the sequence of commands necessary to install MultiNest on a m
     sudo make install
     cd ../..
     rm -r MultiNest
+
+On an **Apple Silicon** mac, the sequence of commands might be slightly different because `homebrew changed its default installation path <https://brew.sh/2021/02/05/homebrew-3.0.0/>`_.
+
+.. code::
+
+    git clone https://github.com/JohannesBuchner/MultiNest
+    brew install gcc
+    export DYLD_LIBRARY_PATH="/opt/homebrew/bin/gcc-13:$DYLD_LIBRARY_PATH"
+    cd MultiNest/build
+    cmake ..
+    make
+    sudo make install
+    cd ../..
+    rm -r MultiNest
+
+Note: Depending on when you install, the gcc version might be different. One can check gcc's version with `brew info gcc` and check if it is still installed at the right place `ls /opt/homebrew/bin/gcc*`. If your version differs from gcc-13, then you can easily update the third command with the correct path.
 
 If you are running a Linux operating system, or have MacPorts instead of Homebrew, you may run into additional issues. I may be able to provide advice if you get stuck.
 
