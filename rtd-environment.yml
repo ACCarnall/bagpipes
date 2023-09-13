@@ -3,9 +3,9 @@ name: bagpipes
 dependencies:
     - python
     - astropy
+    - numpy<1.23.0
     - scipy
     - matplotlib
-    - numpy<1.23.0
     - pybind11
     - h5py
     - pip:
