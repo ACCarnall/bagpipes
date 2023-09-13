@@ -5,6 +5,7 @@ import warnings
 import spectres
 
 from copy import deepcopy
+from numpy.polynomial.chebyshev import chebval, chebfit
 
 from .. import utils
 from .. import config
@@ -202,7 +203,20 @@ class model_galaxy(object):
             Number of spectral samples per full width at half maximum.
         """
 
-        R_curve = self.model_comp["R_curve"]
+        R_curve = np.copy(self.model_comp["R_curve"])
+
+        if "resolution_p0" in list(self.model_comp):
+            x = R_curve[:, 0]
+            x = 2.*(x - (x[0] + (x[-1] - x[0])/2.))/(x[-1] - x[0])
+
+            coefs = []
+            while "resolution_p" + str(len(coefs)) in list(self.model_comp):
+                coefs.append(self.model_comp["resolution_p" + str(len(coefs))])
+
+            poly_coefs = np.array(coefs)
+
+            R_curve[:, 1] *= chebval(x, coefs)
+
         x = [0.95*self.spec_wavs[0]]
 
         while x[-1] < 1.05*self.spec_wavs[-1]:
