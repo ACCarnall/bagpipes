@@ -55,7 +55,7 @@ On an **Apple Silicon** mac, the sequence of commands might be slightly differen
 .. code::
 
     git clone https://github.com/JohannesBuchner/MultiNest
-    brew install gcc
+    brew install gcc cmake
     export DYLD_LIBRARY_PATH="/opt/homebrew/bin/gcc-13:$DYLD_LIBRARY_PATH"
     cd MultiNest/build
     cmake ..
