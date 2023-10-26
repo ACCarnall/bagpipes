@@ -74,7 +74,7 @@ All SFH components also take one or more additional parameters describing their 
 	iyer["alpha"] = mandatory            # Either integer or list of integers
 
 	custom = {}                          # A custom array of SFR values
-	custom["history"] = mandatory        # sfhist_array or "sfhist.txt": M_Solar/yr
+	custom["history"] = mandatory        # sfhist_array or "sfhist.txt": yr, M_Solar/yr
 
 If a custom SFH component is specified, the "history" key must contain either an array or a string giving the path to a file containing the star formation history. In both cases the format is a column of ages in years followed by a column of star formation rates in Solar masses per year.
 
