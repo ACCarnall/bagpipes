@@ -6,6 +6,6 @@ pymultinest
 msgpack
 pandas
 spectres
-numpy==1.22.0
+numpy
 scipy
 matplotlib
