@@ -1,16 +1,7 @@
-version: 2
-
-build:
-  os: ubuntu-22.04
-  tools:
-    python: "3.12"
-
-python:
-  install:
-    - method: pip
-      path: .
-      extra_requirements:
-        - docs
+version: 1
 
 conda:
-  environment: rtd-environment.yml
+  file: rtd-environment.yml
+
+python:
+   setup_py_install: true
