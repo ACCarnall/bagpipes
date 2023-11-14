@@ -1,5 +1,7 @@
 **Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation**
 
+*Modified version of Bagpipes 1.0.3 - changes include adding more quantities to .h5, adding ability to derive Beta slope for each chain, vary fit instructions dictionary and redshift_sigma on a per galaxy basis. Don't clone the repo locally and install unless you already have the required grids. 
+
 Bagpipes is a state of the art code for generating realistic model galaxy spectra and fitting these to spectroscopic and photometric observations. For further information please see the Bagpipes documentation at `bagpipes.readthedocs.io <http://bagpipes.readthedocs.io>`_.
 
 **Installation**
