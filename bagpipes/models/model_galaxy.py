@@ -6,7 +6,8 @@ import spectres
 
 from copy import deepcopy
 from numpy.polynomial.chebyshev import chebval, chebfit
-
+#added by austind 14/11/23
+from scipy.optimize import curve_fit
 from .. import utils
 from .. import config
 from .. import filters
@@ -305,6 +306,8 @@ class model_galaxy(object):
 
         if not self.sfh.unphysical:
             self._calculate_uvj_mags()
+             # added by austind 13/11/23
+            self._calculate_beta_C94(model_components)
 
         # Deal with any spectral index calculations.
         if self.index_list is not None:
@@ -521,3 +524,27 @@ class model_galaxy(object):
 
     def plot_full_spectrum(self, show=True):
         return plotting.plot_full_spectrum(self, show=show)
+    
+    # added by austind 13/11/23
+    def _calculate_beta_C94(self, model_comp):
+        """ This method calculates the UV continuum slope (beta) 
+        in the 10 Calzetti+1994 filters from the full spectrum """
+        # constrain to Calzetti filters
+        wav_obs_C94, f_lambda_obs_C94 = crop_to_C94_filters(self.wavelengths, self.spectrum_full, model_comp)
+        self.beta_C94 = curve_fit(beta_slope_power_law_func, wav_obs_C94, f_lambda_obs_C94, maxfev = 1_000)[1]
+
+
+# added by austind 14/11/23
+def beta_slope_power_law_func(wav_rest, A, beta):
+    return (10 ** A) * (wav_rest ** beta)
+
+# added by austind 14/10/23
+def crop_to_C94_filters(wav_rest, flux_obs, model_comp):
+    # Calzetti 1994 filters
+    lower_Calzetti_filt = [1268., 1309., 1342., 1407., 1562., 1677., 1760., 1866., 1930., 2400.]
+    upper_Calzetti_filt = [1284., 1316., 1371., 1515., 1583., 1740., 1833., 1890., 1950., 2580.]
+    Calzetti94_filter_indices = np.logical_or.reduce([(wav_rest > low_lim) & (wav_rest < up_lim) \
+                    for low_lim, up_lim in zip(lower_Calzetti_filt, upper_Calzetti_filt)])
+    wav_obs = wav_rest[Calzetti94_filter_indices] * (1 + model_comp["redshift"])
+    flux_obs = flux_obs[Calzetti94_filter_indices]
+    return wav_obs, flux_obs

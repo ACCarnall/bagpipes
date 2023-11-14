@@ -23,9 +23,11 @@ def make_dirs(run="."):
     if run != ".":
         if not os.path.exists("pipes/posterior/" + run):
             os.mkdir("pipes/posterior/" + run)
+            #os.mkdirs("pipes/posterior/" + run, exist_ok = True) # updated by austind 14/10/23
 
         if not os.path.exists("pipes/plots/" + run):
             os.mkdir("pipes/plots/" + run)
+            #os.mkdirs("pipes/plots/" + run, exist_ok = True) # updated by austind 14/10/23
 
 
 def make_bins(midpoints, make_rhs=False):
