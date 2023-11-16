@@ -231,7 +231,7 @@ class fit_new(object):
                     data = self.posterior.samples  
                     file.create_group(k)
                     for j in data.keys():
-                        file[j].create_dataset(k, data=data[k])                    
+                        file[k].create_dataset(j, data=data[j])                
                 else:
                     data = self.results[k]
                     file.create_dataset(k, data=data)

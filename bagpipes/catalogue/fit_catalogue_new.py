@@ -388,7 +388,7 @@ class fit_catalogue_new(object):
                       "mass_weighted_age", "tform", "tquench"]
 
         if self.full_catalogue:
-            self.vars += ["UV_colour", "VJ_colour"]
+            self.vars += ["UV_colour", "VJ_colour", "beta_C94"]
 
     def _setup_catalogue(self):
         """ Set up the initial blank output catalogue. """

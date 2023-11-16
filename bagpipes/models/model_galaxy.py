@@ -531,7 +531,7 @@ class model_galaxy(object):
         in the 10 Calzetti+1994 filters from the full spectrum """
         # constrain to Calzetti filters
         wav_obs_C94, f_lambda_obs_C94 = crop_to_C94_filters(self.wavelengths, self.spectrum_full, model_comp)
-        self.beta_C94 = curve_fit(beta_slope_power_law_func, wav_obs_C94, f_lambda_obs_C94, maxfev = 1_000)[1]
+        self.beta_C94 = np.array(curve_fit(beta_slope_power_law_func, wav_obs_C94, f_lambda_obs_C94, maxfev = 1_000)[0][1])
 
 
 # added by austind 14/11/23

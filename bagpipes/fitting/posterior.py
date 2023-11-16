@@ -165,7 +165,7 @@ class posterior(object):
                                          spec_wavs=self.galaxy.spec_wavs,
                                          index_list=self.galaxy.index_list)
 
-        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94'
+        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94',
                      "indices"]
 
         all_model_keys = dir(self.model_galaxy)
