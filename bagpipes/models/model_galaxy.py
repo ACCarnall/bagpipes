@@ -347,12 +347,12 @@ class model_galaxy(object):
                 grid = self.neb_sfh.ceh.grid
 
             em_lines += self.nebular.line_fluxes(grid, t_bc,
-                                                 model_comp["nebular"]["logU"])
+                                                 model_comp["nebular"]["logU"])*(1-model_comp["nebular"]["f_esc"])
 
             # All stellar emission below 912A goes into nebular emission
             spectrum_bc[self.wavelengths < 912.] = 0.
             spectrum_bc += self.nebular.spectrum(grid, t_bc,
-                                                 model_comp["nebular"]["logU"])
+                                                 model_comp["nebular"]["logU"])*(1-model_comp["nebular"]["f_esc"])
 
         # Add attenuation due to stellar birth clouds.
         if self.dust_atten:
