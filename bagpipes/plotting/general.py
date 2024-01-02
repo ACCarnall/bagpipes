@@ -10,7 +10,7 @@ except RuntimeError:
     pass
 
 from distutils.spawn import find_executable
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from .. import utils
 
