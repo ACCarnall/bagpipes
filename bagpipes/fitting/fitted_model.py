@@ -75,24 +75,26 @@ class fitted_model(object):
 
         # Find parameters to be fitted and extract their priors.
         for i in range(len(all_vals)):
-            if isinstance(all_vals[i], tuple):
-                self.params.append(all_keys[i])
-                self.limits.append(all_vals[i])  # Limits on prior.
-
-                # Prior probability densities between these limits.
-                prior_key = all_keys[i] + "_prior"
-                if prior_key in list(all_keys):
-                    self.pdfs.append(all_vals[all_keys.index(prior_key)])
-
-                else:
-                    self.pdfs.append("uniform")
-
-                # Any hyper-parameters of these prior distributions.
-                self.hyper_params.append({})
-                for i in range(len(all_keys)):
-                    if all_keys[i].startswith(prior_key + "_"):
-                        hyp_key = all_keys[i][len(prior_key)+1:]
-                        self.hyper_params[-1][hyp_key] = all_vals[i]
+            # R_curve cannot be fitted and is either unset or must be a 2D numpy array
+            if not all_keys[i] == 'R_curve':
+                if isinstance(all_vals[i], tuple):
+                    self.params.append(all_keys[i])
+                    self.limits.append(all_vals[i])  # Limits on prior.
+    
+                    # Prior probability densities between these limits.
+                    prior_key = all_keys[i] + "_prior"
+                    if prior_key in list(all_keys):
+                        self.pdfs.append(all_vals[all_keys.index(prior_key)])
+    
+                    else:
+                        self.pdfs.append("uniform")
+    
+                    # Any hyper-parameters of these prior distributions.
+                    self.hyper_params.append({})
+                    for i in range(len(all_keys)):
+                        if all_keys[i].startswith(prior_key + "_"):
+                            hyp_key = all_keys[i][len(prior_key)+1:]
+                            self.hyper_params[-1][hyp_key] = all_vals[i]
 
             # Find any parameters which mirror the value of a fit param.
             if all_vals[i] in all_keys:
