@@ -10,7 +10,7 @@ Bagpipes can be installed with pip:
 
     pip install bagpipes
 
-Please note you cannot run the code just by cloning the repository as the large grids of models aren't included. To fit models to data with the code you may also install the `MultiNest <https://github.com/JohannesBuchner/MultiNest>`_. If MultiNest is not installed, `nautilus <https://github.com/johannesulf/nautilus>`_ will be used for fitting. For more information please see the `bagpipes documentation <http://bagpipes.readthedocs.io>`_.
+Please note you cannot run the code just by cloning the repository as the large grids of models aren't included. To fit models to data with the code you may also install the `MultiNest <https://github.com/JohannesBuchner/MultiNest>`_ code. If MultiNest is not installed, `nautilus <https://github.com/johannesulf/nautilus>`_ will be used for fitting. For more information please see the `bagpipes documentation <http://bagpipes.readthedocs.io>`_.
 
 **Published papers and citing the code**
 

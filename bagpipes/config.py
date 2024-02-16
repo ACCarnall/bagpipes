@@ -112,10 +112,12 @@ try:
     logU = np.arange(-4., -1.99, 0.5)
 
     # Grid of line fluxes.
-    line_grid = fits.open(grid_dir + "/" + neb_line_file)
+    line_grid = [fits.open(grid_dir + "/" + neb_line_file)[i].data for
+                 i in range(len(metallicities) * len(logU) + 1)]
 
     # Grid of nebular continuum fluxes.
-    cont_grid = fits.open(grid_dir + "/" + neb_cont_file)
+    cont_grid = [fits.open(grid_dir + "/" + neb_cont_file)[i].data for
+                 i in range(len(metallicities) * len(logU) + 1)]
 
 except IOError:
     print("Failed to load nebular grids, these should be placed in the"
@@ -136,9 +138,13 @@ try:
                           2.37, 2.50, 3.19, 3.90, 4.58])
 
     # Draine + Li (2007) dust emission grids, stored as a FITS HDUList.
-    dust_grid_umin_only = fits.open(grid_dir + "/dl07_grids_umin_only.fits")
+    dust_grid_umin_only = [
+        fits.open(grid_dir + "/dl07_grids_umin_only.fits")[i].data for i
+        in range(len(qpah_vals) + 1)]
 
-    dust_grid_umin_umax = fits.open(grid_dir + "/dl07_grids_umin_umax.fits")
+    dust_grid_umin_umax = [
+        fits.open(grid_dir + "/dl07_grids_umin_umax.fits")[i].data for i
+        in range(len(qpah_vals) + 1)]
 
 except IOError:
     print("Failed to load dust emission grids, these should be placed in the"
