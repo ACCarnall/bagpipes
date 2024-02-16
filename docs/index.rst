@@ -29,7 +29,7 @@ Bagpipes is `developed at GitHub <https://github.com/ACCarnall/bagpipes>`_, howe
     pip install bagpipes
 
 
-All of the code's Python dependencies will be automatically installed. The only non-Python dependency is the MultiNest nested sampling algorithm (used only for fitting).
+All of the code's Python dependencies will be automatically installed. The only (optional) non-Python dependency is the MultiNest nested sampling algorithm (used only for fitting). Note that if MultiNest is not installed, Bagpipes will use the nautilus sampler for fitting, instead.
 
 The simplest way to install MultiNest if you have an anaconda python disribution is with the command **conda install -c conda-forge multinest**.
 
@@ -100,7 +100,7 @@ A few of the excellent projects Bagpipes relies on are:
  - The `MultiNest <https://ccpforge.cse.rl.ac.uk/gf/project/multinest>`_ nested sampling algorithm `(Feroz et al. 2013) <https://arxiv.org/abs/1306.2144>`_
  - The `PyMultiNest <https://johannesbuchner.github.io/PyMultiNest>`_ Python interface for Multinest `(Buchner et al. 2014) <https://arxiv.org/abs/1402.0004>`_.
  - The `Cloudy <https://www.nublado.org>`_ photoionization code `(Ferland et al. 2017) <https://arxiv.org/abs/1705.10877>`_.
-
+ - The `nautilus <https://nautilus-sampler.readthedocs.io/en/stable/>`_ importance nested sampling algorithm `(Lange 2023) <https://arxiv.org/abs/2306.16923>`_.
 
  .. toctree::
     :maxdepth: 1

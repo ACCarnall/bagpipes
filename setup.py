@@ -31,7 +31,7 @@ setup(
 
     install_requires=["numpy", "corner", "pymultinest>=2.11", "h5py", "pandas",
                       "astropy", "matplotlib>=2.2.2", "scipy", "msgpack",
-                      "spectres"],
+                      "spectres", "nautilus-sampler>=1.0.2"],
 
     project_urls={
         "readthedocs": "https://bagpipes.readthedocs.io",
