@@ -1,11 +1,9 @@
 from __future__ import print_function, division, absolute_import
 
 import numpy as np
-import copy
 
 try:
     import corner
-    import matplotlib as mpl
     import matplotlib.pyplot as plt
 
 except RuntimeError:
