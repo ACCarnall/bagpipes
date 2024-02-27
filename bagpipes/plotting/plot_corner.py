@@ -27,7 +27,7 @@ def plot_corner(fit, show=False, save=True, bins=25, type="fit_params"):
         labels = fix_param_names(names)
 
     else:
-        labels = fit.fitted_model.params
+        labels = fit.fitted_model.params.copy()
 
     # Log any parameters with log_10 priors to make them easier to see
     for i in range(fit.fitted_model.ndim):
