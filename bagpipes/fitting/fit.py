@@ -213,8 +213,12 @@ class fit(object):
                 self.results["lnz_err"] = float(lnz_line[-1])
 
             elif sampler == "nautilus":
-                samples2d, log_w, log_l = n_sampler.posterior(
-                    equal_weight=True)
+                samples2d = np.zeros((0, self.fitted_model.ndim))
+                log_l = np.zeros(0)
+                while len(samples2d) < self.n_posterior:
+                    result = n_sampler.posterior(equal_weight=True)
+                    samples2d = np.vstack((samples2d, result[0]))
+                    log_l = np.concatenate((log_l, result[2]))
                 self.results["samples2d"] = samples2d
                 self.results["lnlike"] = log_l
                 self.results["lnz"] = n_sampler.log_z
