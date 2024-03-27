@@ -5,6 +5,7 @@ Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation is
 
 I hope you will find everything you need to know here, however feel free to get in touch if you have further questions, or to get an opinion on specific use cases. I've recently added a :ref:`latest news <latest-news>` page, which I'll use to track updates to the code and any issues people make me aware of.
 
+
 What can Bagpipes do?
 ---------------------
 
@@ -16,7 +17,7 @@ Star-formation history recovery from spectroscopy (see `Carnall et al. 2019b <ht
 
 Identification of z > 3 quiescent galaxies from photometry (see `Carnall et al. 2020 <https://arxiv.org/abs/2001.11975>`_)
 
-Bagpipes has been used in ~130 papers as of April 2023. For more example use cases take a look at this `ADS library listing papers that use Bagpipes <https://ui.adsabs.harvard.edu/public-libraries/VOrR8ITjTTSYNXVYiQ1oag>`_.
+Bagpipes has been used in ~230 papers as of March 2024. For more example use cases take a look at this `ADS library listing papers that use Bagpipes <https://ui.adsabs.harvard.edu/public-libraries/VOrR8ITjTTSYNXVYiQ1oag>`_.
 
 
 Source and installation
@@ -30,6 +31,10 @@ Bagpipes is `developed at GitHub <https://github.com/ACCarnall/bagpipes>`_, howe
 
 
 All of the code's Python dependencies will be automatically installed.
+
+
+Sampling algorithms within Bagpipes
+-----------------------------------
 
 Historically, fitting with Bagpipes has relied on the `MultiNest <https://github.com/JohannesBuchner/MultiNest>`_ nested sampling algorithm, a non-Python dependency that requires separate installation. This is sometimes challenging on certain systems. Recently, Bagpipes has been updated such that it will now automatically use the Python-based `nautilus <https://nautilus-sampler.readthedocs.io/en/stable/>`_ sampler for fitting if MultiNest is not installed. If you wish to use MultiNest, the installation instructions below may be of assistance.
 
