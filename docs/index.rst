@@ -29,7 +29,9 @@ Bagpipes is `developed at GitHub <https://github.com/ACCarnall/bagpipes>`_, howe
     pip install bagpipes
 
 
-All of the code's Python dependencies will be automatically installed. The only (optional) non-Python dependency is the MultiNest nested sampling algorithm (used only for fitting). Note that if MultiNest is not installed, Bagpipes will use the nautilus sampler for fitting, instead.
+All of the code's Python dependencies will be automatically installed.
+
+Historically, fitting with Bagpipes has relied on the `MultiNest <https://github.com/JohannesBuchner/MultiNest>`_ nested sampling algorithm, a non-Python dependency that requires separate installation. This is sometimes challenging on certain systems. Recently, Bagpipes has been updated such that it will now automatically use the Python-based `nautilus <https://nautilus-sampler.readthedocs.io/en/stable/>`_ sampler for fitting if MultiNest is not installed. If you wish to use MultiNest, the installation instructions below may be of assistance.
 
 The simplest way to install MultiNest if you have an anaconda python disribution is with the command **conda install -c conda-forge multinest**.
 
@@ -67,6 +69,7 @@ On an **Apple Silicon** mac, the sequence of commands might be slightly differen
 Note: Depending on when you install, the gcc version might be different. One can check gcc's version with `brew info gcc` and check if it is still installed at the right place `ls /opt/homebrew/bin/gcc*`. If your version differs from gcc-13, then you can easily update the third command with the correct path.
 
 If you are running a Linux operating system, or have MacPorts instead of Homebrew, you may run into additional issues. I may be able to provide advice if you get stuck.
+
 
 Published papers and citing the code
 ------------------------------------

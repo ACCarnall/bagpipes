@@ -116,7 +116,7 @@ class fit(object):
 
     def fit(self, verbose=False, n_live=400, use_MPI=True,
             sampler="multinest", n_eff=0, discard_exploration=False,
-            n_networks=4, pool=4):
+            n_networks=4, pool=1):
         """ Fit the specified model to the input galaxy data.
 
         Parameters
@@ -169,8 +169,7 @@ class fit(object):
         elif sampler not in ["multinest", "nautilus"]:
             raise ValueError("Sampler {} not supported.".format(sampler))
         elif not (multinest_available or nautilus_available):
-            raise RuntimeError(
-                "Neither MultiNest nor nautilus could be loaded.")
+            raise RuntimeError("No sampling algorithm could be loaded.")
 
         if rank == 0 or not use_MPI:
             print("\nBagpipes: fitting object " + self.galaxy.ID + "\n")
@@ -179,6 +178,7 @@ class fit(object):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
+            os.environ["PYTHONWARNINGS"] = "ignore"
 
             if sampler == "multinest":
                 pmn.run(self.fitted_model.lnlike,
@@ -193,10 +193,12 @@ class fit(object):
                                     self.fitted_model.lnlike, n_live=n_live,
                                     n_networks=n_networks, pool=pool,
                                     n_dim=self.fitted_model.ndim,
-                                    filepath=self.fname + "nautilus.h5")
+                                    filepath=self.fname + ".h5")
 
                 n_sampler.run(verbose=verbose, n_eff=n_eff,
                               discard_exploration=discard_exploration)
+
+            os.environ["PYTHONWARNINGS"] = ""
 
         if rank == 0 or not use_MPI:
             runtime = time.time() - start_time

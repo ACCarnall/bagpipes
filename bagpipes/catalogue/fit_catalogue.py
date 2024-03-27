@@ -129,7 +129,7 @@ class fit_catalogue(object):
             utils.make_dirs(run=run)
 
     def fit(self, verbose=False, n_live=400, mpi_serial=False,
-            track_backlog=False, sampler="multinest"):
+            track_backlog=False, sampler="multinest", pool=1):
         """ Run through the catalogue fitting each object.
 
         Parameters
@@ -182,7 +182,7 @@ class fit_catalogue(object):
 
             # If not fit the object and update the output catalogue
             self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live,
-                             sampler=sampler)
+                             sampler=sampler, pool=pool)
 
             self.done[i] = True
 
@@ -284,7 +284,7 @@ class fit_catalogue(object):
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
     def _fit_object(self, ID, verbose=False, n_live=400, use_MPI=True,
-                    sampler="multinest"):
+                    sampler="multinest", pool=1):
         """ Fit the specified object and update the catalogue. """
 
         # Set the correct redshift for this object
@@ -308,7 +308,7 @@ class fit_catalogue(object):
                            n_posterior=self.n_posterior)
 
         self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI,
-                         sampler=sampler)
+                         sampler=sampler, pool=pool)
 
         if rank == 0:
             if self.vars is None:
