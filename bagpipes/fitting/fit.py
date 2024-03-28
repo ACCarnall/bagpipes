@@ -5,22 +5,24 @@ import os
 import time
 import warnings
 import h5py
+import contextlib
 
 from copy import deepcopy
 
 try:
-    import pymultinest as pmn
+    with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
+        import pymultinest as pmn
     multinest_available = True
 except (ImportError, RuntimeError, SystemExit):
-    print("Bagpipes: PyMultiNest import failed, fitting with MultiNest will " +
-          "be unavailable.")
+    print("Bagpipes: PyMultiNest import failed, fitting will use the Nautilus" +
+          " sampler instead.")
     multinest_available = False
 
 try:
     from nautilus import Sampler
     nautilus_available = True
 except (ImportError, RuntimeError, SystemExit):
-    print("Bagpipes: Nautilus import failed, fitting with nautilus will be " +
+    print("Bagpipes: Nautilus import failed, fitting with Nautilus will be " +
           "unavailable.")
     nautilus_available = False
 
@@ -156,18 +158,22 @@ class fit(object):
 
             return
 
+        # Figure out which sampling algorithm to use
         sampler = sampler.lower()
 
         if (sampler == "multinest" and not multinest_available and
                 nautilus_available):
             sampler = "nautilus"
             print("MultiNest not available. Switching to nautilus.")
+
         elif (sampler == "nautilus" and not nautilus_available and
                 multinest_available):
             sampler = "multinest"
             print("Nautilus not available. Switching to MultiNest.")
+
         elif sampler not in ["multinest", "nautilus"]:
             raise ValueError("Sampler {} not supported.".format(sampler))
+
         elif not (multinest_available or nautilus_available):
             raise RuntimeError("No sampling algorithm could be loaded.")
 
