@@ -325,11 +325,11 @@ class star_formation_history:
     def continuity(self, sfr, param):
         bin_edges = np.array(param["bin_edges"])[::-1]*10**6
         n_bins = len(bin_edges) - 1
-        dsfrs = [0] + [param["dsfr" + str(i)] for i in range(1, n_bins)]
+        dsfrs = [param["dsfr" + str(i)] for i in range(1, n_bins)]
 
         for i in range(1, n_bins+1):
             mask = (self.ages < bin_edges[i-1]) & (self.ages > bin_edges[i])
-            sfr[mask] += 10**np.sum(dsfrs[:i])
+            sfr[mask] += 10**np.sum(dsfrs[:i-1])
 
     def custom(self, sfr, param):
         history = param["history"]
