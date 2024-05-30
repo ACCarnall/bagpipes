@@ -50,6 +50,9 @@ age_widths = age_bins[1:] - age_bins[:-1]
 # Convert the age sampling from log10(Gyr) to Gyr.
 age_sampling = 10**age_sampling
 
+# Timescale for the code to calculate SFRs over in years.
+sfr_timescale = 10**8  # This is 100 Myr by default
+
 
 """ These variables tell the code where to find the raw stellar emission
 models, as well as some of their basic properties. """
@@ -172,7 +175,7 @@ else:
 
     else:
         wav_check = np.min(igm_file[2].data == igm_wavelengths)
-        z_check = np.min(igm_file[3].data == igm_redshifts)
+        z_check = igm_file[3].data.shape[0] == igm_redshifts.shape[0]
 
         if not wav_check or not z_check:
             igm_inoue2014.make_table(igm_redshifts, igm_wavelengths)
