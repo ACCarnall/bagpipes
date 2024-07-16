@@ -125,7 +125,7 @@ class star_formation_history:
         self.stellar_mass = np.log10(np.sum(self.live_frac_grid*self.ceh.grid))
         self.formed_mass = np.log10(np.sum(self.ceh.grid))
 
-        age_mask = (self.ages < 10**8)
+        age_mask = (self.ages < config.sfr_timescale)
         self.sfr = np.sum(self.sfh[age_mask]*self.age_widths[age_mask])
         self.sfr /= self.age_widths[age_mask].sum()
         self.ssfr = np.log10(self.sfr) - self.stellar_mass
@@ -329,7 +329,7 @@ class star_formation_history:
 
         for i in range(1, n_bins+1):
             mask = (self.ages < bin_edges[i-1]) & (self.ages > bin_edges[i])
-            sfr[mask] += 10**np.sum(dsfrs[:i])
+            sfr[mask] += 10**np.sum(dsfrs[:i-1])
 
     def custom(self, sfr, param):
         history = param["history"]
