@@ -3,7 +3,6 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 from .. import config
-from .. import utils
 
 
 class nebular(object):

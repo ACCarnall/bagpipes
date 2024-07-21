@@ -9,7 +9,6 @@ except ImportError:
     pass
 
 from scipy.optimize import fsolve
-from copy import copy, deepcopy
 
 from .. import utils
 from .. import config

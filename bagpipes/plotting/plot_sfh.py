@@ -11,9 +11,6 @@ except RuntimeError:
 
 from .general import *
 
-from .. import utils
-from .. import config
-
 
 def plot_sfh(sfh, show=True, save=False):
     """ Make a quick plot of an individual sfh. """
