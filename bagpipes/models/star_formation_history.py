@@ -12,7 +12,21 @@ from scipy.optimize import fsolve
 from copy import copy, deepcopy
 
 from .. import utils
-from .. import config
+import os
+
+try:
+    use_bpass = bool(int(os.environ['use_bpass']))
+    print('use_bpass: ',bool(int(os.environ['use_bpass'])))
+except KeyError:
+    use_bpass = False
+
+if use_bpass:
+    print('Setup to use BPASS')
+    from .. import config_bpass as config
+else:
+    print('Setup to use BC03')
+    from .. import config
+
 from .. import plotting
 
 from .chemical_enrichment_history import chemical_enrichment_history
@@ -128,8 +142,17 @@ class star_formation_history:
         age_mask = (self.ages < config.sfr_timescale)
         self.sfr = np.sum(self.sfh[age_mask]*self.age_widths[age_mask])
         self.sfr /= self.age_widths[age_mask].sum()
+        self.sfr_100myr = self.sfr
+        age_mask_10myr = (self.ages < 10**7)
+        self.sfr_10myr =  np.sum(self.sfh[age_mask_10myr]*self.age_widths[age_mask_10myr])
+        self.sfr_10myr /= self.age_widths[age_mask_10myr].sum()
+      
         self.ssfr = np.log10(self.sfr) - self.stellar_mass
+        self.ssfr_10myr = np.log10(self.sfr_10myr) - self.stellar_mass
+        self.ssfr_100myr = self.ssfr
         self.nsfr = np.log10(self.sfr*self.age_of_universe) - self.formed_mass
+        self.nsfr_10myr = np.log10(self.sfr_10myr*self.age_of_universe) - self.formed_mass
+        self.nsfr_100myr = self.nsfr
 
         self.mass_weighted_age = np.sum(self.sfh*self.age_widths*self.ages)
         self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
@@ -141,7 +164,8 @@ class star_formation_history:
         self.mass_weighted_zmet = np.sum(self.mass_weighted_zmet)
 
         self.tform = self.age_of_universe - self.mass_weighted_age
-
+        # added by austind 16/12/23
+        self._calc_burstiness()
         self.tform *= 10**-9
         self.mass_weighted_age *= 10**-9
 
@@ -169,6 +193,10 @@ class star_formation_history:
             self.live_frac_grid[i, :] = np.interp(config.age_sampling,
                                                   config.raw_stellar_ages,
                                                   raw_live_frac_grid[:, i])
+     # added by austind 12/16/23
+    def _calc_burstiness(self):
+        self.burstiness = 0.
+        pass
 
     def massformed_at_redshift(self, redshift):
         t_hubble_at_z = np.interp(redshift, utils.z_array, utils.age_at_z)
@@ -259,6 +287,7 @@ class star_formation_history:
                              args=([tmax, fwhm]))
 
         else:
+            raise(Exception("Bagpipes error caught by austind 28/11/23"))
             tau, t0 = par_dict["tau"], par_dict["t0"]
 
         mask = self.ages < self.age_of_universe

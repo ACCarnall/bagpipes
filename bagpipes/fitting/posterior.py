@@ -49,11 +49,24 @@ class posterior(object):
 
         # Reconstruct the fitted model.
         file = h5py.File(fname, "r")
-
-        fit_info_str = file.attrs["fit_instructions"]
-        fit_info_str = fit_info_str.replace("array", "np.array")
-        fit_info_str = fit_info_str.replace("float", "np.float")
-        self.fit_instructions = eval(fit_info_str)
+        try:
+            fit_info_str = file.attrs["fit_instructions"]
+            fit_info_str = fit_info_str.replace("array", "np.array")
+            fit_info_str = fit_info_str.replace("float", "np.float")
+            self.fit_instructions = eval(fit_info_str)
+        except KeyError:
+            self.fit_instructions = {}
+            #print(file['fit_instructions']['dust']['Av'].keys())
+            for key, value in file['fit_instructions'].items():
+                print(list(value.keys()))
+                if type(value) == h5py._hl.group.Group:
+                    self.fit_instructions[key] = {}
+                    for key2, value2 in value.items():
+                        print('value2', value2)
+                        self.fit_instructions[key][key2] = file['fit_instructions'][key][key2][:]
+                self.fit_instructions[key] = value[:]
+            #print(type(file['fit_instructions']))
+            #self.fit_instructions = file['fit_instructions']
 
         self.fitted_model = fitted_model(self.galaxy, self.fit_instructions)
 
@@ -133,6 +146,7 @@ class posterior(object):
         self.sfh = star_formation_history(self.fitted_model.model_components)
 
         quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
+                          "sfr_10myr","ssfr_10myr", "nsfr_10myr", # Added by tharvey 17/01/24
                           "mass_weighted_age", "tform", "tquench",
                           "mass_weighted_zmet"]
 
@@ -166,7 +180,7 @@ class posterior(object):
                                          index_list=self.galaxy.index_list)
 
         all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94',
-                     "indices"]
+                     "beta_C94", "m_UV", "M_UV", "indices"]
 
         all_model_keys = dir(self.model_galaxy)
         quantity_names = [q for q in all_names if q in all_model_keys]

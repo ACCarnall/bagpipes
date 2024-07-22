@@ -4,7 +4,18 @@ import numpy as np
 
 from scipy.interpolate import CubicSpline
 
-from .. import config
+try:
+    use_bpass = bool(int(os.environ['use_bpass']))
+    print('use_bpass: ',bool(int(os.environ['use_bpass'])))
+except KeyError:
+    use_bpass = False
+
+if use_bpass:
+    print('Setup to use BPASS')
+    from .. import config_bpass as config
+else:
+    print('Setup to use BC03')
+    from .. import config
 
 
 class dust_attenuation(object):
