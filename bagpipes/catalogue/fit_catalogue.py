@@ -100,7 +100,8 @@ class fit_catalogue(object):
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
                  run=".", analysis_function=None, time_calls=False,
                  n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None, track_backlog=False):
+                 index_list=None, track_backlog=False, spec_units="ergscma",
+                 phot_units="mujy"):
 
         self.IDs = np.array(IDs).astype(str)
         self.fit_instructions = fit_instructions
@@ -119,6 +120,8 @@ class fit_catalogue(object):
         self.full_catalogue = full_catalogue
         self.load_indices = load_indices
         self.index_list = index_list
+        self.spec_units = spec_units
+        self.phot_units = phot_units
 
         self.n_objects = len(self.IDs)
         self.done = np.zeros(self.IDs.shape[0]).astype(bool)
@@ -300,7 +303,9 @@ class fit_catalogue(object):
                              spectrum_exists=self.spectrum_exists,
                              photometry_exists=self.photometry_exists,
                              load_indices=self.load_indices,
-                             index_list=self.index_list)
+                             index_list=self.index_list,
+                             spec_units=self.spec_units,
+                             phot_units=self.phot_units)
 
         # Fit the object
         self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,

@@ -94,8 +94,8 @@ models, as well as some of their basic properties. """
 
 try:
     # Names of files containing the nebular grids.
-    neb_cont_file = "bc03_miles_nebular_cont_grids.fits"
-    neb_line_file = "bc03_miles_nebular_line_grids.fits"
+    neb_cont_file = "bc03_miles_nebular_cont_grids_extended.fits"
+    neb_line_file = "bc03_miles_nebular_line_grids_extended.fits"
 
     # Names for the emission features to be tracked.
     line_names = np.loadtxt(grid_dir + "/cloudy_lines.txt",
@@ -112,7 +112,7 @@ try:
     neb_wavs = fits.open(grid_dir + "/" + neb_cont_file)[1].data[0, 1:]
 
     # LogU values for the nebular emission grids.
-    logU = np.arange(-4., -1.99, 0.5)
+    logU = np.arange(-4., 0.01, 0.5)
 
     # Grid of line fluxes.
     line_grid = [fits.open(grid_dir + "/" + neb_line_file)[i].data for
