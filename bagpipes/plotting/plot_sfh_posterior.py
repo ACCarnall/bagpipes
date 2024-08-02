@@ -12,7 +12,6 @@ except RuntimeError:
 from .general import *
 
 from .. import utils
-from .. import config
 
 
 def plot_sfh_posterior(fit, show=False, save=True, colorscheme="bw"):
