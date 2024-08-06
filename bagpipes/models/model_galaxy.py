@@ -8,6 +8,9 @@ from copy import deepcopy
 from numpy.polynomial.chebyshev import chebval, chebfit
 #added by austind 14/11/23
 from scipy.optimize import curve_fit
+import astropy.units as u
+import astropy.constants as const
+import os
 from .. import utils
 
 try:
@@ -359,6 +362,13 @@ class model_galaxy(object):
              # added by austind 13/11/23
             self._calculate_beta_C94(model_components)
 
+            # added by austind 08/12/23
+            self._calculate_M_UV(model_components)
+            # added by austind 01/08/24
+            self._calculate_Halpha_EWrest(model_components)
+            self._calculate_xi_ion_caseB(model_components)
+
+
         # Deal with any spectral index calculations.
         if self.index_list is not None:
             self.index_names = [ind["name"] for ind in self.index_list]
@@ -369,7 +379,7 @@ class model_galaxy(object):
                                                 self.spectrum,
                                                 model_components["redshift"])
 
-    def _calculate_full_spectrum(self, model_comp):
+    def _calculate_full_spectrum(self, model_comp, add_lines = True):
         """ This method combines the models for the various emission
         and absorption processes to generate the internal full galaxy
         spectrum held within the class. The _calculate_photometry and
@@ -381,7 +391,8 @@ class model_galaxy(object):
             t_bc = model_comp["t_bc"]
 
         spectrum_bc, spectrum = self.stellar.spectrum(self.sfh.ceh.grid, t_bc)
-        em_lines = np.zeros(config.line_wavs.shape)
+        if add_lines:
+            em_lines = np.zeros(config.line_wavs.shape)
 
         if self.nebular:
             grid = np.copy(self.sfh.ceh.grid)
@@ -396,13 +407,18 @@ class model_galaxy(object):
                 self.neb_sfh.update(neb_comp)
                 grid = self.neb_sfh.ceh.grid
 
-            em_lines += self.nebular.line_fluxes(grid, t_bc,
-                                                 model_comp["nebular"]["logU"])*(1-model_comp["nebular"]["f_esc"])
-
             # All stellar emission below 912A goes into nebular emission
             spectrum_bc[self.wavelengths < 912.] = 0.
-            spectrum_bc += self.nebular.spectrum(grid, t_bc,
-                                                 model_comp["nebular"]["logU"])*(1-model_comp["nebular"]["f_esc"])
+            if add_lines:
+                em_lines += self.nebular.line_fluxes(grid, t_bc,
+                    model_comp["nebular"]["logU"]) * (1 - model_comp["nebular"].get("fesc", 0))
+                self.spectrum_neb = self.nebular.spectrum(grid, t_bc,
+                    model_comp["nebular"]["logU"]) * (1 - model_comp["nebular"].get("fesc", 0))
+                spectrum_bc += self.spectrum_neb
+            else:
+                self.spectrum_neb_cont = self.nebular.continuum_spectrum(grid, t_bc,
+                    model_comp["nebular"]["logU"]) * (1 - model_comp["nebular"].get("fesc", 0))
+                spectrum_bc += self.spectrum_neb_cont
 
         # Add attenuation due to stellar birth clouds.
         if self.dust_atten:
@@ -417,15 +433,18 @@ class model_galaxy(object):
                 spectrum_bc_dust = spectrum_bc*bc_trans_red
                 dust_flux += np.trapz(spectrum_bc - spectrum_bc_dust,
                                       x=self.wavelengths)
+                if add_lines:
+                    self.spectrum_neb *= bc_trans_red
+                else:
+                    self.spectrum_neb_cont *= bc_trans_red
+
 
                 spectrum_bc = spectrum_bc_dust
-
-            # Attenuate emission line fluxes.
-            bc_Av = eta*model_comp["dust"]["Av"]
-            em_lines *= 10**(-bc_Av*self.dust_atten.A_line/2.5)
-
+            if add_lines:
+                # Attenuate emission line fluxes.
+                bc_Av = eta*model_comp["dust"]["Av"]
+                em_lines *= 10**(-bc_Av*self.dust_atten.A_line/2.5)
         spectrum += spectrum_bc  # Add birth cloud spectrum to spectrum.
-
         # Add attenuation due to the diffuse ISM.
         if self.dust_atten:
             trans = 10**(-model_comp["dust"]["Av"]*self.dust_atten.A_cont/2.5)
@@ -433,7 +452,12 @@ class model_galaxy(object):
             dust_flux += np.trapz(spectrum - dust_spectrum, x=self.wavelengths)
 
             spectrum = dust_spectrum
-            self.spectrum_bc = spectrum_bc*trans
+            if add_lines:
+                self.spectrum_bc = spectrum_bc*trans
+                self.spectrum_neb *= trans
+            else:
+                self.spectrum_bc_cont = spectrum_bc*trans
+                self.spectrum_neb_cont *= trans
 
             # Add dust emission.
             qpah, umin, gamma = 2., 1., 0.01
@@ -457,7 +481,13 @@ class model_galaxy(object):
                             self.model_comp["dla"]["zabs"])
 
         if self.dust_atten:
-            self.spectrum_bc *= self.igm.trans(model_comp["redshift"])
+            if add_lines:
+                self.spectrum_bc *= self.igm.trans(model_comp["redshift"])
+                self.spectrum_neb *= self.igm.trans(model_comp["redshift"])
+            else:
+                self.spectrum_bc_cont *= self.igm.trans(model_comp["redshift"])
+                self.spectrum_neb_cont *= self.igm.trans(model_comp["redshift"])
+
 
         # Convert from luminosity to observed flux at redshift z.
         self.lum_flux = 1.
@@ -471,21 +501,40 @@ class model_galaxy(object):
         spectrum /= self.lum_flux*(1. + model_comp["redshift"])
 
         if self.dust_atten:
-            self.spectrum_bc /= self.lum_flux*(1. + model_comp["redshift"])
-
-        em_lines /= self.lum_flux
+            if add_lines:
+                self.spectrum_neb /= self.lum_flux*(1. + model_comp["redshift"])
+                self.spectrum_bc /= self.lum_flux*(1. + model_comp["redshift"])
+            else:
+                self.spectrum_neb_cont /= self.lum_flux*(1. + model_comp["redshift"])
+                self.spectrum_bc_cont /= self.lum_flux*(1. + model_comp["redshift"])
+        if add_lines:
+            em_lines /= self.lum_flux
 
         # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
         spectrum *= 3.826*10**33
 
         if self.dust_atten:
-            self.spectrum_bc *= 3.826*10**33
+            if add_lines:
+                self.spectrum_neb *= 3.826*10**33
+                self.spectrum_bc *= 3.826*10**33
+            else:
+                self.spectrum_neb_cont *= 3.826*10**33
+                self.spectrum_bc_cont *= 3.826*10**33
+        if add_lines:
+            em_lines *= 3.826*10**33
+            self.line_fluxes = dict(zip(config.line_names, em_lines))
 
-        em_lines *= 3.826*10**33
+        if add_lines:
+            self.spectrum_full = spectrum
+        else:
+            self.spectrum_full_cont = spectrum
 
-        self.line_fluxes = dict(zip(config.line_names, em_lines))
-
-        self.spectrum_full = spectrum
+    # added by austind 01/08/24
+    def _calculate_full_continuum_spectrum(self, model_comp):
+        """ This method combines the models for the various emission
+        and absorption processes to generate the internal full galaxy
+        continuum spectrum held within the class """
+        self._calculate_full_spectrum(model_comp, add_lines = False)
 
     def _calculate_photometry(self, redshift, uvj=False):
         """ This method generates predictions for observed photometry.
@@ -573,33 +622,253 @@ class model_galaxy(object):
         """ Obtain (unnormalised) rest-frame UVJ magnitudes. """
 
         self.uvj = -2.5*np.log10(self._calculate_photometry(0., uvj=True))
+        
+    # # added by austind 13/10/23
+    # def _calculate_stellar_beta_C94(self, model_comp):
+    #     """ This method calculates the UV continuum slope (beta) 
+    #     in the 10 Calzetti+1994 filters from the stellar spectrum """
+    #     stellar_spectrum = self._calculate_stellar_spectrum(model_comp) # un-normalized stellar spectrum
+    #     # perform chi square fitting with curve_fit
+    #     self.beta_stellar_C94 = None
+    
+    # added by austind 13/10/23
+    def _calculate_beta_C94(self, model_comp):
+        """ This method calculates the UV continuum slope (beta) 
+        in the 10 Calzetti+1994 filters from the full spectrum """
+        # constrain to Calzetti filters
+        #print(np.min(self.wavelengths), np.max(self.wavelengths))
+        self._calculate_full_continuum_spectrum(model_comp)
+        wav_obs_C94, f_lambda_obs_C94 = crop_to_C94_filters(self.wavelengths, self.spectrum_full_cont, model_comp)
+        self.beta_C94 = np.array([curve_fit(beta_slope_power_law_func, wav_obs_C94, f_lambda_obs_C94, maxfev = 10_000)[0][1]])
+
+    # added by austind 08/12/23
+    def _calculate_m_UV(self, model_comp):
+        """This method calculates the UV apparent magnitude from the full spectrum in a top-hat filter between 1450<wav_rest<1550 Angstrom. 
+        Only gives correctly normalized values when model spectrum has already been fitted."""
+        f_lambda_1500 = np.mean(self.spectrum_full[((self.wavelengths > 1450.) & (self.wavelengths < 1550.))]) * u.erg / (u.s * (u.cm ** 2) * u.AA)
+        self.m_UV = np.array([-2.5 * np.log10((f_lambda_1500 * ((1500. * (1 + model_comp["redshift"]) * u.AA) ** 2) / const.c).to(u.Jy).value) + 8.9]) # observed frame
+    
+    # added by austind 08/12/23
+    def _calculate_M_UV(self, model_comp):
+        """This method calculates the UV absolute magnitude from the full spectrum in a top-hat filter between 1450<wav_rest<1550 Angstrom. 
+        Only gives correctly normalized values when model spectrum has already been fitted."""
+        self._calculate_m_UV(model_comp)
+        self.M_UV = np.array([self.m_UV - 5 * np.log10(utils.cosmo.luminosity_distance(model_comp["redshift"]).to(u.pc).value / 10) + 2.5 * np.log10(1 + model_comp["redshift"])])
+
+    # added by austind 01/08/24
+    def _calculate_L_UV_dustcorr(self, model_comp):
+        dustcorr_spectrum = self._calculate_full_dustcorr_spectrum(model_comp)
+        # rest frame
+        f_Jy_1500 = (np.mean(dustcorr_spectrum[((self.wavelengths > 1450.) & \
+                (self.wavelengths < 1550.))]) * u.erg / (u.s * (u.cm ** 2) * u.AA) * \
+                ((1500. * (1 + model_comp["redshift"]) * u.AA) ** 2) / const.c).to(u.Jy)
+        self.L_UV_dustcorr = np.array([4 * np.pi * (f_Jy_1500 * (10 * u.pc) ** 2).to(u.erg).value])
+
+    # # added by Qiao 23/11/23
+    # def _calculate_obs_OIII_4959_EW(self, model_comp):
+    #     pass
+        
+    # def _calculate_obs_OIII_5001_EW(self, model_comp):
+    #     pass
+    
+    # def _calculate_obs_OIII_Hbeta_EW(self, model_comp):
+    #     """ This method calculates the rest frame EWs from the line fluxes"""
+    #     pass
+
+    # added by austind 01/08/24
+    def _calculate_Halpha_EWrest(self, model_comp, line_wav = 6563., delta_wav = 100.):
+        # calculate Halpha continuum flux
+        dustcorr_cont_spectrum = self._calculate_full_dustcorr_spectrum(model_comp, add_lines = False)
+        f_cont_Ha = np.mean(dustcorr_cont_spectrum[((self.wavelengths > line_wav - delta_wav / 2.) & (self.wavelengths < line_wav + delta_wav / 2.))])
+        # calculate dust corrected line fluxes and calculate rest frame EW
+        self._calculate_dustcorr_em_lines(model_comp)
+        self.Halpha_EWrest = np.array([(self.line_fluxes_dustcorr["H  1  6562.81A"] / f_cont_Ha) / (1. + model_comp["redshift"])])
+
+    # added by austind 01/08/24
+    def _calculate_xi_ion_caseB(self, model_comp):
+        self._calculate_L_UV_dustcorr(model_comp)
+        self._calculate_dustcorr_em_lines(model_comp) # observed frame
+        # convert to rest frame here too
+        self.xi_ion_caseB = np.array(((4 * np.pi * self.line_fluxes_dustcorr["H  1  6562.81A"] \
+            * (u.erg / (u.s * u.cm ** 2)) * (10 * u.pc) ** 2 * (1. + model_comp["redshift"])) / \
+            (self.L_UV_dustcorr * u.erg * 1.36e-12 * u.erg * \
+            (1. - model_comp["nebular"].get("fesc", 0.)))).to(u.Hz / u.erg).value)
+    
+    # added by austind 13/10/23
+    def _calculate_stellar_spectrum(self, model_comp):
+        t_bc = 0.01
+        if "t_bc" in list(model_comp):
+            t_bc = model_comp["t_bc"]
+
+        spectrum_bc, spectrum = self.stellar.spectrum(self.sfh.ceh.grid, t_bc)
+        
+        # Add attenuation due to stellar birth clouds.
+        if self.dust_atten:
+            dust_flux = 0.  # Total attenuated flux for energy balance.
+        
+            # Add extra attenuation to birth clouds.
+            eta = 1.
+            if "eta" in list(model_comp["dust"]):
+                eta = model_comp["dust"]["eta"]
+                bc_Av_reduced = (eta - 1.)*model_comp["dust"]["Av"]
+                bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont/2.5)
+                spectrum_bc_dust = spectrum_bc*bc_trans_red
+                dust_flux += np.trapz(spectrum_bc - spectrum_bc_dust,
+                                      x=self.wavelengths)
+        
+                spectrum_bc = spectrum_bc_dust
+        
+        spectrum += spectrum_bc  # Add birth cloud spectrum to spectrum.
+        
+        # Add attenuation due to the diffuse ISM.
+        if self.dust_atten:
+            trans = 10**(-model_comp["dust"]["Av"]*self.dust_atten.A_cont/2.5)
+            dust_spectrum = spectrum*trans
+            dust_flux += np.trapz(spectrum - dust_spectrum, x=self.wavelengths)
+            spectrum = dust_spectrum
+        
+            # Add dust emission.
+            qpah, umin, gamma = 2., 1., 0.01
+            if "qpah" in list(model_comp["dust"]):
+                qpah = model_comp["dust"]["qpah"]
+        
+            if "umin" in list(model_comp["dust"]):
+                umin = model_comp["dust"]["umin"]
+        
+            if "gamma" in list(model_comp["dust"]):
+                gamma = model_comp["dust"]["gamma"]
+        
+            spectrum += dust_flux*self.dust_emission.spectrum(qpah, umin, gamma)
+        
+        spectrum *= self.igm.trans(model_comp["redshift"])
+        
+        # Convert from luminosity to observed flux at redshift z.
+        lum_flux = 1.
+        if model_comp["redshift"] > 0.:
+            ldist_cm = 3.086*10**24*np.interp(model_comp["redshift"],
+                                              utils.z_array, utils.ldist_at_z,
+                                              left=0, right=0)
+            lum_flux = 4*np.pi*ldist_cm**2
+        spectrum /= lum_flux*(1. + model_comp["redshift"])
+        
+        # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
+        self.stellar_spectrum = spectrum * 3.826*10**33
+        return self.stellar_spectrum
+    
+    # added by austind 01/08/24
+    def _calculate_full_dustcorr_spectrum(self, model_comp, add_lines = True):
+        """ This method combines the models for the various emission
+        and absorption processes to generate the internal (dust free) 
+        full galaxy spectrum held within the class. """
+
+        t_bc = 0.01
+        if "t_bc" in list(model_comp):
+            t_bc = model_comp["t_bc"]
+
+        spectrum_bc, spectrum = self.stellar.spectrum(self.sfh.ceh.grid, t_bc)
+
+        if self.nebular:
+            grid = np.copy(self.sfh.ceh.grid)
+
+            if "metallicity" in list(model_comp["nebular"]):
+                nebular_metallicity = model_comp["nebular"]["metallicity"]
+                neb_comp = deepcopy(model_comp)
+                for comp in list(neb_comp):
+                    if isinstance(neb_comp[comp], dict):
+                        neb_comp[comp]["metallicity"] = nebular_metallicity
+
+                self.neb_sfh.update(neb_comp)
+                grid = self.neb_sfh.ceh.grid
+
+            # All stellar emission below 912A goes into nebular emission
+            spectrum_bc[self.wavelengths < 912.] = 0.
+            if add_lines:
+                spectrum_bc += self.nebular.spectrum(grid, t_bc,
+                    model_comp["nebular"]["logU"]) * (1 - model_comp["nebular"].get("fesc", 0))
+            else:
+                spectrum_bc += self.nebular.continuum_spectrum(grid, t_bc,
+                    model_comp["nebular"]["logU"]) * (1 - model_comp["nebular"].get("fesc", 0))
+
+        spectrum += spectrum_bc  # Add birth cloud spectrum to spectrum.
+        spectrum *= self.igm.trans(model_comp["redshift"])
+
+        # Convert from luminosity to observed flux at redshift z.
+        lum_flux = 1.
+        if model_comp["redshift"] > 0.:
+            ldist_cm = 3.086*10**24*np.interp(model_comp["redshift"],
+                                              utils.z_array, utils.ldist_at_z,
+                                              left=0, right=0)
+
+            lum_flux = 4*np.pi*ldist_cm**2
+
+        spectrum /= lum_flux*(1. + model_comp["redshift"])
+
+        # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
+        spectrum *= 3.826*10**33
+
+        if add_lines:
+            self.spectrum_full_dustcorr = spectrum
+        else:
+            self.spectrum_full_cont_dustcorr = spectrum
+        return spectrum
+    
+    # added by austind 01/08/24
+    def _calculate_dustcorr_em_lines(self, model_comp):
+        """ This method computes dust corrected emission lines """
+
+        t_bc = 0.01
+        if "t_bc" in list(model_comp):
+            t_bc = model_comp["t_bc"]
+
+        em_lines = np.zeros(config.line_wavs.shape)
+
+        if self.nebular:
+            grid = np.copy(self.sfh.ceh.grid)
+
+            if "metallicity" in list(model_comp["nebular"]):
+                nebular_metallicity = model_comp["nebular"]["metallicity"]
+                neb_comp = deepcopy(model_comp)
+                for comp in list(neb_comp):
+                    if isinstance(neb_comp[comp], dict):
+                        neb_comp[comp]["metallicity"] = nebular_metallicity
+
+                self.neb_sfh.update(neb_comp)
+                grid = self.neb_sfh.ceh.grid
+
+            em_lines += self.nebular.line_fluxes(grid, t_bc,
+                model_comp["nebular"]["logU"]) * (1 - model_comp["nebular"].get("fesc", 0))
+
+        # Convert from luminosity to observed flux at redshift z.
+        lum_flux = 1.
+        if model_comp["redshift"] > 0.:
+            ldist_cm = 3.086*10**24*np.interp(model_comp["redshift"],
+                                              utils.z_array, utils.ldist_at_z,
+                                              left=0, right=0)
+
+            lum_flux = 4*np.pi*ldist_cm**2
+        em_lines *= 3.826*10**33 / lum_flux
+
+        self.line_fluxes_dustcorr = dict(zip(config.line_names, em_lines))
+
 
     def plot(self, show=True):
         return plotting.plot_model_galaxy(self, show=show)
 
     def plot_full_spectrum(self, show=True):
         return plotting.plot_full_spectrum(self, show=show)
-    
-    # added by austind 13/11/23
-    def _calculate_beta_C94(self, model_comp):
-        """ This method calculates the UV continuum slope (beta) 
-        in the 10 Calzetti+1994 filters from the full spectrum """
-        # constrain to Calzetti filters
-        wav_obs_C94, f_lambda_obs_C94 = crop_to_C94_filters(self.wavelengths, self.spectrum_full, model_comp)
-        self.beta_C94 = np.array(curve_fit(beta_slope_power_law_func, wav_obs_C94, f_lambda_obs_C94, maxfev = 1_000)[0][1])
-
 
 # added by austind 14/11/23
 def beta_slope_power_law_func(wav_rest, A, beta):
     return (10 ** A) * (wav_rest ** beta)
 
 # added by austind 14/10/23
-def crop_to_C94_filters(wav_rest, flux_obs, model_comp):
+def crop_to_C94_filters(wav_rest, flux_obs, model_comp): # I think this funtion does not require model_comp['redshift'] due to incorrect spectrum scaling
     # Calzetti 1994 filters
     lower_Calzetti_filt = [1268., 1309., 1342., 1407., 1562., 1677., 1760., 1866., 1930., 2400.]
     upper_Calzetti_filt = [1284., 1316., 1371., 1515., 1583., 1740., 1833., 1890., 1950., 2580.]
     Calzetti94_filter_indices = np.logical_or.reduce([(wav_rest > low_lim) & (wav_rest < up_lim) \
                     for low_lim, up_lim in zip(lower_Calzetti_filt, upper_Calzetti_filt)])
+    
     wav_obs = wav_rest[Calzetti94_filter_indices] * (1 + model_comp["redshift"])
     flux_obs = flux_obs[Calzetti94_filter_indices]
     return wav_obs, flux_obs

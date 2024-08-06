@@ -347,6 +347,7 @@ class fit_catalogue_new(object):
                 self.obj_fit.plot_corner()
                 self.obj_fit.plot_1d_posterior()
                 self.obj_fit.plot_sfh_posterior()
+                self.obj_fit.plot_csfh_posterior()
 
                 if "calib" in list(self.obj_fit.fitted_model.fit_instructions):
                     self.obj_fit.plot_calibration()

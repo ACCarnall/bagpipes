@@ -180,7 +180,7 @@ class posterior(object):
                                          index_list=self.galaxy.index_list)
 
         all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94',
-                     "beta_C94", "m_UV", "M_UV", "indices"]
+                     "beta_C94", "m_UV", "M_UV", "Halpha_EWrest", "xi_ion_caseB", "indices"]
 
         all_model_keys = dir(self.model_galaxy)
         quantity_names = [q for q in all_names if q in all_model_keys]

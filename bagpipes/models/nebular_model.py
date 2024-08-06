@@ -1,7 +1,7 @@
 from __future__ import print_function, division, absolute_import
 
 import numpy as np
-
+import os
 try:
     use_bpass = bool(int(os.environ['use_bpass']))
     print('use_bpass: ',bool(int(os.environ['use_bpass'])))
@@ -34,7 +34,7 @@ class nebular(object):
     def __init__(self, wavelengths, velshift):
         self.wavelengths = wavelengths
         self.velshift = velshift
-        self.combined_grid, self.line_grid = self._setup_grids()
+        self.combined_grid, self.line_grid, self.continuum_grid = self._setup_grids()
 
     def _setup_grids(self):
         """ Loads Cloudy nebular continuum grid and resamples to the
@@ -42,6 +42,11 @@ class nebular(object):
         to the correct pixels in order to create a combined grid. """
 
         comb_grid = np.zeros((self.wavelengths.shape[0],
+                              config.metallicities.shape[0],
+                              config.logU.shape[0],
+                              config.neb_ages.shape[0]))
+                              
+        cont_grid = np.zeros((self.wavelengths.shape[0],
                               config.metallicities.shape[0],
                               config.logU.shape[0],
                               config.neb_ages.shape[0]))
@@ -56,16 +61,17 @@ class nebular(object):
 
                 hdu_index = config.metallicities.shape[0]*j + i + 1
 
-                raw_cont_grid = config.cont_grid[hdu_index]
-                raw_line_grid = config.line_grid[hdu_index]
+                raw_cont_grid = config.cont_grid[hdu_index].data
+                raw_line_grid = config.line_grid[hdu_index].data
 
                 line_grid[:, i, j, :] = raw_line_grid[1:, 1:].T
 
                 for k in range(config.neb_ages.shape[0]):
-                    comb_grid[:, i, j, k] = np.interp(self.wavelengths,
-                                                      config.neb_wavs,
+                    cont = np.interp(self.wavelengths, config.neb_wavs,
                                                       raw_cont_grid[k+1, 1:],
                                                       left=0, right=0)
+                    cont_grid[:, i, j, k] = cont
+                    comb_grid[:, i, j, k] = cont
 
         # Add the nebular lines to the resampled nebular continuum grid.
         for i in range(config.line_wavs.shape[0]):
@@ -75,7 +81,7 @@ class nebular(object):
                 width = (self.wavelengths[ind+1] - self.wavelengths[ind-1])/2
                 comb_grid[ind, :, :, :] += line_grid[i, :, :, :]/width
 
-        return comb_grid, line_grid
+        return comb_grid, line_grid, cont_grid
 
     def spectrum(self, sfh_ceh, t_bc, logU):
         """ Obtain a 1D spectrum for a given star-formation and
@@ -94,8 +100,27 @@ class nebular(object):
         t_bc : float
             The maximum age at which to include nebular emission.
         """
-
         return self._interpolate_grid(self.combined_grid, sfh_ceh, t_bc, logU)
+    
+    # added by austind 01/08/24
+    def continuum_spectrum(self, sfh_ceh, t_bc, logU):
+        """ Obtain a 1D continuum spectrum for a given star-formation and
+        chemical enrichment history, ionization parameter and t_bc.
+
+        parameters
+        ----------
+
+        sfh_ceh : numpy.ndarray
+            2D array containing the desired star-formation and
+            chemical evolution history.
+
+        logU : float
+            Log10 of the ionization parameter.
+
+        t_bc : float
+            The maximum age at which to include nebular emission.
+        """
+        return self._interpolate_grid(self.continuum_grid, sfh_ceh, t_bc, logU)
 
     def line_fluxes(self, sfh_ceh, t_bc, logU):
         """ Obtain line fluxes for a given star-formation and

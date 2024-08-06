@@ -33,4 +33,4 @@ from .catalogue.fit_catalogue import fit_catalogue
 from .catalogue.fit_catalogue_new import fit_catalogue_new
 
 
-from .plotting import plot_corner, plot_calibration, plot_1d_posterior, plot_spectrum_posterior, plot_sfh_posterior, add_spectrum, plot_sfh
+from .plotting import plot_corner, plot_calibration, plot_1d_posterior, plot_spectrum_posterior, plot_sfh_posterior, add_spectrum, plot_sfh, plot_csfh_posterior
