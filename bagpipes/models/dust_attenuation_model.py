@@ -3,7 +3,7 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 from scipy.interpolate import CubicSpline
-
+import os
 try:
     use_bpass = bool(int(os.environ['use_bpass']))
     print('use_bpass: ',bool(int(os.environ['use_bpass'])))

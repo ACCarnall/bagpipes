@@ -16,10 +16,10 @@ except KeyError:
 
 if use_bpass:
     print('Setup to use BPASS')
-    from .. import config_bpass as config
+    from ... import config_bpass as config
 else:
     print('Setup to use BC03')
-    from .. import config
+    from ... import config
 
 
 from ..model_galaxy import model_galaxy

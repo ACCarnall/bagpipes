@@ -1,5 +1,5 @@
 from __future__ import print_function, division, absolute_import
-
+import os 
 import numpy as np
 import time
 try:
@@ -9,9 +9,9 @@ try:
 except RuntimeError:
     pass
 
-from general import *
+from .general import *
 
-import utils
+from .. import utils
 
 try:
     use_bpass = bool(int(os.environ['use_bpass']))

@@ -2,11 +2,6 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 
-try:
-    import dense_basis as db
-
-except ImportError:
-    pass
 
 from scipy.optimize import fsolve
 from copy import copy, deepcopy
@@ -310,6 +305,12 @@ class star_formation_history:
             self.unphysical = True
 
     def iyer2019(self, sfr, param):
+        try:
+            import dense_basis as db
+
+        except ImportError:
+            pass
+
         tx = param["tx"]
         iyer_param = np.hstack([10., np.log10(param["sfr"]), len(tx), tx])
         iyer_sfh, iyer_times = db.tuple_to_sfh(iyer_param, self.redshift)
