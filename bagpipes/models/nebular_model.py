@@ -61,9 +61,9 @@ class nebular(object):
 
                 hdu_index = config.metallicities.shape[0]*j + i + 1
 
-                raw_cont_grid = config.cont_grid[hdu_index].data
-                raw_line_grid = config.line_grid[hdu_index].data
-
+                raw_cont_grid = config.cont_grid[hdu_index]#.data this was broken!! .data .data
+                raw_line_grid = config.line_grid[hdu_index]#.data
+                
                 line_grid[:, i, j, :] = raw_line_grid[1:, 1:].T
 
                 for k in range(config.neb_ages.shape[0]):
