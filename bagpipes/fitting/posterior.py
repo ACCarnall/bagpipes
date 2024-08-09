@@ -104,9 +104,17 @@ class posterior(object):
 
             self.samples[param_name] = self.samples2d[self.indices, i]
 
-        self.get_dirichlet_tx(dirichlet_comps)
+        if 'advanced_quantities' in file.keys():
+            advanced_quantities_params = file['advanced_quantities'].keys()
+            for param in advanced_quantities_params:
+                self.samples[param] = file['advanced_quantities'][param][:]
+        
 
         self.get_basic_quantities()
+
+        self.get_dirichlet_tx(dirichlet_comps)
+
+        file.close()
 
     def get_dirichlet_tx(self, dirichlet_comps):
         """ Calculate tx vals for any Dirichlet distributed params. """

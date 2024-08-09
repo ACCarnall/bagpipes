@@ -27,7 +27,7 @@ try:
     with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
         import pymultinest as pmn
     multinest_available = True
-except (ImportError, RuntimeError, SystemExit):
+except (ImportError, RuntimeError, SystemExit) as e:
     print("Bagpipes: PyMultiNest import failed, fitting will use the Nautilus" +
           " sampler instead.")
     multinest_available = False
@@ -337,8 +337,9 @@ class fit(object):
             try:
                 # Attempt to add advanced quantities to the .h5 file
                 self.fit.posterior.get_advanced_quantities()
-                self.results['advanced_quantites'] = {i:j for i, j in self.posterior.samples.items() if i not in self.results['basic_quantities'].keys()}
-            except:
+                self.results['advanced_quantities'] = {i:j for i, j in self.posterior.samples.items() if i not in self.results['basic_quantities'].keys()}
+            except Exception as e:
+                print(e)
                 pass
             # Do it again with advanced quantities. 
             file = h5py.File(self.fname[:-1] + ".h5", "w")

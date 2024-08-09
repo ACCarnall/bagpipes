@@ -201,6 +201,8 @@ def optimize_mah_grid2(fit, config, grid):
     n_times = len(fit.posterior.sfh.ages)
     mah_grid = np.zeros((n_posterior, n_times))
     
+    assert n_posterior == len(fit.posterior.samples["mass_weighted_zmet"]), f"Number of posterior samples does not match the number of mass-weighted metallicities for {fit.galaxy.ID}"
+
     mass_weighted_zmet = np.clip(fit.posterior.samples["mass_weighted_zmet"], 
                                  np.min(config.metallicities), 
                                  np.max(config.metallicities))

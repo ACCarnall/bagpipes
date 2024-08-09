@@ -15,8 +15,6 @@ else:
     print('Setup to use BC03')
     from .. import config
 
-from .. import utils
-
 
 class nebular(object):
     """ Allows access to and maniuplation of nebular emission models.
