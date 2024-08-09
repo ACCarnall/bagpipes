@@ -1,18 +1,21 @@
 **Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation**
 
-*Modified version of Bagpipes 1.0.3 - changes include adding more quantities to .h5, adding ability to derive Beta slope, MUV and mUV for each chain, vary fit instructions dictionary and redshift_sigma on a per galaxy basis. Calculates SFR quantities on 10 and 100 Myr timescales. Don't clone the repo locally and install unless you already have the required grids. Contact authors for wider BC03 grids, with range - 4 < log U < 0. Also has ability to plot cumulative SFH. 
+
+**Modified version of Bagpipes 1.2.0**
+
+**Changes**
+
+1. Saving advanced quantities to .h5, which increases speed up of loading in already computed models.
+2. Adding new quantites: UV Beta slope (in Calzetti filters), absolute and apparent UV magnitudes, Emission line equivalent widths and fluxes, escape fraction, ionizing photon production efficiency (use with caution). 
+3. Multiple SFH timescales - 10 and 100 Myr by default.
+4. Calculating and plotting cumulative star formation histories, to trace buildup of stellar mass.
+5. Allow varying of fit_instructions dictionary inside a fitting catalogue, and allowing different redshift constraints for each galaxy.
+
+
+If you clone this repo you will have to download the grids seperately - you can download the grids from the Python Package index (pip) `here <https://pypi.org/project/bagpipes/#files>`_, and place them in the models/grids directory. You can then install by typing  ``pip install setup.py`` (add a -e tag if you want to link it directly to your cloned version, otherwise it will be copied into your site-packages directory. 
+
 
 Bagpipes is a state of the art code for generating realistic model galaxy spectra and fitting these to spectroscopic and photometric observations. For further information please see the Bagpipes documentation at `bagpipes.readthedocs.io <http://bagpipes.readthedocs.io>`_.
-
-**Installation**
-
-Bagpipes can be installed with pip:
-
-.. code::
-
-    pip install bagpipes
-
-Please note you cannot run the code just by cloning the repository as the large grids of models aren't included.
 
 **Sampling algorithms within Bagpipes**
 
@@ -28,3 +31,4 @@ Please note development of the code has been ongoing since these works were publ
 
 
 .. image:: docs/images/sfh_from_spec.png
+
