@@ -12,7 +12,7 @@ except RuntimeError:
 from .general import *
 
 
-def plot_corner(fit, show=False, save=True, bins=25, type="fit_params"):
+def plot_corner(fit, show=False, save=True, bins=25, type="fit_params", fig=None, color="black", facecolor="white"):
     """ Make a corner plot of the fitted parameters. """
 
     update_rcParams()
@@ -58,7 +58,7 @@ def plot_corner(fit, show=False, save=True, bins=25, type="fit_params"):
     # Make the corner plot
     fig = corner.corner(samples, labels=labels, quantiles=[0.16, 0.5, 0.84],
                         show_titles=True, title_kwargs={"fontsize": 13},
-                        smooth=1., smooth1d=1., bins=bins)
+                        smooth=1., smooth1d=1., bins=bins, fig=fig, color=color, facecolor=facecolor)
 
     # Save the corner plot to file
     if save:

@@ -121,7 +121,6 @@ try:
     # Grid of nebular continuum fluxes.
     cont_grid = [fits.open(grid_dir + "/" + neb_cont_file)[i].data for
                  i in range(len(metallicities) * len(logU) + 1)]
-
 except IOError:
     print("Failed to load nebular grids, these should be placed in the"
           + " bagpipes/models/grids/ directory.")

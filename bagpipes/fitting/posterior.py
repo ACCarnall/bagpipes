@@ -4,14 +4,13 @@ import numpy as np
 
 import os
 import h5py
+import time
 
 from copy import deepcopy
 
 from .fitted_model import fitted_model
 from .prior import dirichlet
 
-from ..models.star_formation_history import star_formation_history
-from ..models.model_galaxy import model_galaxy
 
 from .. import utils
 
@@ -58,15 +57,25 @@ class posterior(object):
             self.fit_instructions = {}
             #print(file['fit_instructions']['dust']['Av'].keys())
             for key, value in file['fit_instructions'].items():
-                print(list(value.keys()))
+                #print(list(value.keys()))
                 if type(value) == h5py._hl.group.Group:
                     self.fit_instructions[key] = {}
                     for key2, value2 in value.items():
-                        print('value2', value2)
+                        #print('value2', value2)
                         self.fit_instructions[key][key2] = file['fit_instructions'][key][key2][:]
                 self.fit_instructions[key] = value[:]
             #print(type(file['fit_instructions']))
             #self.fit_instructions = file['fit_instructions']
+        try:
+            self.config_used = eval(file.attrs["config"])
+            if self.config_used['type'] == 'BPASS':
+                os.environ['use_bpass'] = str(int(True))
+                print('Read BPASS from .h5. Attempting to set config, experimental.')
+            elif self.config_used['type'] == 'BC03':
+                os.environ['use_bpass'] = str(int(False))
+
+        except KeyError:
+            pass
 
         self.fitted_model = fitted_model(self.galaxy, self.fit_instructions)
 
@@ -138,11 +147,13 @@ class posterior(object):
     def get_basic_quantities(self):
         """Calculates basic posterior quantities, these are fast as they
         are derived only from the SFH model, not the spectral model. """
+        from ..models.star_formation_history import star_formation_history
 
         if "stellar_mass" in list(self.samples):
             return
 
         self.fitted_model._update_model_components(self.samples2d[0, :])
+
         self.sfh = star_formation_history(self.fitted_model.model_components)
 
         quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
@@ -169,6 +180,8 @@ class posterior(object):
     def get_advanced_quantities(self):
         """Calculates advanced derived posterior quantities, these are
         slower because they require the full model spectra. """
+
+        from ..models.model_galaxy import model_galaxy
 
         if "spectrum_full" in list(self.samples):
             return
@@ -239,6 +252,8 @@ class posterior(object):
         """Obtain posterior predictions for new observables not included
         in the data. """
 
+        from ..models.model_galaxy import model_galaxy
+
         self.prediction = {}
 
         self.fitted_model._update_model_components(self.samples2d[0, :])
@@ -273,6 +288,7 @@ class posterior(object):
         """ Predicts basic (SFH-based) quantities at a specified higher
         redshift. This is a bit experimental, there's probably a better
         way. Only works for models with a single SFH component. """
+        from ..models.star_formation_history import star_formation_history
 
         self.prediction_at_z = {}
 

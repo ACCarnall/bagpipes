@@ -20,7 +20,7 @@ except ImportError:
     size = 1
 
 from ..input.galaxy import galaxy
-from ..fitting.fit_new import fit_new
+from ..fitting.fit import fit
 from .. import utils
 
 
@@ -135,7 +135,7 @@ class fit_catalogue_new(object):
             utils.make_dirs(run=run)
 
     def fit(self, verbose=False, n_live=400, mpi_serial=False,
-            track_backlog=False, sampler="multinest"):
+            track_backlog=False, sampler="multinest", pool=1):
         """ Run through the catalogue fitting each object.
 
         Parameters
@@ -188,7 +188,7 @@ class fit_catalogue_new(object):
 
             # If not fit the object and update the output catalogue
             self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live,
-                             sampler=sampler)
+                             sampler=sampler, pool=pool)
 
             self.done[i] = True
 
@@ -302,7 +302,7 @@ class fit_catalogue_new(object):
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
     def _fit_object(self, ID, verbose=False, n_live=400, use_MPI=True,
-                    sampler="multinest"):
+                    sampler="multinest", pool=1):
         """ Fit the specified object and update the catalogue. """
 
         if self.fit_instructions_list is not None:
@@ -324,12 +324,12 @@ class fit_catalogue_new(object):
                              index_list=self.index_list)
 
         # Fit the object
-        self.obj_fit = fit_new(self.galaxy, self.fit_instructions, run=self.run,
+        self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,
                            time_calls=self.time_calls,
                            n_posterior=self.n_posterior)
 
         self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI,
-                         sampler=sampler)
+                         sampler=sampler, pool=pool)
 
         if rank == 0:
             if self.vars is None:

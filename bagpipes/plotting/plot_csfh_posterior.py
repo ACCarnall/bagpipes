@@ -91,8 +91,7 @@ def add_csfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4, alpha=0
 
     else:
         redshift = fit.fitted_model.model_components["redshift"]
-    import utils
-   
+  
     if timescale == 'Gyr':
         factor = 10**-9
     elif timescale == 'Myr':
@@ -110,111 +109,32 @@ def add_csfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4, alpha=0
     print(fit.posterior.sfh.age_of_universe, age_of_universe)
     times_reduced = times[times >= 0]
     
-    mah_grid = np.zeros((fit.n_posterior, times.shape[0]))
+    file = h5py.File(fit.fname[:-1] + ".h5", "a")
+    if 'mah_grid' in file.keys():
+        mah_grid = file['mah_grid'][:]
+        file.close()
+    else:
 
+        mah_grid = np.zeros((fit.n_posterior, times.shape[0]))
+        grid = RegularGridInterpolator((config.metallicities, config.age_sampling), fit.posterior.sfh.live_frac_grid, fill_value=0.7, bounds_error=False)
+        if debug:
+            print('Age of Universe', fit.posterior.sfh.age_of_universe/1e9)
+            print('Times', np.min(times), np.max(times))
 
-    grid = RegularGridInterpolator((config.metallicities, config.age_sampling), fit.posterior.sfh.live_frac_grid, fill_value=0.7, bounds_error=False)
-    if debug:
-        print('Age of Universe', fit.posterior.sfh.age_of_universe/1e9)
-        print('Times', np.min(times), np.max(times))
+            print('Range of grid:')
+            print('Metallicity:', np.min(config.metallicities), np.max(config.metallicities))
+            print('Ages:', np.min(config.age_sampling), np.max(config.age_sampling))
 
-        print('Range of grid:')
-        print('Metallicity:', np.min(config.metallicities), np.max(config.metallicities))
-        print('Ages:', np.min(config.age_sampling), np.max(config.age_sampling))
-
-        
-    '''
-    for k in tqdm(range(fit.n_posterior)):
-        mass_weighted_zmet = fit.posterior.samples["mass_weighted_zmet"][k]
-        mass_weighted_zmet = np.clip(mass_weighted_zmet, np.min(config.metallicities), np.max(config.metallicities))
-
-        for l in range(times.shape[0]):
-            
-            ages = (fit.posterior.sfh.ages[l:] - fit.posterior.sfh.ages[l])
-            alive_frac = grid((mass_weighted_zmet, ages))
-            mah_grid[k, l] = np.sum(fit.posterior.samples["sfh"][k, l:]*fit.posterior.sfh.age_widths[l:] * alive_frac)
-           
-            # Mass-weighted metallicity at each time step
-            #mass_weighted_zmet = np.sum(fit.posterior.sfh.live_frac_grid[:,l:] * fit.posterior.sfh.ceh.grid[:, l:],
-            #                                axis=1)
-            #mass_weighted_zmet /= np.sum(fit.posterior.sfh.live_frac_grid[:, l:] * fit.posterior.sfh.ceh.grid[:, l:])
-            #mass_weighted_zmet *= config.metallicities
-            #print(np.shape(mass_weighted_zmet), np.shape(fit.posterior.sfh.ages[l:]))
-            #mass_weighted_zmet = np.nansum(mass_weighted_zmet)
-            #print(fit.posterior.samples.keys())
-            #mass_weighted_zmet = fit.posterior.samples["mass_weighted_zmet"][k]
-            # Clip to range of grid
-            #mass_weighted_zmet = np.clip(mass_weighted_zmet, np.min(config.metallicities), np.max(config.metallicities))
-
-            # Sum SFH * (1 - return fraction)  * age bin width
-            # 1 - return fraction is interpolated onto grid
-            # print(fit.posterior.sfh.ages[l:] - fit.posterior.sfh.ages[l], mass_weighted_zmet * np.ones_like(fit.posterior.sfh.ages[l:]))
-            #ages = (fit.posterior.sfh.ages[l:] - fit.posterior.sfh.ages[l])
-            # Clip to range of grid
-            #ages = np.clip(ages, np.min(config.age_sampling), np.max(config.age_sampling))
-
-            #alive_frac = grid((mass_weighted_zmet, ages))
-            #alive_frac = 1.0
-            #print(np.shape(alive_frac), np.shape(fit.posterior.sfh.age_widths[l:]), np.shape(fit.posterior.samples["sfh"][k, l:]))
-            #print(np.min(alive_frac), np.max(alive_frac))
-            #print(np.min(ages), np.max(ages))
-            
-            #print(mass_weighted_zmet, np.shape(alive_frac), print(np.min(ages)), print(np.max(ages)))
-            #print(alive_frac)
-            #mah_grid[k, l] = np.sum(fit.posterior.samples["sfh"][k, l:]*fit.posterior.sfh.age_widths[l:] * alive_frac)
-            
-            #*np.interp(fit.posterior.sfh.ages[l:] - fit.posterior.sfh.ages[l],
-                                                                                #pipes.config.age_sampling,
-                                                                                #fit.posterior.sfh.live_frac_grid[ind, :]))
+        mah_grid = optimize_mah_grid2(fit, config, grid)
+        file.create_dataset('mah_grid', data=mah_grid, compression='gzip', dtype = np.float32)
+        file.close()
     
-    # Allegedly vectorized equivalent
-
-    mass_weighted_zmet = np.clip(fit.posterior.samples["mass_weighted_zmet"], 
-                            np.min(config.metallicities), 
-                            np.max(config.metallicities))
-
-    ages = fit.posterior.sfh.ages[np.newaxis, :, np.newaxis] - fit.posterior.sfh.ages[np.newaxis, np.newaxis, :]
-    ages = np.maximum(ages, 0)  # Ensure non-negative ages
-    #
-    # Assuming grid can handle 2D input for metallicities and ages
-    stime = time.time()
-    alive_frac = grid((mass_weighted_zmet[:, np.newaxis, np.newaxis], ages))
-    end1 = time.time() - stime
-    print('Time for grid:', end1)
-    print(np.shape(alive_frac))
-    sfh_expanded = fit.posterior.samples["sfh"][:, np.newaxis, :]
-    end2= time.time() - end1
-    print('Time for sfh:', end2)
-    print(np.shape(sfh_expanded))
-
-    age_widths_expanded = fit.posterior.sfh.age_widths[np.newaxis, np.newaxis, :]
-    end3 = time.time() - end2
-    print('Time for age widths:', end3)
-    print(np.shape(age_widths_expanded))
-    new_mah_grid = np.sum(sfh_expanded * age_widths_expanded * alive_frac, axis=2)
-    end4 = time.time() - end3
-    print('Time for sum:', end4)
-    print(np.shape(new_mah_grid))
-    print(np.nanmax(mah_grid))
-    #assert np.allclose(mah_grid, new_mah_grid)
-      print(masses[:,2])
-    print('brk')
-    print(masses2[:,2])
-    end5 = time.time() - end4
-    print(end1, end2, end3, end4, end5)
-    #print('max', np.max(masses[:, 2]))
-    #print('max all', np.max(masses))
-    #masses = np.log10(masses)
-
-    
-    '''
-    mah_grid = optimize_mah_grid2(fit, config, grid)
     masses = np.nanpercentile(mah_grid, (2.5, 16, 50, 84, 97.5), axis=0).T
 
 
     if z_axis:
         if plottype == 'absolute':
-            ax2 = add_z_axis(ax, zvals=zvals)
+            ax2 = add_z_axis(ax, zvals=zvals, reverse = True)
 
     if plottype == 'absolute':
         ax.plot(times, masses[:, 2], color=color1, zorder=zorder, label=label)
@@ -235,6 +155,9 @@ def add_csfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4, alpha=0
     else:
         ax.set_xlabel(f"$\\mathbf{{\\mathrm{{Lookback\\ Time \\ ({timescale})}}}}$", fontsize='medium')
     ax.set_yscale('log')
+
+    ax.set_ylim(1e2, 1.1*np.nanmax(masses[:, 3]))
+
     #ax.set_ylim(0, 1.1*np.nanmax(masses[:, 3]))
 
 import numpy as np

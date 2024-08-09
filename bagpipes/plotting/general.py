@@ -103,12 +103,13 @@ def update_rcParams():
     mpl.rcParams["ytick.direction"] = "in"
 
     if tex_on:
-        mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-        mpl.rc('text', usetex=True)
-        mpl.rcParams["text.usetex"] = True
+        mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica', 'Nimbus Sans']})
+        #mpl.rc('text', usetex=True)
+        mpl.rcParams["text.usetex"] = False
 
     else:
         mpl.rcParams["text.usetex"] = False
+        mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica', 'Nimbus Sans']})
 
 
 def make_hist_arrays(x, y):
@@ -119,8 +120,8 @@ def make_hist_arrays(x, y):
     return hist_x, hist_y
 
 
-def hist1d(samples, ax, smooth=False, label=None, color="orange",
-           percentiles=True, zorder=4, bins=50, lw=2, color1=None, color2=None,
+def hist1d(samples, ax, smooth=False, label=None, color="orange", linestyle = 'solid',
+           percentiles=True, zorder=4, bins=50, lw=2, color1=None, color2=None, fill_between=True, norm_height=False,
            alpha=None):
 
     if color == "orange":
@@ -142,6 +143,9 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         color1 = "black"
         color2 = "gray"
         alpha = 0.7
+    else:
+        color1 = color
+        color2 = color
 
     if label is not None:
         x_label = fix_param_names([label])
@@ -152,19 +156,20 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
              samples.max() + width/10.)
 
     y, x = np.histogram(samples, bins=bins, density=True, range=range)
-
     y = gaussian_filter(y, 1.5)
+    if norm_height:
+        y = y / y.max()
 
     if smooth:
         x_midp = (x[:-1] + x[1:])/2.
-        ax.plot(x_midp, y, color=color1, zorder=zorder-1)
+        ax.plot(x_midp, y, color=color1, zorder=zorder-1, alpha = alpha, lw=lw, linestyle=linestyle, label = label)
         ax.fill_between(x_midp, np.zeros_like(y), y,
                         color=color2, alpha=alpha, zorder=zorder-2)
         ax.plot([x_midp[0], x_midp[0]], [0, y[0]],
-                color=color1, zorder=zorder-1, lw=lw)
+                color=color1, zorder=zorder-1, lw=lw, alpha=alpha, linestyle=linestyle)
 
         ax.plot([x_midp[-1], x_midp[-1]], [0, y[-1]],
-                color=color1, zorder=zorder-1, lw=lw)
+                color=color1, zorder=zorder-1, lw=lw, alpha=alpha, linestyle=linestyle)
 
     else:
         x_hist, y_hist = make_hist_arrays(x, y)
@@ -175,8 +180,15 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
             ax.axvline(np.percentile(samples, percentile), linestyle="--",
                        color="black", zorder=zorder, lw=3)
 
-    ax.set_ylim(bottom=0)
-    ax.set_xlim(range)
+    #ax.set_ylim(bottom=0)
+    if range[0] < ax.get_xlim()[0]:
+        ax.set_xlim(left=range[0])
+        #print("Changed xlim to ", range[0])
+    if  range[1] > ax.get_xlim()[1]:
+        #print("Changed xlim to ", range[1])
+        ax.set_xlim(right=range[1])
+   
+    #ax.set_xlim(range)
     auto_x_ticks(ax, nticks=3.)
     plt.setp(ax.get_yticklabels(), visible=False)
 
@@ -256,17 +268,17 @@ def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
     if tex_on:
         if z_non_zero:
             ax.set_ylabel("$\\mathrm{f_{\\lambda}}\\ \\mathrm{/\\ 10^{"
-                          + str(int(y_scale))
+                          + str(y_scale)
                           + "}\\ erg\\ s^{-1}\\ cm^{-2}\\ \\AA^{-1}}$")
 
         else:
             ax.set_ylabel("$\\mathrm{f_{\\lambda}}\\ \\mathrm{/\\ 10^{"
-                          + str(int(y_scale))
+                          + str(y_scale)
                           + "}\\ erg\\ s^{-1}\\ \\AA^{-1}}$")
 
         if log_x:
-            ax.set_xlabel("$\\mathrm{log_{10}}\\big(\\lambda / \\mathrm{\\AA}"
-                          + "\\big)$")
+            ax.set_xlabel("$\\mathrm{log_{10}}(\\lambda / \\mathrm{\\AA}"
+                          + ")$")
 
         else:
             ax.set_xlabel("$\\lambda / \\mathrm{\\AA}$")
@@ -287,7 +299,7 @@ def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
             ax.set_xlabel("lambda / A")
 
 
-def add_z_axis(ax, z_on_y=False, zvals=[0, 0.5, 1, 2, 4, 10]):
+def add_z_axis(ax, z_on_y=False, zvals=[0, 0.5, 1, 2, 4, 10,], reverse=False):
 
     if z_on_y:
         ax2 = ax.twinx()
@@ -300,19 +312,25 @@ def add_z_axis(ax, z_on_y=False, zvals=[0, 0.5, 1, 2, 4, 10]):
         ax2.set_xticks(np.interp(zvals, utils.z_array, utils.age_at_z))
         ax2.set_xticklabels(["$" + str(z) + "$" for z in zvals])
         ax2.set_xlim(ax.get_xlim())
+    
+    if reverse:
+        ax2.set_xlim(ax.get_xlim()[::-1])
 
     if tex_on:
         if z_on_y:
-            ax2.set_ylabel("$\\mathrm{Redshift}$")
+            ax2.set_ylabel("$\\mathrm{Redshift}$", fontsize='medium')
 
         else:
-            ax2.set_xlabel("$\\mathrm{Redshift}$")
+            ax2.set_xlabel("$\\mathrm{Redshift}$", fontsize='medium')
 
     else:
         if z_on_y:
-            ax2.set_xlabel("Redshift")
+            ax2.set_xlabel("Redshift", fontsize='medium')
 
         else:
-            ax2.set_xlabel("Redshift")
+            ax2.set_xlabel("Redshift", fontsize='medium')
+    
+    ax2.tick_params(axis='both', which='major', labelsize='medium')
+    ax2.tick_params(axis='both', which='minor', labelsize='medium')
 
     return ax2

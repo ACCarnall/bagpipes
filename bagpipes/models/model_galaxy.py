@@ -37,6 +37,7 @@ from .igm_model import igm
 from .agn_model import agn
 from .star_formation_history import star_formation_history
 from ..input.spectral_indices import measure_index
+import importlib
 
 
 # The Voigt-Hjerting profile based on the numerical approximation by Garcia
@@ -117,6 +118,21 @@ class model_galaxy(object):
         if (spec_wavs is not None) and (index_list is not None):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
 
+        try:
+            use_bpass = bool(int(os.environ['use_bpass']))
+            print('use_bpass: ',bool(int(os.environ['use_bpass'])))
+        except KeyError:
+            use_bpass = False
+
+        if use_bpass:
+            print('Setup to use BPASS')
+            from .. import config_bpass as config
+        else:
+            print('Setup to use BC03')
+            from .. import config as config
+
+        importlib.reload(config)
+        
         if model_components["redshift"] > config.max_redshift:
             raise ValueError("Bagpipes attempted to create a model with too "
                              "high redshift. Please increase max_redshift in "

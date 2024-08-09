@@ -7,6 +7,19 @@ import warnings
 import h5py
 import contextlib
 
+try:
+    use_bpass = bool(int(os.environ['use_bpass']))
+    print('use_bpass: ',bool(int(os.environ['use_bpass'])))
+except KeyError:
+    use_bpass = False
+
+if use_bpass:
+    print('Setup to use BPASS')
+    from .. import config_bpass as config
+else:
+    print('Setup to use BC03')
+    from .. import config
+
 from copy import deepcopy
 
 try:
@@ -103,6 +116,15 @@ class fit(object):
             fit_info_str = fit_info_str.replace("array", "np.array")
             fit_info_str = fit_info_str.replace("float", "np.float")
             self.fit_instructions = eval(fit_info_str)
+            try:
+                self.config_used = eval(file.attrs["config"])
+                if self.config_used['type'] == 'BPASS':
+                    os.environ['use_bpass'] = str(int(True))
+                elif self.config_used['type'] == 'BC03':
+                    os.environ['use_bpass'] = str(int(False))
+
+            except KeyError:
+                pass
 
             for k in file.keys():
                 self.results[k] = np.array(file[k])
@@ -241,22 +263,66 @@ class fit(object):
             # This is necessary for converting large arrays to strings
             np.set_printoptions(threshold=10**7)
             file.attrs["fit_instructions"] = str(self.fit_instructions)
+            try:
+                use_bpass = bool(int(os.environ['use_bpass']))
+                print('use_bpass: ',bool(int(os.environ['use_bpass'])))
+            except KeyError:
+                use_bpass = False
+
+            if use_bpass:
+                print('Setup to use BPASS')
+                mtype = 'BPASS'
+                from .. import config_bpass as config
+            else:
+                print('Setup to use BC03')
+                from .. import config
+                mtype = 'BC03'
+
+            config_dict = str({'stellar_file':config.stellar_file, 'neb_cont_file':config.neb_cont_file, 'neb_line_file':config.neb_line_file, 'type':mtype})
+
+            file.attrs["config"] = config_dict
             np.set_printoptions(threshold=10**4)
 
             for k in self.results.keys():
                 file.create_dataset(k, data=self.results[k])
 
-            self.results["fit_instructions"] = self.fit_instructions
-
             file.close()
 
             os.system("rm " + self.fname + "*")
 
-            self._print_results()
-
             # Create a posterior object to hold the results of the fit.
             self.posterior = posterior(self.galaxy, run=self.run,
                                        n_samples=self.n_posterior)
+            self.results['basic_quantities'] = self.posterior.samples
+             # Get quantities
+            try:
+                # Attempt to add advanced quantities to the .h5 file
+                self.fit.posterior.get_advanced_quantities()
+                self.results['advanced_quantites'] = {i:j for i, j in self.posterior.samples.items() if i not in self.results['basic_quantities'].keys()}
+            except:
+                pass
+            # Do it again with advanced quantities. 
+            file = h5py.File(self.fname[:-1] + ".h5", "w")
+
+            # This is necessary for converting large arrays to strings
+            np.set_printoptions(threshold=10**7)
+            file.attrs["fit_instructions"] = str(self.fit_instructions)
+            file.attrs["config"] = config_dict
+            np.set_printoptions(threshold=10**4)
+
+            for k in self.results.keys():
+                if k in ['basic_quantities', 'advanced_quantities']:
+                    data = self.posterior.samples  
+                    file.create_group(k)
+                    for j in data.keys():
+                        file[k].create_dataset(j, data=data[j])                    
+                else:
+                    data = self.results[k]
+                    file.create_dataset(k, data=data)
+
+            file.close()
+            
+            self._print_results()
 
     def _print_results(self):
         """ Print the 16th, 50th, 84th percentiles of the posterior. """
