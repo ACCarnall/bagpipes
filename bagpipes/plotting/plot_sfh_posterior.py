@@ -13,18 +13,6 @@ from .general import *
 
 from .. import utils
 
-try:
-    use_bpass = bool(int(os.environ['use_bpass']))
-    print('use_bpass: ',bool(int(os.environ['use_bpass'])))
-except KeyError:
-    use_bpass = False
-
-if use_bpass:
-    print('Setup to use BPASS')
-    from .. import config_bpass as config
-else:
-    print('Setup to use BC03')
-    from .. import config
 
 
 def plot_sfh_posterior(fit, show=False, save=True, colorscheme="bw", zvals=[0, 0.5, 1, 2, 4, 6, 8, 10, 12, 14, 16, 17, 18, 20, 25]):

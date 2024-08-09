@@ -236,8 +236,8 @@ class model_galaxy(object):
                 self.R = [config.R_other, config.R_spec,
                           config.R_phot, config.R_other]
 
-            if (self.spec_wavs[0] > self.filter_set.min_phot_wav
-                    and self.spec_wavs[-1] > self.filter_set.max_phot_wav):
+            elif (self.spec_wavs[0] > self.filter_set.min_phot_wav
+                  and self.spec_wavs[-1] > self.filter_set.max_phot_wav):
 
                 self.max_wavs = [self.filter_set.min_phot_wav/(1.+max_z),
                                  self.spec_wavs[0]/(1.+max_z),
@@ -245,6 +245,14 @@ class model_galaxy(object):
 
                 self.R = [config.R_other, config.R_phot,
                           config.R_spec, config.R_other]
+
+            elif (self.spec_wavs[0] < self.filter_set.min_phot_wav
+                  and self.spec_wavs[-1] > self.filter_set.max_phot_wav):
+
+                self.max_wavs = [self.spec_wavs[0]/(1.+max_z),
+                                 self.spec_wavs[-1], 10**8]
+
+                self.R = [config.R_other, config.R_spec, config.R_other]
 
         # Generate the desired wavelength sampling.
         x = [1.]

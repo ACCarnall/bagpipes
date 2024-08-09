@@ -1,20 +1,6 @@
 from __future__ import print_function, division, absolute_import
 import os
 import numpy as np
-import spectres
-
-try:
-    use_bpass = bool(int(os.environ['use_bpass']))
-    print('use_bpass: ',bool(int(os.environ['use_bpass'])))
-except KeyError:
-    use_bpass = False
-
-if use_bpass:
-    print('Setup to use BPASS')
-    from .. import config_bpass as config
-else:
-    print('Setup to use BC03')
-    from .. import config
 
 
 class agn(object):

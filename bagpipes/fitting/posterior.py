@@ -52,6 +52,7 @@ class posterior(object):
             fit_info_str = file.attrs["fit_instructions"]
             fit_info_str = fit_info_str.replace("array", "np.array")
             fit_info_str = fit_info_str.replace("float", "np.float")
+            fit_info_str = fit_info_str.replace("np.np.", "np.")
             self.fit_instructions = eval(fit_info_str)
         except KeyError:
             self.fit_instructions = {}

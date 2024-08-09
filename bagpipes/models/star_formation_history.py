@@ -4,7 +4,6 @@ import numpy as np
 
 
 from scipy.optimize import fsolve
-from copy import copy, deepcopy
 
 from .. import utils
 import os
