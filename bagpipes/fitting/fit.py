@@ -336,7 +336,7 @@ class fit(object):
              # Get quantities
             try:
                 # Attempt to add advanced quantities to the .h5 file
-                self.fit.posterior.get_advanced_quantities()
+                self.posterior.get_advanced_quantities()
                 self.results['advanced_quantities'] = {i:j for i, j in self.posterior.samples.items() if i not in self.results['basic_quantities'].keys()}
             except Exception as e:
                 print(e)
