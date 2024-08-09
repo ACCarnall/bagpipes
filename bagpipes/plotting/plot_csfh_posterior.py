@@ -2,6 +2,7 @@ from __future__ import print_function, division, absolute_import
 import os 
 import numpy as np
 import time
+import h5py
 try:
     import matplotlib as mpl
     import matplotlib.pyplot as plt
