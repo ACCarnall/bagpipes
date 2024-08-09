@@ -1,9 +1,9 @@
 **Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation**
 
 
-***Modified version of Bagpipes 1.2.0 ***
+**Modified version of Bagpipes 1.2.0**
 
-**** Changes ****
+**Changes**
 
 1. Saving advanced quantities to .h5, which increases speed up of loading in already computed models.
 2. Adding new quantites: UV Beta slope (in Calzetti filters), absolute and apparent UV magnitudes, Emission line equivalent widths and fluxes, escape fraction, ionizing photon production efficiency (use with caution). 
