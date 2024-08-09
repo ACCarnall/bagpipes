@@ -1,6 +1,6 @@
 **Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation**
 
-*Modified version of Bagpipes 1.0.3 - changes include adding more quantities to .h5, adding ability to derive Beta slope, MUV and mUV for each chain, vary fit instructions dictionary and redshift_sigma on a per galaxy basis. Calculates SFR quantities on 10 and 100 Myr timescales. Don't clone the repo locally and install unless you already have the required grids. Contact authors for wider BC03 grids, with range - 4 < log U < 0. Also has ability to plot cumulative SFH. 
+*Modified version of Bagpipes 1.2.0 - changes include adding more quantities to .h5, adding ability to derive Beta slope, MUV and mUV for each chain, vary fit instructions dictionary and redshift_sigma on a per galaxy basis. Calculates SFR quantities on 10 and 100 Myr timescales. Don't clone the repo locally and install unless you already have the required grids. Contact authors for wider BC03 grids, with range - 4 < log U < 0. Also has ability to plot cumulative SFH. 
 
 Bagpipes is a state of the art code for generating realistic model galaxy spectra and fitting these to spectroscopic and photometric observations. For further information please see the Bagpipes documentation at `bagpipes.readthedocs.io <http://bagpipes.readthedocs.io>`_.
 
@@ -28,3 +28,4 @@ Please note development of the code has been ongoing since these works were publ
 
 
 .. image:: docs/images/sfh_from_spec.png
+
