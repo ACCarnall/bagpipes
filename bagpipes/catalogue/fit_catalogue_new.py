@@ -210,6 +210,7 @@ class fit_catalogue_new(object):
         self.done[self.done == 1] += 1
 
         if rank == 0:  # The 0 process manages others, does no fitting
+            print('Fitting multiple objects using MPI')
             for i in range(1, size):
                 if not np.min(self.done):  # give out first IDs to fit
                     newID = self.IDs[np.argmin(self.done)]
@@ -236,6 +237,7 @@ class fit_catalogue_new(object):
                     comm.send(None, dest=done_rank)
 
                 # Load posterior for finished object to update catalogue
+                print('Rank 0 core generating posterior and updating catalogue for', oldID)
                 self._fit_object(oldID, use_MPI=False, verbose=False,
                                  n_live=n_live, sampler=sampler)
 
@@ -355,6 +357,10 @@ class fit_catalogue_new(object):
             # Add fitting results to output catalogue
             if self.full_catalogue:
                 self.obj_fit.posterior.get_advanced_quantities()
+                
+            if size > 1:
+                # This little hack is needed as the individual cores only generate 5 samples
+                self.obj_fit.add_quantities_to_h5()
 
             samples = self.obj_fit.posterior.samples
 
@@ -371,6 +377,7 @@ class fit_catalogue_new(object):
                 # added by austind 08/12/23
                 if self.save_pdf_txts:
                     self._save_PDF(v, values, ID)
+                
                 self.cat.loc[ID, v + "_16"] = np.percentile(values, 16)
                 self.cat.loc[ID, v + "_50"] = np.percentile(values, 50)
                 self.cat.loc[ID, v + "_84"] = np.percentile(values, 84)

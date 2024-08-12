@@ -176,6 +176,35 @@ class fit(object):
         self.fitted_model = fitted_model(galaxy, self.fit_instructions,
                                          time_calls=time_calls)
 
+
+    def add_quantities_to_h5(self, get_advanced=False):
+        """ Add advanced quantities to the .h5 file. """
+        file = h5py.File(self.fname[:-1] + ".h5", "a")
+
+        print('Adding quantites to h5 file.')
+
+        self.results['basic_quantities'] = {i:j for i, j in self.posterior.samples.items() if i in self.posterior.basic_quantity_names}
+            # Get quantities
+     
+        # Attempt to add advanced quantities to the .h5 file
+        if get_advanced:
+            self.posterior.get_advanced_quantities()
+
+        self.results['advanced_quantities'] = {i:j for i, j in self.posterior.samples.items() if i not in self.posterior.basic_quantity_names}
+
+        for k in self.results.keys():
+            if k in ['basic_quantities', 'advanced_quantities']:
+                data = self.posterior.samples  
+                if k not in file.keys():
+                    file.create_group(k)
+                for j in self.results[k].keys():
+                    if j in file[k].keys():
+                        del file[k][j]
+
+                    file[k].create_dataset(j, data=data[j])           
+
+        file.close()
+
     def fit(self, verbose=False, n_live=400, use_MPI=True,
             sampler="multinest", n_eff=0, discard_exploration=False,
             n_networks=4, pool=1):
@@ -267,6 +296,7 @@ class fit(object):
             os.environ["PYTHONWARNINGS"] = ""
 
         if rank == 0 or not use_MPI:
+            print(f'Rank 0 for {self.galaxy.ID}', use_MPI)
             runtime = time.time() - start_time
 
             print("\nCompleted in " + str("%.1f" % runtime) + " seconds.\n")
@@ -332,12 +362,12 @@ class fit(object):
             # Create a posterior object to hold the results of the fit.
             self.posterior = posterior(self.galaxy, run=self.run,
                                        n_samples=self.n_posterior)
-            self.results['basic_quantities'] = self.posterior.samples
+            self.results['basic_quantities'] = {i:j for i, j in self.posterior.samples.items() if i in self.posterior.basic_quantity_names}
              # Get quantities
             try:
                 # Attempt to add advanced quantities to the .h5 file
                 self.posterior.get_advanced_quantities()
-                self.results['advanced_quantities'] = {i:j for i, j in self.posterior.samples.items() if i not in self.results['basic_quantities'].keys()}
+                self.results['advanced_quantities'] = {i:j for i, j in self.posterior.samples.items() if i not in self.posterior.basic_quantity_names}
             except Exception as e:
                 print(e)
                 pass
@@ -354,8 +384,10 @@ class fit(object):
                 if k in ['basic_quantities', 'advanced_quantities']:
                     data = self.posterior.samples  
                     file.create_group(k)
-                    for j in data.keys():
-                        file[k].create_dataset(j, data=data[j])                    
+                    for j in self.results[k].keys():
+                            if len(data[j]) > 5: # Dont save dummies
+                                file[k].create_dataset(j, data=data[j])           
+                        
                 else:
                     data = self.results[k]
                     file.create_dataset(k, data=data)

@@ -107,7 +107,10 @@ class posterior(object):
         if 'advanced_quantities' in file.keys():
             advanced_quantities_params = file['advanced_quantities'].keys()
             for param in advanced_quantities_params:
-                self.samples[param] = file['advanced_quantities'][param][:]
+                data = file['advanced_quantities'][param][:]
+                if len(data) == n_samples:
+                    self.samples[param] = data
+               
         
 
         self.get_basic_quantities()
@@ -158,9 +161,6 @@ class posterior(object):
         are derived only from the SFH model, not the spectral model. """
         from ..models.star_formation_history import star_formation_history
 
-        if "stellar_mass" in list(self.samples):
-            return
-
         self.fitted_model._update_model_components(self.samples2d[0, :])
 
         self.sfh = star_formation_history(self.fitted_model.model_components)
@@ -169,6 +169,13 @@ class posterior(object):
                           "sfr_10myr","ssfr_10myr", "nsfr_10myr", # Added by tharvey 17/01/24
                           "mass_weighted_age", "tform", "tquench",
                           "mass_weighted_zmet"]
+        
+        self.basic_quantity_names = quantity_names + ["sfh"]
+
+        # Moved from above to enusre a sfh object is created
+        if "stellar_mass" in list(self.samples):
+            return
+
 
         for q in quantity_names:
             self.samples[q] = np.zeros(self.n_samples)
@@ -177,6 +184,8 @@ class posterior(object):
                                         self.sfh.ages.shape[0]))
 
         quantity_names += ["sfh"]
+
+        
 
         for i in range(self.n_samples):
             param = self.samples2d[self.indices[i], :]
@@ -192,15 +201,15 @@ class posterior(object):
 
         from ..models.model_galaxy import model_galaxy
 
-        if "spectrum_full" in list(self.samples):
-            return
-
         self.fitted_model._update_model_components(self.samples2d[0, :])
         self.model_galaxy = model_galaxy(self.fitted_model.model_components,
                                          filt_list=self.galaxy.filt_list,
                                          spec_wavs=self.galaxy.spec_wavs,
                                          index_list=self.galaxy.index_list)
-
+        # Moved from above to enusre a model_galaxy is created
+        if "spectrum_full" in list(self.samples):
+            return
+            
         all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94',
                      "beta_C94", "m_UV", "M_UV", "Halpha_EWrest", "xi_ion_caseB", "indices"]
 
