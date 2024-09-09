@@ -31,7 +31,7 @@ from .input.galaxy import galaxy
 from .fitting.fit import fit
 
 from .catalogue.fit_catalogue import fit_catalogue
-from .catalogue.fit_catalogue_new import fit_catalogue_new
+from .catalogue.fit_catalogue_old import fit_catalogue_old
 
 
 from .plotting import plot_corner, plot_calibration, plot_1d_posterior, plot_spectrum_posterior, plot_sfh_posterior, add_spectrum, plot_sfh, plot_csfh_posterior, plot_galaxy, general, add_sfh_posterior, add_csfh_posterior

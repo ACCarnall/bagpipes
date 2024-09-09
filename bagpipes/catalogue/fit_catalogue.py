@@ -100,10 +100,15 @@ class fit_catalogue(object):
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
                  run=".", analysis_function=None, time_calls=False,
                  n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None, track_backlog=False):
+                 index_list=None, track_backlog=False, save_pdf_txts=True):
 
         self.IDs = np.array(IDs).astype(str)
-        self.fit_instructions = fit_instructions
+        if type(fit_instructions) is list:
+            self.fit_instructions = fit_instructions[0]
+            self.fit_instructions_list = fit_instructions
+        else:
+            self.fit_instructions = fit_instructions
+            self.fit_instructions_list = None
         self.load_data = load_data
         self.spectrum_exists = spectrum_exists
         self.photometry_exists = photometry_exists
@@ -114,6 +119,7 @@ class fit_catalogue(object):
         self.redshift_sigma = redshift_sigma
         self.run = run
         self.analysis_function = analysis_function
+        self.save_pdf_txts = save_pdf_txts
         self.time_calls = time_calls
         self.n_posterior = n_posterior
         self.full_catalogue = full_catalogue
@@ -204,6 +210,7 @@ class fit_catalogue(object):
         self.done[self.done == 1] += 1
 
         if rank == 0:  # The 0 process manages others, does no fitting
+            print('Fitting multiple objects using MPI')
             for i in range(1, size):
                 if not np.min(self.done):  # give out first IDs to fit
                     newID = self.IDs[np.argmin(self.done)]
@@ -230,6 +237,7 @@ class fit_catalogue(object):
                     comm.send(None, dest=done_rank)
 
                 # Load posterior for finished object to update catalogue
+                print('Rank 0 core generating posterior and updating catalogue for', oldID)
                 self._fit_object(oldID, use_MPI=False, verbose=False,
                                  n_live=n_live, sampler=sampler)
 
@@ -272,14 +280,26 @@ class fit_catalogue(object):
         if self.redshifts is not None:
             ind = np.argmax(self.IDs == ID)
 
-            if self.redshift_sigma > 0.:
-                z = self.redshifts[ind]
-                sig = self.redshift_sigma
-                self.fit_instructions["redshift_prior"] = "Gaussian"
-                self.fit_instructions["redshift_prior_mu"] = z
-                self.fit_instructions["redshift_prior_sigma"] = sig
-                self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
+            if self.redshift_sigma is not None:
+                if isinstance(self.redshift_sigma, float):
+                    if self.redshift_sigma > 0.:
+                        z = self.redshifts[ind]
+                        sig = self.redshift_sigma
+                        self.fit_instructions["redshift_prior"] = "Gaussian"
+                        self.fit_instructions["redshift_prior_mu"] = z
+                        self.fit_instructions["redshift_prior_sigma"] = sig
+                        self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
+                    else:
+                        self.fit_instructions["redshift"] = self.redshifts[ind]
 
+                elif (isinstance(self.redshift_sigma, np.ndarray) | isinstance(self.redshift_sigma, list)) & (self.redshift_sigma[ind] > 0.):
+                    z = self.redshifts[ind]
+                    sig = self.redshift_sigma[ind]
+                    self.fit_instructions["redshift_prior_mu"] = z
+                    self.fit_instructions["redshift_prior_sigma"] = sig
+                    self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
+                else:
+                    self.fit_instructions["redshift"] = self.redshifts[ind]
             else:
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
@@ -287,6 +307,9 @@ class fit_catalogue(object):
                     sampler="multinest", pool=1):
         """ Fit the specified object and update the catalogue. """
 
+        if self.fit_instructions_list is not None:
+            self.fit_instructions = self.fit_instructions_list[np.argmax(self.IDs == ID)]
+            
         # Set the correct redshift for this object
         self._set_redshift(ID)
 
@@ -326,6 +349,7 @@ class fit_catalogue(object):
                 self.obj_fit.plot_corner()
                 self.obj_fit.plot_1d_posterior()
                 self.obj_fit.plot_sfh_posterior()
+                self.obj_fit.plot_csfh_posterior()
 
                 if "calib" in list(self.obj_fit.fitted_model.fit_instructions):
                     self.obj_fit.plot_calibration()
@@ -333,6 +357,10 @@ class fit_catalogue(object):
             # Add fitting results to output catalogue
             if self.full_catalogue:
                 self.obj_fit.posterior.get_advanced_quantities()
+                
+            if size > 1:
+                # This little hack is needed as the individual cores only generate 5 samples
+                self.obj_fit.add_quantities_to_h5()
 
             samples = self.obj_fit.posterior.samples
 
@@ -346,7 +374,10 @@ class fit_catalogue(object):
 
                 else:
                     values = samples[v]
-
+                # added by austind 08/12/23
+                if self.save_pdf_txts:
+                    self._save_PDF(v, values, ID)
+                
                 self.cat.loc[ID, v + "_16"] = np.percentile(values, 16)
                 self.cat.loc[ID, v + "_50"] = np.percentile(values, 50)
                 self.cat.loc[ID, v + "_84"] = np.percentile(values, 84)
@@ -359,16 +390,27 @@ class fit_catalogue(object):
                 self.cat.loc[ID, "chisq_phot"] = np.min(samples["chisq_phot"])
                 n_bands = np.sum(self.galaxy.photometry[:, 1] != 0.)
                 self.cat.loc[ID, "n_bands"] = n_bands
-
+    # added by austind 08/12/23 - updated by tharvey 09/12/23 to not overwrite
+    def _save_PDF(self, var_name, values, ID):
+        pdf_file = f"pipes/pdfs/{self.run}/{var_name}/{ID}.txt"
+        os.makedirs("/".join(pdf_file.split("/")[:-1]), exist_ok = True)
+        os.chmod("/".join(pdf_file.split("/")[:-1]), 0o777)
+        np.savetxt(pdf_file, values)
+        os.chmod(pdf_file, 0o777)
     def _setup_vars(self):
         """ Set up list of variables to go in the output catalogue. """
 
         self.vars = copy.copy(self.obj_fit.fitted_model.params)
         self.vars += ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
                       "mass_weighted_age", "tform", "tquench"]
+        
+        # Added by tharvey 17/12/23
+        self.vars += ["sfr_10myr", "ssfr_10myr", "nsfr_10myr"]
 
         if self.full_catalogue:
             self.vars += ["UV_colour", "VJ_colour"]
+            # added by tharvey 15/10/23 + austind 08/12/23
+            self.vars += ["beta_C94", "m_UV", "M_UV"]
 
     def _setup_catalogue(self):
         """ Set up the initial blank output catalogue. """
