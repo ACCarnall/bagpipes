@@ -108,12 +108,15 @@ class model_galaxy(object):
         "ergscma" for ergs per second per centimetre squared per
         angstrom, can also be set to "mujy" for microjanskys.
 
+    extra_model_components - boolean - optional
+        whether to calculate non critical outputs -UVJ, beta_C94, M_UV, L_UV_dustcorr, Halpha_EWrest, xi_ion_caseB
+
     index_list : list - optional
         list of dicts containining definitions for spectral indices.
     """
 
     def __init__(self, model_components, filt_list=None, spec_wavs=None,
-                 spec_units="ergscma", phot_units="ergscma", index_list=None):
+                 spec_units="ergscma", phot_units="ergscma", index_list=None, extra_model_components=False):
 
         if (spec_wavs is not None) and (index_list is not None):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
@@ -192,7 +195,7 @@ class model_galaxy(object):
         if "agn" in list(model_components):
             self.agn = agn(self.wavelengths)
 
-        self.update(model_components)
+        self.update(model_components, extra_model_components = extra_model_components)
 
     def _get_wavelength_sampling(self):
         """ Calculate the optimal wavelength sampling for the model
@@ -338,10 +341,17 @@ class model_galaxy(object):
 
         return np.arange(min, max*(1. + config.max_redshift), sampling)
 
-    def update(self, model_components):
+    def update(self, model_components, extra_model_components=False):
         """ Update the model outputs to reflect new parameter values in
         the model_components dictionary. Note that only the changing of
-        numerical values is supported. """
+        numerical values is supported. 
+        Parameters
+        ----------
+        model_components : dict
+            A dictionary containing information about the model you wish to
+            generate.
+        extra_model_components : boolean - whether to calculate non critical outputs -UVJ, beta_C94, M_UV, L_UV_dustcorr, Halpha_EWrest, xi_ion_caseB
+        """
 
         self.model_comp = model_components
         self.sfh.update(model_components)
@@ -382,15 +392,16 @@ class model_galaxy(object):
             self._calculate_photometry(model_components["redshift"])
 
         if not self.sfh.unphysical:
-            self._calculate_uvj_mags()
-             # added by austind 13/11/23
-            self._calculate_beta_C94(model_components)
+            if extra_model_components:
+                self._calculate_uvj_mags()
+                # added by austind 13/11/23
+                self._calculate_beta_C94(model_components)
 
-            # added by austind 08/12/23
-            self._calculate_M_UV(model_components)
-            # added by austind 01/08/24
-            self._calculate_Halpha_EWrest(model_components)
-            self._calculate_xi_ion_caseB(model_components)
+                # added by austind 08/12/23
+                self._calculate_M_UV(model_components)
+                # added by austind 01/08/24
+                self._calculate_Halpha_EWrest(model_components)
+                self._calculate_xi_ion_caseB(model_components)
 
 
         # Deal with any spectral index calculations.

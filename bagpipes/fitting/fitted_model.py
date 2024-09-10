@@ -125,7 +125,7 @@ class fitted_model(object):
             self.K_ind = -0.5*np.sum(log_error_factors)
             self.inv_sigma_sq_ind = 1./self.galaxy.indices[:, 1]**2
 
-    def lnlike(self, x, ndim=0, nparam=0):
+    def lnlike(self, x, ndim=0, nparam=0, extra_model_components=False):
         """ Returns the log-likelihood for a given parameter vector. """
 
         if self.time_calls:
@@ -143,7 +143,7 @@ class fitted_model(object):
                                              spec_wavs=self.galaxy.spec_wavs,
                                              index_list=self.galaxy.index_list)
 
-        self.model_galaxy.update(self.model_components)
+        self.model_galaxy.update(self.model_components, extra_model_components = extra_model_components)
 
         # Return zero likelihood if SFH is older than the universe.
         if self.model_galaxy.sfh.unphysical:

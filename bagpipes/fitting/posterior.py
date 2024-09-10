@@ -205,7 +205,8 @@ class posterior(object):
         self.model_galaxy = model_galaxy(self.fitted_model.model_components,
                                          filt_list=self.galaxy.filt_list,
                                          spec_wavs=self.galaxy.spec_wavs,
-                                         index_list=self.galaxy.index_list)
+                                         index_list=self.galaxy.index_list,
+                                         extra_model_components = True)
         # Moved from above to enusre a model_galaxy is created
         if "spectrum_full" in list(self.samples):
             return
@@ -240,7 +241,7 @@ class posterior(object):
         for i in range(self.n_samples):
             param = self.samples2d[self.indices[i], :]
             self.fitted_model._update_model_components(param)
-            self.fitted_model.lnlike(param)
+            self.fitted_model.lnlike(param, extra_model_components = True)
 
             if self.galaxy.photometry_exists:
                 self.samples["chisq_phot"][i] = self.fitted_model.chisq_phot
@@ -291,7 +292,7 @@ class posterior(object):
         for i in range(self.n_samples):
             param = self.samples2d[self.indices[i], :]
             self.fitted_model._update_model_components(param)
-            model.update(self.fitted_model.model_components)
+            model.update(self.fitted_model.model_components, extra_model_components = True)
 
             for q in quantity_names:
                 if q == "spectrum":
