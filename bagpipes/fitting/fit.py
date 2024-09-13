@@ -10,7 +10,6 @@ import contextlib
 
 try:
     use_bpass = bool(int(os.environ['use_bpass']))
-    print('use_bpass: ',bool(int(os.environ['use_bpass'])))
 except KeyError:
     use_bpass = False
 
@@ -18,7 +17,6 @@ if use_bpass:
     print('Setup to use BPASS')
     from .. import config_bpass as config
 else:
-    print('Setup to use BC03')
     from .. import config
 
 from copy import deepcopy
@@ -334,7 +332,6 @@ class fit(object):
             file.attrs["fit_instructions"] = str(self.fit_instructions)
             try:
                 use_bpass = bool(int(os.environ['use_bpass']))
-                print('use_bpass: ',bool(int(os.environ['use_bpass'])))
             except KeyError:
                 use_bpass = False
 
@@ -343,7 +340,6 @@ class fit(object):
                 mtype = 'BPASS'
                 from .. import config_bpass as config
             else:
-                print('Setup to use BC03')
                 from .. import config
                 mtype = 'BC03'
 
