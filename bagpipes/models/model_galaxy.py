@@ -2,7 +2,7 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 import warnings
-import spectres
+
 
 from copy import deepcopy
 from numpy.polynomial.chebyshev import chebval, chebfit
@@ -594,6 +594,8 @@ class model_galaxy(object):
         self.photometry = phot
 
     def _calculate_spectrum(self, model_comp):
+
+        import spectres
         """ This method generates predictions for observed spectroscopy.
         It optionally applies a Gaussian velocity dispersion then
         resamples onto the specified set of observed wavelengths. """
