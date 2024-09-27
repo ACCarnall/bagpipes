@@ -398,6 +398,7 @@ class model_galaxy(object):
                 # added by austind 01/08/24
                 self._calculate_Halpha_EWrest(model_components)
                 self._calculate_xi_ion_caseB(model_components)
+                self._save_emission_line_fluxes(model_components)
 
 
         # Deal with any spectral index calculations.
@@ -716,6 +717,24 @@ class model_galaxy(object):
         # calculate dust corrected line fluxes and calculate rest frame EW
         self._calculate_dustcorr_em_lines(model_comp)
         self.Halpha_EWrest = np.array([(self.line_fluxes_dustcorr["H  1  6562.81A"] / f_cont_Ha) / (1. + model_comp["redshift"])])
+
+    def _save_emission_line_fluxes(self, model_comp, lines = {"Halpha":"H  1  6562.81A", # 
+                                                              "HBeta":"H  1  4861.33A", # HBeta 
+                                                              "OIII_5007":"O  3  5006.84A", # OIII 5007
+                                                              "OIII_4959":"O  3  4958.91A"}): # OIII 4959`
+        
+        if not hasattr(self, "line_fluxes"):
+            self._calculate_dustcorr_em_lines(model_comp)
+        
+        line_names = []
+        for line in lines.keys():
+            line_flux = self.line_fluxes_dustcorr[lines[line]]
+            line_name = line + "_flux"
+            setattr(self, line_name, line_flux)
+            line_names.append(line_name)
+        
+        self.line_names = line_names
+
 
     # added by austind 01/08/24
     def _calculate_xi_ion_caseB(self, model_comp):

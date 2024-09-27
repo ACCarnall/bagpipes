@@ -135,7 +135,7 @@ class fit_catalogue(object):
             utils.make_dirs(run=run)
 
     def fit(self, verbose=False, n_live=400, mpi_serial=False,
-            track_backlog=False, sampler="multinest", pool=1):
+            track_backlog=False, sampler="multinest", pool=1, use_mpi=True):
         """ Run through the catalogue fitting each object.
 
         Parameters
@@ -167,7 +167,7 @@ class fit_catalogue(object):
                 self.cat.index = self.IDs
                 self.done = (self.cat.loc[:, "log_evidence"] != 0.).values
 
-        if size > 1 and mpi_serial:
+        if size > 1 and mpi_serial and use_mpi:
             self._fit_mpi_serial(n_live=n_live, track_backlog=track_backlog)
             return
 
@@ -188,7 +188,7 @@ class fit_catalogue(object):
 
             # If not fit the object and update the output catalogue
             self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live,
-                             sampler=sampler, pool=pool)
+                             sampler=sampler, pool=pool, use_MPI=use_mpi)
 
             self.done[i] = True
 
@@ -333,7 +333,7 @@ class fit_catalogue(object):
         self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI,
                          sampler=sampler, pool=pool)
 
-        if rank == 0:
+        if rank == 0 or not use_MPI:
             if self.vars is None:
                 self._setup_vars()
 

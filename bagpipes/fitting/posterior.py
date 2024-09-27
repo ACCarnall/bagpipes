@@ -214,6 +214,9 @@ class posterior(object):
         all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94',
                      "beta_C94", "m_UV", "M_UV", "Halpha_EWrest", "xi_ion_caseB", "indices"]
 
+        if getattr(self.model_galaxy, 'line_names', None) is not None:
+            all_names.extend(self.model_galaxy.line_names)
+
         all_model_keys = dir(self.model_galaxy)
         quantity_names = [q for q in all_names if q in all_model_keys]
 
