@@ -39,6 +39,7 @@ class posterior(object):
         self.galaxy = galaxy
         self.run = run
         self.n_samples = n_samples
+        self.lines_to_save = galaxy.em_line_fluxes_to_save
 
         fname = "pipes/posterior/" + self.run + "/" + self.galaxy.ID + ".h5"
 
@@ -206,10 +207,9 @@ class posterior(object):
                                          filt_list=self.galaxy.filt_list,
                                          spec_wavs=self.galaxy.spec_wavs,
                                          index_list=self.galaxy.index_list,
-                                         extra_model_components = True)
+                                         extra_model_components = True, 
+                                         lines_to_save = self.lines_to_save)
         # Moved from above to enusre a model_galaxy is created
-        if "spectrum_full" in list(self.samples):
-            return
             
         all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94',
                      "beta_C94", "m_UV", "M_UV", "Halpha_EWrest", "xi_ion_caseB", "indices"]
@@ -220,12 +220,21 @@ class posterior(object):
         all_model_keys = dir(self.model_galaxy)
         quantity_names = [q for q in all_names if q in all_model_keys]
 
+        # Check if all quantities are present
+        finished_samples = list(self.samples)
+        # Check if anything in quantity_names is not in finished_samples
+        if all([q in finished_samples for q in quantity_names]):
+            return
+
         for q in quantity_names:
             size = getattr(self.model_galaxy, q).shape[0]
             self.samples[q] = np.zeros((self.n_samples, size))
 
         if self.galaxy.photometry_exists:
+            
             self.samples["chisq_phot"] = np.zeros(self.n_samples)
+        else:
+            print('No Chi2 set')
 
         if "dust" in list(self.fitted_model.model_components):
             size = self.model_galaxy.spectrum_full.shape[0]
@@ -281,7 +290,8 @@ class posterior(object):
         self.fitted_model._update_model_components(self.samples2d[0, :])
         model = model_galaxy(self.fitted_model.model_components,
                              filt_list=filt_list, phot_units=phot_units,
-                             spec_wavs=spec_wavs, index_list=index_list)
+                             spec_wavs=spec_wavs, index_list=index_list,
+                             lines_to_save = self.lines_to_save)
 
         all_names = ["photometry", "spectrum", "indices"]
 

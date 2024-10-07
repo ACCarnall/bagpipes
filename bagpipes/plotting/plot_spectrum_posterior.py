@@ -103,9 +103,13 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None, color1=None,
         phot_1sig = phot_band[mask]*10**-y_scale
         wav_array = np.zeros(phot_1sig.shape[0]) + log_eff_wavs[j]
 
-        if phot_1sig.min() < ymax*10**-y_scale:
-            ax.scatter(wav_array, phot_1sig, color=color2,
-                       zorder=zorder, alpha=0.05, s=100, rasterized=True)
+        if len(phot_1sig) > 0:
+        
+            if phot_1sig.min() < ymax*10**-y_scale:
+                ax.scatter(wav_array, phot_1sig, color=color2,
+                        zorder=zorder, alpha=0.05, s=100, rasterized=True)
+        else:
+            print('Error in photometry posterior')
 
 def add_spectrum_posterior(fit, ax, zorder=4, y_scale=None):
 

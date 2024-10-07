@@ -45,6 +45,7 @@ def plot_csfh_posterior(fit, show=False, save=True, colorscheme="bw", zvals=[0, 
     add_csfh_posterior(fit, ax, colorscheme=colorscheme, zvals=zvals)
 
     if save:
+        print('Saving CSFH plot')
         plotpath = "pipes/plots/" + fit.run + "/" + fit.galaxy.ID + "_csfh.pdf"
         #print(plotpath)
         plt.savefig(plotpath, bbox_inches="tight", pad_inches=0.3)

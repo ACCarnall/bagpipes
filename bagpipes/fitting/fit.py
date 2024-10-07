@@ -366,6 +366,9 @@ class fit(object):
                 self.results['advanced_quantities'] = {i:j for i, j in self.posterior.samples.items() if i not in self.posterior.basic_quantity_names}
             except Exception as e:
                 print(e)
+                import traceback
+                traceback.print_exc()
+                
                 pass
             # Do it again with advanced quantities. 
             file = h5py.File(self.fname[:-1] + ".h5", "w")

@@ -114,7 +114,7 @@ class model_galaxy(object):
     """
 
     def __init__(self, model_components, filt_list=None, spec_wavs=None,
-                 spec_units="ergscma", phot_units="ergscma", index_list=None, extra_model_components=False):
+                 spec_units="ergscma", phot_units="ergscma", index_list=None, extra_model_components=False, lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
 
         if (spec_wavs is not None) and (index_list is not None):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
@@ -172,6 +172,8 @@ class model_galaxy(object):
         self.dust_atten = False
         self.dust_emission = False
         self.agn = False
+
+        self.lines_to_save = lines_to_save
 
         if "nebular" in list(model_components):
             if "velshift" not in model_components["nebular"]:
@@ -398,7 +400,7 @@ class model_galaxy(object):
                 # added by austind 01/08/24
                 self._calculate_Halpha_EWrest(model_components)
                 self._calculate_xi_ion_caseB(model_components)
-                self._save_emission_line_fluxes(model_components)
+                self._save_emission_line_fluxes(model_components, lines = self.lines_to_save)
 
 
         # Deal with any spectral index calculations.
@@ -718,21 +720,28 @@ class model_galaxy(object):
         self._calculate_dustcorr_em_lines(model_comp)
         self.Halpha_EWrest = np.array([(self.line_fluxes_dustcorr["H  1  6562.81A"] / f_cont_Ha) / (1. + model_comp["redshift"])])
 
-    def _save_emission_line_fluxes(self, model_comp, lines = {"Halpha":"H  1  6562.81A", # 
-                                                              "HBeta":"H  1  4861.33A", # HBeta 
-                                                              "OIII_5007":"O  3  5006.84A", # OIII 5007
-                                                              "OIII_4959":"O  3  4958.91A"}): # OIII 4959`
+    def _save_emission_line_fluxes(self, model_comp, lines = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'], lines_dict = {"Halpha":"H  1  6562.81A", # 
+                                                                                                                        "HBeta":"H  1  4861.33A", # HBeta 
+                                                                                                                        "OIII_5007":"O  3  5006.84A", # OIII 5007
+                                                                                                                        "OIII_4959":"O  3  4958.91A"}): # OIII 4959`
         
         if not hasattr(self, "line_fluxes"):
             self._calculate_dustcorr_em_lines(model_comp)
         
         line_names = []
-        for line in lines.keys():
-            line_flux = self.line_fluxes_dustcorr[lines[line]]
+        for line in lines:
+            line_dict_name = lines_dict.get(line, False)
+            if not line_dict_name:
+                if line in self.line_fluxes_dustcorr.keys():
+                    line_dict_name = line
+                else:
+                    raise ValueError("The line %s is not in the lines_dict and not in the full dictionary" % line)
+
+            line_flux = np.array([self.line_fluxes_dustcorr[line_dict_name]])
             line_name = line + "_flux"
             setattr(self, line_name, line_flux)
             line_names.append(line_name)
-        
+
         self.line_names = line_names
 
 

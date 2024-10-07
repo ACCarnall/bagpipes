@@ -100,7 +100,7 @@ class fit_catalogue(object):
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
                  run=".", analysis_function=None, time_calls=False,
                  n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None, track_backlog=False, save_pdf_txts=True):
+                 index_list=None, track_backlog=False, save_pdf_txts=True, em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
 
         self.IDs = np.array(IDs).astype(str)
         if type(fit_instructions) is list:
@@ -125,6 +125,7 @@ class fit_catalogue(object):
         self.full_catalogue = full_catalogue
         self.load_indices = load_indices
         self.index_list = index_list
+        self.em_line_fluxes_to_save = em_line_fluxes_to_save
 
         self.n_objects = len(self.IDs)
         self.done = np.zeros(self.IDs.shape[0]).astype(bool)
@@ -323,7 +324,7 @@ class fit_catalogue(object):
                              spectrum_exists=self.spectrum_exists,
                              photometry_exists=self.photometry_exists,
                              load_indices=self.load_indices,
-                             index_list=self.index_list)
+                             index_list=self.index_list, em_line_fluxes_to_save = self.em_line_fluxes_to_save)
 
         # Fit the object
         self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,
@@ -411,6 +412,11 @@ class fit_catalogue(object):
             self.vars += ["UV_colour", "VJ_colour"]
             # added by tharvey 15/10/23 + austind 08/12/23
             self.vars += ["beta_C94", "m_UV", "M_UV"]
+            self.vars += ["Halpha_EWrest", "xi_ion_caseB"]
+
+            for line in self.em_line_fluxes_to_save:
+                self.vars += [f"{line}_flux"]
+
 
     def _setup_catalogue(self):
         """ Set up the initial blank output catalogue. """
