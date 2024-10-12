@@ -134,17 +134,21 @@ class fitted_model(object):
             if self.n_calls == 0:
                 self.wall_time0 = time.time()
 
+        # Extra model components sometimes gets passed with random strings - set True only if specifically set to True
+        if str(extra_model_components) == "True":
+            extra_model_components = True
+        else:
+            extra_model_components = False
+
         # Update the model_galaxy with the parameters from the sampler.
         self._update_model_components(x)
-
         if self.model_galaxy is None:
             self.model_galaxy = model_galaxy(self.model_components,
                                              filt_list=self.galaxy.filt_list,
                                              spec_wavs=self.galaxy.spec_wavs,
                                              index_list=self.galaxy.index_list)
-
+        
         self.model_galaxy.update(self.model_components, extra_model_components = extra_model_components)
-
         # Return zero likelihood if SFH is older than the universe.
         if self.model_galaxy.sfh.unphysical:
             return -9.99*10**99
@@ -174,7 +178,7 @@ class fitted_model(object):
                 self.n_calls = 0
                 print("Mean likelihood call time:", np.round(np.mean(self.times), 4))
                 print("Wall time per lnlike call:", np.round((time.time() - self.wall_time0)/1000., 4))
-
+         
         return lnlike
 
     def _lnlike_phot(self):

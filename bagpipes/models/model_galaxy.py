@@ -351,6 +351,7 @@ class model_galaxy(object):
         extra_model_components : boolean - whether to calculate non critical outputs -UVJ, beta_C94, M_UV, L_UV_dustcorr, Halpha_EWrest, xi_ion_caseB
         """
 
+
         self.model_comp = model_components
         self.sfh.update(model_components)
         if self.dust_atten:
@@ -391,6 +392,7 @@ class model_galaxy(object):
 
         if not self.sfh.unphysical:
             if extra_model_components:
+                print('Extra!')
                 self._calculate_uvj_mags()
                 # added by austind 13/11/23
                 self._calculate_beta_C94(model_components)
@@ -563,6 +565,7 @@ class model_galaxy(object):
         else:
             self.spectrum_full_cont = spectrum
 
+    
     # added by austind 01/08/24
     def _calculate_full_continuum_spectrum(self, model_comp):
         """ This method combines the models for the various emission
