@@ -729,6 +729,9 @@ class model_galaxy(object):
             self._calculate_dustcorr_em_lines(model_comp)
         
         line_names = []
+
+        line_wavs = dict(zip(config.line_names, config.line_wavs))
+
         for line in lines:
             line_dict_name = lines_dict.get(line, False)
             if not line_dict_name:
@@ -736,8 +739,9 @@ class model_galaxy(object):
                     line_dict_name = line
                 else:
                     raise ValueError("The line %s is not in the lines_dict and not in the full dictionary" % line)
-
+            line_wav = line_wavs[line_dict_name]
             line_flux = np.array([self.line_fluxes_dustcorr[line_dict_name]])
+        
             line_name = line + "_flux"
             setattr(self, line_name, line_flux)
             line_names.append(line_name)
@@ -908,6 +912,8 @@ class model_galaxy(object):
 
             lum_flux = 4*np.pi*ldist_cm**2
         em_lines *= 3.826*10**33 / lum_flux
+        # What is flux unit?
+
 
         self.line_fluxes_dustcorr = dict(zip(config.line_names, em_lines))
 
