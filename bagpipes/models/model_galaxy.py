@@ -392,7 +392,6 @@ class model_galaxy(object):
 
         if not self.sfh.unphysical:
             if extra_model_components:
-                print('Extra!')
                 self._calculate_uvj_mags()
                 # added by austind 13/11/23
                 self._calculate_beta_C94(model_components)

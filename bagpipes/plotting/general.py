@@ -163,8 +163,9 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange", linestyle = 's
     if smooth:
         x_midp = (x[:-1] + x[1:])/2.
         ax.plot(x_midp, y, color=color1, zorder=zorder-1, alpha = alpha, lw=lw, linestyle=linestyle, label = label)
-        ax.fill_between(x_midp, np.zeros_like(y), y,
-                        color=color2, alpha=alpha, zorder=zorder-2)
+        if fill_between:
+            ax.fill_between(x_midp, np.zeros_like(y), y,
+                            color=color2, alpha=alpha, zorder=zorder-2)
         ax.plot([x_midp[0], x_midp[0]], [0, y[0]],
                 color=color1, zorder=zorder-1, lw=lw, alpha=alpha, linestyle=linestyle)
 
