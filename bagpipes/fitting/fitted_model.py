@@ -73,11 +73,12 @@ class fitted_model(object):
         all_vals = [all_vals[i] for i in indices]
         all_keys.sort()
 
+
         # Find parameters to be fitted and extract their priors.
         for i in range(len(all_vals)):
             # R_curve cannot be fitted and is either unset or must be a 2D numpy array
             if not all_keys[i] == 'R_curve':
-                if isinstance(all_vals[i], tuple):
+                if isinstance(all_vals[i], tuple) or (isinstance(all_vals[i], list) and len(all_vals[i]) == 2):
                     self.params.append(all_keys[i])
                     self.limits.append(all_vals[i])  # Limits on prior.
     
@@ -111,6 +112,10 @@ class fitted_model(object):
 
         # Find the dimensionality of the fit
         self.ndim = len(self.params)
+
+        if self.ndim == 0:
+            #print("Check if you used lists instead of tuples for parameter ranges in fit_instructions.")
+            raise ValueError("No parameters to fit.")
 
     def _set_constants(self):
         """ Calculate constant factors used in the lnlike function. """

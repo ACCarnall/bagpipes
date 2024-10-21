@@ -104,6 +104,7 @@ class fit_catalogue(object):
 
         self.IDs = np.array(IDs).astype(str)
         if type(fit_instructions) is list:
+            print('Fit instructions is a list. Setting individual. ')
             self.fit_instructions = fit_instructions[0]
             self.fit_instructions_list = fit_instructions
         else:
@@ -169,6 +170,7 @@ class fit_catalogue(object):
                 self.done = (self.cat.loc[:, "log_evidence"] != 0.).values
 
         if size > 1 and mpi_serial and use_mpi:
+            print('Fitting with MPI_serial: 1 galaxy per core.')
             self._fit_mpi_serial(n_live=n_live, track_backlog=track_backlog)
             return
 
@@ -309,6 +311,7 @@ class fit_catalogue(object):
         """ Fit the specified object and update the catalogue. """
 
         if self.fit_instructions_list is not None:
+            print('Setting fit_instructions from list.')
             self.fit_instructions = self.fit_instructions_list[np.argmax(self.IDs == ID)]
             
         # Set the correct redshift for this object
