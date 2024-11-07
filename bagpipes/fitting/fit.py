@@ -199,7 +199,7 @@ class fit(object):
                     if j in file[k].keys():
                         del file[k][j]
 
-                    file[k].create_dataset(j, data=data[j])           
+                    file[k].create_dataset(j, data=data[j], compression="gzip") 
 
         file.close()
 
@@ -349,7 +349,7 @@ class fit(object):
             np.set_printoptions(threshold=10**4)
 
             for k in self.results.keys():
-                file.create_dataset(k, data=self.results[k])
+                file.create_dataset(k, data=self.results[k], compression="gzip")
 
             file.close()
 
@@ -385,11 +385,11 @@ class fit(object):
                     file.create_group(k)
                     for j in self.results[k].keys():
                             if len(data[j]) > 5: # Dont save dummies
-                                file[k].create_dataset(j, data=data[j])           
+                                file[k].create_dataset(j, data=data[j], compression="gzip")       
                         
                 else:
                     data = self.results[k]
-                    file.create_dataset(k, data=data)
+                    file.create_dataset(k, data=data, compression="gzip")
 
             file.close()
             
