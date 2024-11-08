@@ -199,7 +199,7 @@ class fit(object):
                     if j in file[k].keys():
                         del file[k][j]
 
-                    file[k].create_dataset(j, data=data[j], compression="gzip") 
+                    file[k].create_dataset(j, data=data[j], compression="gzip" if type(data[j]) is np.ndarray else None)
 
         file.close()
 
@@ -349,7 +349,7 @@ class fit(object):
             np.set_printoptions(threshold=10**4)
 
             for k in self.results.keys():
-                file.create_dataset(k, data=self.results[k], compression="gzip")
+                file.create_dataset(k, data=self.results[k], compression="gzip" if type(self.results[k]) is np.ndarray else None)
 
             file.close()
 
@@ -385,11 +385,18 @@ class fit(object):
                     file.create_group(k)
                     for j in self.results[k].keys():
                             if len(data[j]) > 5: # Dont save dummies
-                                file[k].create_dataset(j, data=data[j], compression="gzip")       
+                                # if data if array of float64, convert to float32
+                                if type(data[j]) == np.ndarray and data[j].dtype == 'float64':
+                                    sdata = data[j].astype('float32')
+                                else:
+                                    sdata = data[j]
+                                
+                                file[k].create_dataset(j, data=sdata, compression="gzip" if type(sdata) is np.ndarray else None) 
                         
                 else:
                     data = self.results[k]
-                    file.create_dataset(k, data=data, compression="gzip")
+
+                    file.create_dataset(k, data=data, compression="gzip" if type(data) is np.ndarray else None)
 
             file.close()
             
