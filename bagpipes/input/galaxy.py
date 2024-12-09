@@ -99,10 +99,10 @@ class galaxy:
                 raise ValueError("Bagpipes: Object must have some data.")
 
             elif spectrum_exists and not photometry_exists:
-                self.spectrum = load_data(self.ID)
+                self.spectrum = load_data(self.ID, **load_data_kwargs)
 
             elif photometry_exists and not spectrum_exists:
-                phot_nowavs = load_data(self.ID)
+                phot_nowavs = load_data(self.ID, **load_data_kwargs)
 
             else:
                 self.spectrum, phot_nowavs = load_data(self.ID, **load_data_kwargs)
