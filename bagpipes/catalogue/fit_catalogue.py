@@ -93,6 +93,9 @@ class fit_catalogue(object):
     full_catalogue : bool - optional
         Adds minimum chi-squared values and rest-frame UVJ mags to the
         output catalogue, takes extra time, default False.
+
+    load_data_kwargs : dict - optional
+        Any additional keyword arguments to be passed to load_data.
     """
 
     def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
@@ -100,7 +103,9 @@ class fit_catalogue(object):
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
                  run=".", analysis_function=None, time_calls=False,
                  n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None, track_backlog=False, save_pdf_txts=True, em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
+                 index_list=None, track_backlog=False, save_pdf_txts=True, 
+                 em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
+                 load_data_kwargs={}):
 
         self.IDs = np.array(IDs).astype(str)
         if type(fit_instructions) is list:
@@ -111,6 +116,7 @@ class fit_catalogue(object):
             self.fit_instructions = fit_instructions
             self.fit_instructions_list = None
         self.load_data = load_data
+        self.load_data_kwargs = load_data_kwargs
         self.spectrum_exists = spectrum_exists
         self.photometry_exists = photometry_exists
         self.make_plots = make_plots
@@ -327,7 +333,9 @@ class fit_catalogue(object):
                              spectrum_exists=self.spectrum_exists,
                              photometry_exists=self.photometry_exists,
                              load_indices=self.load_indices,
-                             index_list=self.index_list, em_line_fluxes_to_save = self.em_line_fluxes_to_save)
+                             index_list=self.index_list, 
+                             em_line_fluxes_to_save=self.em_line_fluxes_to_save,
+                             load_data_kwargs=self.load_data_kwargs)
 
         # Fit the object
         self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,
