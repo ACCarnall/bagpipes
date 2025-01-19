@@ -355,16 +355,30 @@ class fit_catalogue(object):
             if self.analysis_function is not None:
                 self.analysis_function(self.obj_fit)
 
-            # Make plots if necessary
+            # Make plots if necessary - wrap in try/except
             if self.make_plots:
-                self.obj_fit.plot_spectrum_posterior()
-                self.obj_fit.plot_corner()
-                self.obj_fit.plot_1d_posterior()
-                self.obj_fit.plot_sfh_posterior()
-                self.obj_fit.plot_csfh_posterior()
-
+                plots = [
+                    self.obj_fit.plot_spectrum_posterior,
+                    self.obj_fit.plot_corner,
+                    self.obj_fit.plot_1d_posterior,
+                    self.obj_fit.plot_sfh_posterior,
+                    self.obj_fit.plot_csfh_posterior
+                ]
+                names = [
+                    "spectrum_posterior",
+                    "corner",
+                    "1d_posterior",
+                    "sfh_posterior",
+                    "csfh_posterior"
+                ]
                 if "calib" in list(self.obj_fit.fitted_model.fit_instructions):
-                    self.obj_fit.plot_calibration()
+                    plots.append(self.obj_fit.plot_calibration)
+                    names.append("calibration")
+                for plot, name in zip(plots, names):
+                    try:
+                        plot()
+                    except:
+                        print(f"Error plotting {name} for {ID}")
 
             # Add fitting results to output catalogue
             if self.full_catalogue:
@@ -402,6 +416,7 @@ class fit_catalogue(object):
                 self.cat.loc[ID, "chisq_phot"] = np.min(samples["chisq_phot"])
                 n_bands = np.sum(self.galaxy.photometry[:, 1] != 0.)
                 self.cat.loc[ID, "n_bands"] = n_bands
+    
     # added by austind 08/12/23 - updated by tharvey 09/12/23 to not overwrite
     def _save_PDF(self, var_name, values, ID):
         pdf_file = f"pipes/pdfs/{self.run}/{var_name}/{ID}.txt"
@@ -409,6 +424,7 @@ class fit_catalogue(object):
         os.chmod("/".join(pdf_file.split("/")[:-1]), 0o777)
         np.savetxt(pdf_file, values)
         os.chmod(pdf_file, 0o777)
+    
     def _setup_vars(self):
         """ Set up list of variables to go in the output catalogue. """
 
