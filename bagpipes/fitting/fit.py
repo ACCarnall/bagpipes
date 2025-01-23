@@ -430,11 +430,14 @@ class fit(object):
         return plotting.plot_1d_posterior(self, show=show, save=save)
 
     def plot_sfh_posterior(self, show=False, save=True, colorscheme="bw"):
-        return plotting.plot_sfh_posterior(self, show=show, save=save,
-                                           colorscheme=colorscheme)
+        return plotting.plot_sfh_posterior(
+            self, show=show, save=save,colorscheme=colorscheme)
 
     def plot_spectrum_posterior(self, show=False, save=True):
         return plotting.plot_spectrum_posterior(self, show=show, save=save)
 
     def plot_calibration(self, show=False, save=True):
         return plotting.plot_calibration(self, show=show, save=save)
+    
+    def plot_csfh_posterior(self, show=False, save=True):
+        return plotting.plot_csfh_posterior(self, show=show, save=save)
