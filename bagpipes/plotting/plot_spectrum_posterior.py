@@ -15,7 +15,7 @@ import astropy.units as u
 import astropy.constants as c
 import os
 
-def plot_spectrum_posterior(fit, redshift, show=False, save=True):
+def plot_spectrum_posterior(fit, show=False, save=True):
     """ Plot the observational data and posterior from a fit object. """
 
     fit.posterior.get_advanced_quantities()
@@ -31,7 +31,7 @@ def plot_spectrum_posterior(fit, redshift, show=False, save=True):
     if fit.galaxy.photometry_exists:
         add_photometry_posterior(fit, ax[-1], zorder=2, y_scale=y_scale[-1])
     try:
-        plt.title(f"ID:{fit.galaxy.ID}, z: {redshift}")
+        plt.title(f"ID:{fit.galaxy.ID}, z: {fit.fitted_model.model_components['redshift']:.2f}")
     except:
         plt.title(f"ID:{fit.galaxy.ID}")
 
