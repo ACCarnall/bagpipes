@@ -75,3 +75,11 @@ ldist_at_z = cosmo.luminosity_distance(z_array).value
 install_dir = os.path.dirname(os.path.realpath(__file__))
 grid_dir = install_dir + "/models/grids"
 working_dir = os.getcwd()
+
+# A dictionary to convert between inputted line names and the cloudy output keys
+lines_dict = {
+    "Halpha": "H  1  6562.81A",
+    "HBeta": "H  1  4861.33A",
+    "OIII_5007": "O  3  5006.84A",
+    "OIII_4959": "O  3  4958.91A"
+}

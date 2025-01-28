@@ -211,8 +211,8 @@ class posterior(object):
                                          lines_to_save = self.lines_to_save)
         # Moved from above to enusre a model_galaxy is created
             
-        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94',
-                     "beta_C94", "m_UV", "M_UV", "Halpha_EWrest", "xi_ion_caseB", "indices"]
+        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", "beta_C94",
+                     "m_UV", "M_UV", "Halpha_EWrest", "xi_ion_caseB", "indices"]
 
         if getattr(self.model_galaxy, 'line_names', None) is not None:
             all_names.extend(self.model_galaxy.line_names)

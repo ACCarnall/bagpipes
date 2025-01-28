@@ -114,7 +114,8 @@ class model_galaxy(object):
     """
 
     def __init__(self, model_components, filt_list=None, spec_wavs=None,
-                 spec_units="ergscma", phot_units="ergscma", index_list=None, extra_model_components=False, lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
+                 spec_units="ergscma", phot_units="ergscma", index_list=None, extra_model_components=False, 
+                 lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
 
         if (spec_wavs is not None) and (index_list is not None):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
@@ -722,12 +723,8 @@ class model_galaxy(object):
         self._calculate_dustcorr_em_lines(model_comp)
         self.Halpha_EWrest = np.array([(self.line_fluxes_dustcorr["H  1  6562.81A"] / f_cont_Ha) / (1. + model_comp["redshift"])])
 
-    def _save_emission_line_fluxes(self, model_comp, lines = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'], lines_dict = {"Halpha":"H  1  6562.81A", # 
-                                                                                                                        "HBeta":"H  1  4861.33A", # HBeta 
-                                                                                                                        "OIII_5007":"O  3  5006.84A", # OIII 5007
-                                                                                                                        "OIII_4959":"O  3  4958.91A"}): # OIII 4959`
-        
-        if not hasattr(self, "line_fluxes"):
+    def _save_emission_line_fluxes(self, model_comp, lines = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
+        if not hasattr(self, "line_fluxes_dustcorr"):
             self._calculate_dustcorr_em_lines(model_comp)
         
         line_names = []
@@ -735,7 +732,7 @@ class model_galaxy(object):
         line_wavs = dict(zip(config.line_names, config.line_wavs))
 
         for line in lines:
-            line_dict_name = lines_dict.get(line, False)
+            line_dict_name = utils.lines_dict.get(line, False)
             if not line_dict_name:
                 if line in self.line_fluxes_dustcorr.keys():
                     line_dict_name = line
@@ -750,12 +747,11 @@ class model_galaxy(object):
 
         self.line_names = line_names
 
-
     # added by austind 01/08/24
     def _calculate_xi_ion_caseB(self, model_comp):
         self._calculate_L_UV_dustcorr(model_comp)
         self._calculate_dustcorr_em_lines(model_comp) # observed frame
-        # convert to rest frame here too
+        # converted to rest frame
         self.xi_ion_caseB = np.array(((4 * np.pi * self.line_fluxes_dustcorr["H  1  6562.81A"] \
             * (u.erg / (u.s * u.cm ** 2)) * (10 * u.pc) ** 2 * (1. + model_comp["redshift"])) / \
             (self.L_UV_dustcorr * u.erg * 1.36e-12 * u.erg * \
@@ -913,9 +909,8 @@ class model_galaxy(object):
                                               left=0, right=0)
 
             lum_flux = 4*np.pi*ldist_cm**2
+        # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
         em_lines *= 3.826*10**33 / lum_flux
-        # What is flux unit?
-
 
         self.line_fluxes_dustcorr = dict(zip(config.line_names, em_lines))
 

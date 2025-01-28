@@ -13,7 +13,7 @@ from .prior import prior, dirichlet
 class check_priors:
 
     def __init__(self, fit_instructions, filt_list=None, spec_wavs=None,
-                 n_draws=10000, phot_units="ergscma"):
+                 n_draws=10000, phot_units="ergscma", lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
 
         self.fit_instructions = deepcopy(fit_instructions)
         self.model_components = deepcopy(fit_instructions)
@@ -27,12 +27,17 @@ class check_priors:
 
         # Set up the model galaxy
         self._update_model_components(self.prior.sample())
-        self.sfh = star_formation_history(self.model_components)
-        self.model_galaxy = model_galaxy(self.model_components,
-                                         filt_list=self.filt_list,
-                                         spec_wavs=self.spec_wavs,
-                                         phot_units=phot_units)
 
+        self.sfh = star_formation_history(self.model_components)
+        self.model_galaxy = \
+            model_galaxy(
+                self.model_components,
+                filt_list=self.filt_list,
+                spec_wavs=self.spec_wavs,
+                phot_units=phot_units,
+                lines_to_save = lines_to_save
+                )
+        
         self.samples = {}
         self.samples2d = np.zeros((self.n_draws, self.ndim))
 
@@ -43,6 +48,7 @@ class check_priors:
             self.samples[self.params[i]] = self.samples2d[:, i]
 
         self.get_basic_quantities()
+        self.get_advanced_quantities()
 
     def _process_fit_instructions(self):
         all_keys = []           # All keys in fit_instructions and subs
@@ -191,9 +197,14 @@ class check_priors:
         if "spectrum_full" in list(self.samples):
             return
 
-        all_names = ["photometry", "spectrum", "spectrum_full", "uvj",
-                     "indices"]
+        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94',
+                    "m_UV", "M_UV", "Halpha_EWrest", "xi_ion_caseB", "indices"]
 
+        self.model_galaxy.update(self.model_components, extra_model_components = True)
+
+        if getattr(self.model_galaxy, 'lines_to_save', None) is not None:
+            all_names.extend(self.model_galaxy.lines_to_save)
+        
         all_model_keys = dir(self.model_galaxy)
         quantity_names = [q for q in all_names if q in all_model_keys]
 
@@ -204,8 +215,7 @@ class check_priors:
         for i in range(self.n_draws):
             param = self.samples2d[i, :]
             self._update_model_components(param)
-            self.model_galaxy.update(self.model_components)
-
+            self.model_galaxy.update(self.model_components, extra_model_components = True)
             for q in quantity_names:
                 if q == "spectrum":
                     spectrum = getattr(self.model_galaxy, q)[:, 1]
