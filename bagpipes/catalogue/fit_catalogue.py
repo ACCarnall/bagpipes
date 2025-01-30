@@ -100,7 +100,10 @@ class fit_catalogue(object):
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
                  run=".", analysis_function=None, time_calls=False,
                  n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None, track_backlog=False, save_pdf_txts=True, em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
+                 index_list=None, track_backlog=False, save_pdf_txts=True, 
+                 em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
+                 em_line_ratios_to_save = ["OIII_4959+OIII_5007/HBeta"]
+    ):
 
         self.IDs = np.array(IDs).astype(str)
         if type(fit_instructions) is list:
@@ -127,6 +130,7 @@ class fit_catalogue(object):
         self.load_indices = load_indices
         self.index_list = index_list
         self.em_line_fluxes_to_save = em_line_fluxes_to_save
+        self.em_line_ratios_to_save = em_line_ratios_to_save
 
         self.n_objects = len(self.IDs)
         self.done = np.zeros(self.IDs.shape[0]).astype(bool)
@@ -327,7 +331,9 @@ class fit_catalogue(object):
                              spectrum_exists=self.spectrum_exists,
                              photometry_exists=self.photometry_exists,
                              load_indices=self.load_indices,
-                             index_list=self.index_list, em_line_fluxes_to_save = self.em_line_fluxes_to_save)
+                             index_list=self.index_list, 
+                             em_line_fluxes_to_save = self.em_line_fluxes_to_save,
+                             em_line_ratios_to_save = self.em_line_ratios_to_save)
 
         # Fit the object
         self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,
@@ -416,8 +422,10 @@ class fit_catalogue(object):
             for frame in ["rest", "obs"]:
                 for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
                     self.vars += [f"{property}_{frame}"]
-            for line in self.em_line_fluxes_to_save:
-                self.vars += [f"{line}_flux"]
+                for line in self.em_line_fluxes_to_save:
+                    self.vars += [f"{line}_flux_{frame}", f"{line}_EW_{frame}"]
+            for ratio in self.em_line_ratios_to_save:
+                self.vars += [ratio]
 
     def _setup_catalogue(self):
         """ Set up the initial blank output catalogue. """

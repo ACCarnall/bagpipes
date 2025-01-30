@@ -12,8 +12,16 @@ from .prior import prior, dirichlet
 
 class check_priors:
 
-    def __init__(self, fit_instructions, filt_list=None, spec_wavs=None,
-                 n_draws=10000, phot_units="ergscma", lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
+    def __init__(
+        self,
+        fit_instructions,
+        filt_list=None,
+        spec_wavs=None,
+        n_draws=10_000,
+        phot_units="ergscma",
+        lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
+        line_ratios_to_save = ["OIII_4959+OIII_5007/HBeta"]
+    ):
 
         self.fit_instructions = deepcopy(fit_instructions)
         self.model_components = deepcopy(fit_instructions)
@@ -35,7 +43,8 @@ class check_priors:
                 filt_list=self.filt_list,
                 spec_wavs=self.spec_wavs,
                 phot_units=phot_units,
-                lines_to_save = lines_to_save
+                lines_to_save = lines_to_save,
+                line_ratios_to_save = line_ratios_to_save
                 )
         
         self.samples = {}
@@ -203,11 +212,18 @@ class check_priors:
         for frame in ["rest", "obs"]:
             for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
                 all_names.append(f"{property}_{frame}")
+            for line in self.model_galaxy.lines_to_save:
+                all_names.append(f"{line}_flux_{frame}")
+                all_names.append(f"{line}_EW_{frame}")
+            for ratio in self.model_galaxy.line_ratios_to_save:
+                all_names.append(ratio)
 
         self.model_galaxy.update(self.model_components, extra_model_components = True)
 
         if getattr(self.model_galaxy, 'lines_to_save', None) is not None:
             all_names.extend(self.model_galaxy.lines_to_save)
+        if getattr(self.model_galaxy, 'line_ratios_to_save', None) is not None:
+            all_names.extend(self.model_galaxy.line_ratios_to_save)
         
         all_model_keys = dir(self.model_galaxy)
         quantity_names = [q for q in all_names if q in all_model_keys]

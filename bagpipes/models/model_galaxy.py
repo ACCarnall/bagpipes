@@ -113,9 +113,18 @@ class model_galaxy(object):
         list of dicts containining definitions for spectral indices.
     """
 
-    def __init__(self, model_components, filt_list=None, spec_wavs=None,
-                 spec_units="ergscma", phot_units="ergscma", index_list=None, extra_model_components=False, 
-                 lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
+    def __init__(
+        self, 
+        model_components, 
+        filt_list=None, 
+        spec_wavs=None,
+        spec_units="ergscma",
+        phot_units="ergscma",
+        index_list=None,
+        extra_model_components=False, 
+        lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
+        line_ratios_to_save = ["OIII_4959+OIII_5007/HBeta"]
+    ):
 
         if (spec_wavs is not None) and (index_list is not None):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
@@ -175,6 +184,7 @@ class model_galaxy(object):
         self.agn = False
 
         self.lines_to_save = lines_to_save
+        self.line_ratios_to_save = line_ratios_to_save
 
         if "nebular" in list(model_components):
             if "velshift" not in model_components["nebular"]:
@@ -400,6 +410,8 @@ class model_galaxy(object):
                     self._calculate_xi_ion_caseB(model_components, frame = frame)
                     self._calculate_ndot_ion_caseB(model_components, frame = frame)
                     self._save_emission_line_fluxes(model_components, lines = self.lines_to_save, frame = frame)
+                    self._save_emission_line_EWs(model_components, lines = self.lines_to_save, frame = frame)
+                self._save_line_ratios(model_components, line_ratios = self.line_ratios_to_save)
 
         # Deal with any spectral index calculations.
         if self.index_list is not None:
@@ -470,7 +482,6 @@ class model_galaxy(object):
                 else:
                     self.spectrum_neb_cont *= bc_trans_red
 
-
                 spectrum_bc = spectrum_bc_dust
             if add_lines:
                 # Attenuate emission line fluxes.
@@ -520,7 +531,6 @@ class model_galaxy(object):
                 self.spectrum_bc_cont *= self.igm.trans(model_comp["redshift"])
                 self.spectrum_neb_cont *= self.igm.trans(model_comp["redshift"])
 
-
         # Convert from luminosity to observed flux at redshift z.
         self.lum_flux = 1.
         if model_comp["redshift"] > 0.:
@@ -534,11 +544,11 @@ class model_galaxy(object):
 
         if self.dust_atten:
             if add_lines:
-                self.spectrum_neb /= self.lum_flux*(1. + model_comp["redshift"])
-                self.spectrum_bc /= self.lum_flux*(1. + model_comp["redshift"])
+                self.spectrum_neb /= self.lum_flux * (1. + model_comp["redshift"])
+                self.spectrum_bc /= self.lum_flux * (1. + model_comp["redshift"])
             else:
-                self.spectrum_neb_cont /= self.lum_flux*(1. + model_comp["redshift"])
-                self.spectrum_bc_cont /= self.lum_flux*(1. + model_comp["redshift"])
+                self.spectrum_neb_cont /= self.lum_flux * (1. + model_comp["redshift"])
+                self.spectrum_bc_cont /= self.lum_flux * (1. + model_comp["redshift"])
         if add_lines:
             em_lines /= self.lum_flux
 
@@ -561,8 +571,6 @@ class model_galaxy(object):
         else:
             self.spectrum_full_cont = spectrum
 
-    
-    # added by austind 01/08/24
     def _calculate_full_continuum_spectrum(self, model_comp):
         """ This method combines the models for the various emission
         and absorption processes to generate the internal full galaxy
@@ -584,7 +592,6 @@ class model_galaxy(object):
             phot = self.uvj_filter_set.get_photometry(self.spectrum_full,
                                                       redshift,
                                                       unit_conv=unit_conv)
-
         else:
             phot = self.filter_set.get_photometry(self.spectrum_full,
                                                   redshift,
@@ -665,7 +672,6 @@ class model_galaxy(object):
     #     # perform chi square fitting with curve_fit
     #     self.beta_stellar_C94 = None
     
-    # added by austind 13/10/23
     def _calculate_beta_C94(self, model_comp):
         """ This method calculates the UV continuum slope (beta) 
         in the 10 Calzetti+1994 filters from the full spectrum """
@@ -675,14 +681,12 @@ class model_galaxy(object):
         wav_obs_C94, f_lambda_obs_C94 = crop_to_C94_filters(self.wavelengths, self.spectrum_full_cont, model_comp)
         self.beta_C94 = np.array([curve_fit(beta_slope_power_law_func, wav_obs_C94, f_lambda_obs_C94, maxfev = 10_000)[0][1]])
 
-    # added by austind 08/12/23
     def _calculate_m_UV(self, model_comp):
         """This method calculates the UV apparent magnitude from the full spectrum in a top-hat filter between 1450<wav_rest<1550 Angstrom. 
         Only gives correctly normalized values when model spectrum has already been fitted."""
         f_lambda_1500 = np.mean(self.spectrum_full[((self.wavelengths > 1_450.) & (self.wavelengths < 1_550.))]) * u.erg / (u.s * (u.cm ** 2) * u.AA)
         self.m_UV = np.array([-2.5 * np.log10((f_lambda_1500 * ((1_500. * (1 + model_comp["redshift"]) * u.AA) ** 2) / const.c).to(u.Jy).value) + 8.9]) # observed frame
     
-    # added by austind 08/12/23
     def _calculate_M_UV(self, model_comp):
         """This method calculates the UV absolute magnitude from the full spectrum in a top-hat filter between 1450<wav_rest<1550 Angstrom. 
         Only gives correctly normalized values when model spectrum has already been fitted."""
@@ -691,7 +695,6 @@ class model_galaxy(object):
         self.M_UV = np.array([self.m_UV - 5 * np.log10(d_L.value / 10) \
             + 2.5 * np.log10(1 + model_comp["redshift"])])
 
-    # added by austind 01/08/24
     def _calculate_L_UV_dustcorr(self, model_comp, frame = "rest", out_units = u.erg):
         dustcorr_spectrum = self._calculate_full_dustcorr_spectrum(model_comp)
         d_L = utils.cosmo.luminosity_distance(model_comp["redshift"]).to(u.pc)
@@ -704,18 +707,6 @@ class model_galaxy(object):
         # observed frame == rest frame luminosity (nu)
         setattr(self, f"L_UV_dustcorr_{frame}", L_UV)
 
-    # # added by Qiao 23/11/23
-    # def _calculate_obs_OIII_4959_EW(self, model_comp):
-    #     pass
-        
-    # def _calculate_obs_OIII_5001_EW(self, model_comp):
-    #     pass
-    
-    # def _calculate_obs_OIII_Hbeta_EW(self, model_comp):
-    #     """ This method calculates the rest frame EWs from the line fluxes"""
-    #     pass
-
-    # added by austind 01/08/24
     def _calculate_Halpha_EWrest(self, model_comp, line_wav = 6563., delta_wav = 100.):
         # calculate Halpha continuum flux
         dustcorr_cont_spectrum = self._calculate_full_dustcorr_spectrum(model_comp, add_lines = False)
@@ -734,7 +725,6 @@ class model_galaxy(object):
             self._calculate_dustcorr_em_lines(model_comp, frame = frame)
         
         line_names = []
-        #line_wavs = dict(zip(config.line_names, config.line_wavs))
         for line in lines:
             line_dict_name = utils.lines_dict.get(line, False)
             if not line_dict_name:
@@ -742,16 +732,57 @@ class model_galaxy(object):
                     line_dict_name = line
                 else:
                     raise ValueError("The line %s is not in the lines_dict and not in the full dictionary" % line)
-            #line_wav = line_wavs[line_dict_name]
             line_flux = np.array([getattr(self, f"line_fluxes_dustcorr_{frame}")[line_dict_name]])
-        
             line_name = f"{line}_flux_{frame}"
             setattr(self, line_name, line_flux)
             line_names.append(line_name)
-
         self.line_names = line_names
 
-    # added by austind 28/01/25
+    def _save_emission_line_EWs(
+        self,
+        model_comp,
+        lines = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
+        frame = "rest", 
+        out_units = u.AA
+    ):
+        dustcorr_cont_spectrum = self._calculate_full_dustcorr_spectrum(model_comp, add_lines = False)
+        self._calculate_dustcorr_em_lines(model_comp, frame = frame)
+        
+        for line in lines:
+            # determine the wavelength for each line in Angstrom
+            line_key = utils.lines_dict.get(line, False)
+            if line_key:
+                line_wav_str = line_key.split(" ")[-1]
+                if line_wav_str[-1] == "A":
+                    units = u.AA
+                elif line_wav_str[-1] == "m":
+                    units = u.um
+                line_wav = (float(line_wav_str[:-1]) * units).to(u.AA).value
+            else:
+                raise ValueError("The line %s is not in the lines_dict" % line)
+
+            line_flux = getattr(self, f"line_fluxes_dustcorr_{frame}")[utils.lines_dict[line]]
+            f_cont_line = dustcorr_cont_spectrum[abs(self.wavelengths - line_wav).argmin()] # observed frame f_lambda
+            if frame == "rest":
+                f_cont_line *= (1. + self.model_comp["redshift"]) ** 2
+            EW_line = (line_flux * u.AA / f_cont_line).to(out_units).value
+            setattr(self, f"{line}_EW_{frame}", np.array([EW_line]))
+
+    def _save_line_ratios(
+        self,
+        model_comp,
+        line_ratios = ["OIII_5007+OIII_4959/HBeta"],
+    ):
+        self._calculate_dustcorr_em_lines(model_comp, frame = "rest")
+        line_fluxes = getattr(self, "line_fluxes_dustcorr_rest")
+        for line_ratio in line_ratios:
+            assert line_ratio.count("/") == 1, "Line ratios must contain a single '/'"
+            lines_a = line_ratio.split("/")[0].split("+")
+            line_fluxes_a = np.sum([line_fluxes[utils.lines_dict[line]] for line in lines_a])
+            lines_b = line_ratio.split("/")[1].split("+")
+            line_fluxes_b = np.sum([line_fluxes[utils.lines_dict[line]] for line in lines_b])
+            setattr(self, line_ratio, np.array([line_fluxes_a / line_fluxes_b]))
+
     def _calculate_ndot_ion_caseB(self, model_comp, frame = "rest", out_units = u.Hz):
         self._calculate_dustcorr_em_lines(model_comp, frame = frame)
         # calculate luminosity distance
@@ -875,7 +906,7 @@ class model_galaxy(object):
                 spectrum_bc += self.nebular.continuum_spectrum(grid, t_bc,
                     model_comp["nebular"]["logU"]) * (1 - model_comp["nebular"].get("fesc", 0))
 
-        spectrum += spectrum_bc  # Add birth cloud spectrum to spectrum.
+        spectrum += spectrum_bc # Add birth cloud spectrum to spectrum.
         spectrum *= self.igm.trans(model_comp["redshift"])
 
         # Convert from luminosity to observed flux at redshift z.
@@ -887,7 +918,7 @@ class model_galaxy(object):
 
             lum_flux = 4*np.pi*ldist_cm**2
 
-        spectrum /= lum_flux*(1. + model_comp["redshift"])
+        spectrum /= lum_flux * (1. + model_comp["redshift"])
 
         # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
         spectrum *= 3.826*10**33
@@ -898,7 +929,6 @@ class model_galaxy(object):
             self.spectrum_full_cont_dustcorr = spectrum
         return spectrum
     
-    # added by austind 01/08/24
     def _calculate_dustcorr_em_lines(self, model_comp, frame = "rest"):
         """ This method computes dust corrected emission lines """
 
@@ -932,7 +962,7 @@ class model_galaxy(object):
                                               left=0, right=0)
 
             lum_flux = 4*np.pi*ldist_cm**2
-        # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
+        # convert to erg/s/cm^2, or erg/s if redshift = 0.
         em_lines *= 3.826*10**33 / lum_flux
 
         if frame == "rest":
@@ -947,11 +977,9 @@ class model_galaxy(object):
     def plot_full_spectrum(self, show=True):
         return plotting.plot_full_spectrum(self, show=show)
 
-# added by austind 14/11/23
 def beta_slope_power_law_func(wav_rest, A, beta):
     return (10 ** A) * (wav_rest ** beta)
 
-# added by austind 14/10/23
 def crop_to_C94_filters(wav_rest, flux_obs, model_comp): # I think this funtion does not require model_comp['redshift'] due to incorrect spectrum scaling
     # Calzetti 1994 filters
     lower_Calzetti_filt = [1268., 1309., 1342., 1407., 1562., 1677., 1760., 1866., 1930., 2400.]
