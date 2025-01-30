@@ -173,7 +173,9 @@ class check_priors:
         self.sfh = star_formation_history(self.model_components)
 
         quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
-                          "mass_weighted_age", "tform", "tquench"]
+                          "sfr_10myr","ssfr_10myr", "nsfr_10myr", "burstiness",
+                          "mass_weighted_age", "tform", "tquench",
+                          "mass_weighted_zmet"]
 
         for q in quantity_names:
             self.samples[q] = np.zeros(self.n_draws)
@@ -197,8 +199,10 @@ class check_priors:
         if "spectrum_full" in list(self.samples):
             return
 
-        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94',
-                    "m_UV", "M_UV", "Halpha_EWrest", "xi_ion_caseB", "indices"]
+        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94', "m_UV", "M_UV", "indices", "burstiness"]
+        for frame in ["rest", "obs"]:
+            for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
+                all_names.append(f"{property}_{frame}")
 
         self.model_galaxy.update(self.model_components, extra_model_components = True)
 
@@ -207,7 +211,6 @@ class check_priors:
         
         all_model_keys = dir(self.model_galaxy)
         quantity_names = [q for q in all_names if q in all_model_keys]
-
         for q in quantity_names:
             size = getattr(self.model_galaxy, q).shape[0]
             self.samples[q] = np.zeros((self.n_draws, size))

@@ -167,7 +167,7 @@ class posterior(object):
         self.sfh = star_formation_history(self.fitted_model.model_components)
 
         quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
-                          "sfr_10myr","ssfr_10myr", "nsfr_10myr", # Added by tharvey 17/01/24
+                          "sfr_10myr","ssfr_10myr", "nsfr_10myr", "burstiness",
                           "mass_weighted_age", "tform", "tquench",
                           "mass_weighted_zmet"]
         
@@ -211,8 +211,10 @@ class posterior(object):
                                          lines_to_save = self.lines_to_save)
         # Moved from above to enusre a model_galaxy is created
             
-        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", "beta_C94",
-                     "m_UV", "M_UV", "Halpha_EWrest", "xi_ion_caseB", "indices"]
+        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94', "m_UV", "M_UV", "indices", "burstiness"]
+        for frame in ["rest", "obs"]:
+            for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
+                all_names.append(f"{property}_{frame}")
 
         if getattr(self.model_galaxy, 'line_names', None) is not None:
             all_names.extend(self.model_galaxy.line_names)
@@ -293,7 +295,10 @@ class posterior(object):
                              spec_wavs=spec_wavs, index_list=index_list,
                              lines_to_save = self.lines_to_save)
 
-        all_names = ["photometry", "spectrum", "indices"]
+        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94', "m_UV", "M_UV", "indices", "burstiness"]
+        for frame in ["rest", "obs"]:
+            for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
+                all_names.append(f"{property}_{frame}")
 
         all_model_keys = dir(model)
         quantity_names = [q for q in all_names if q in all_model_keys]
@@ -331,7 +336,9 @@ class posterior(object):
         self.sfh = star_formation_history(self.fitted_model.model_components)
 
         quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
-                          "mass_weighted_age", "tform", "tquench"]
+                          "sfr_10myr","ssfr_10myr", "nsfr_10myr", "burstiness",
+                          "mass_weighted_age", "tform", "tquench",
+                          "mass_weighted_zmet"]
 
         for q in quantity_names:
             self.prediction_at_z[q] = np.zeros(self.n_samples)

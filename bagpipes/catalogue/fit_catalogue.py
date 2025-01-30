@@ -406,20 +406,18 @@ class fit_catalogue(object):
 
         self.vars = copy.copy(self.obj_fit.fitted_model.params)
         self.vars += ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
-                      "mass_weighted_age", "tform", "tquench"]
-        
-        # Added by tharvey 17/12/23
-        self.vars += ["sfr_10myr", "ssfr_10myr", "nsfr_10myr"]
+                          "sfr_10myr","ssfr_10myr", "nsfr_10myr", "burstiness",
+                          "mass_weighted_age", "tform", "tquench",
+                          "mass_weighted_zmet"]
 
         if self.full_catalogue:
             self.vars += ["UV_colour", "VJ_colour"]
-            # added by tharvey 15/10/23 + austind 08/12/23
             self.vars += ["beta_C94", "m_UV", "M_UV"]
-            self.vars += ["Halpha_EWrest", "xi_ion_caseB"]
-
+            for frame in ["rest", "obs"]:
+                for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
+                    self.vars += [f"{property}_{frame}"]
             for line in self.em_line_fluxes_to_save:
                 self.vars += [f"{line}_flux"]
-
 
     def _setup_catalogue(self):
         """ Set up the initial blank output catalogue. """
