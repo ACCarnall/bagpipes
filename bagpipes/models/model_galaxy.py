@@ -477,16 +477,17 @@ class model_galaxy(object):
                 spectrum_bc_dust = spectrum_bc*bc_trans_red
                 dust_flux += np.trapz(spectrum_bc - spectrum_bc_dust,
                                       x=self.wavelengths)
-                if add_lines:
-                    self.spectrum_neb *= bc_trans_red
-                else:
-                    self.spectrum_neb_cont *= bc_trans_red
-
+                if self.nebular:
+                    if add_lines:
+                        self.spectrum_neb *= bc_trans_red
+                    else:
+                        self.spectrum_neb_cont *= bc_trans_red
                 spectrum_bc = spectrum_bc_dust
-            if add_lines:
-                # Attenuate emission line fluxes.
-                bc_Av = eta*model_comp["dust"]["Av"]
-                em_lines *= 10**(-bc_Av*self.dust_atten.A_line/2.5)
+            if self.nebular:
+                if add_lines:
+                    # Attenuate emission line fluxes.
+                    bc_Av = eta*model_comp["dust"]["Av"]
+                    em_lines *= 10**(-bc_Av*self.dust_atten.A_line/2.5)
         spectrum += spectrum_bc  # Add birth cloud spectrum to spectrum.
         # Add attenuation due to the diffuse ISM.
         if self.dust_atten:
@@ -497,10 +498,12 @@ class model_galaxy(object):
             spectrum = dust_spectrum
             if add_lines:
                 self.spectrum_bc = spectrum_bc*trans
-                self.spectrum_neb *= trans
+                if self.nebular:
+                    self.spectrum_neb *= trans
             else:
                 self.spectrum_bc_cont = spectrum_bc*trans
-                self.spectrum_neb_cont *= trans
+                if self.nebular:
+                    self.spectrum_neb_cont *= trans
 
             # Add dust emission.
             qpah, umin, gamma = 2., 1., 0.01
@@ -526,10 +529,12 @@ class model_galaxy(object):
         if self.dust_atten:
             if add_lines:
                 self.spectrum_bc *= self.igm.trans(model_comp["redshift"])
-                self.spectrum_neb *= self.igm.trans(model_comp["redshift"])
+                if self.nebular:
+                    self.spectrum_neb *= self.igm.trans(model_comp["redshift"])
             else:
                 self.spectrum_bc_cont *= self.igm.trans(model_comp["redshift"])
-                self.spectrum_neb_cont *= self.igm.trans(model_comp["redshift"])
+                if self.nebular:
+                    self.spectrum_neb_cont *= self.igm.trans(model_comp["redshift"])
 
         # Convert from luminosity to observed flux at redshift z.
         self.lum_flux = 1.
@@ -544,11 +549,13 @@ class model_galaxy(object):
 
         if self.dust_atten:
             if add_lines:
-                self.spectrum_neb /= self.lum_flux * (1. + model_comp["redshift"])
-                self.spectrum_bc /= self.lum_flux * (1. + model_comp["redshift"])
+                if self.nebular:
+                    self.spectrum_neb /= self.lum_flux*(1. + model_comp["redshift"])
+                self.spectrum_bc /= self.lum_flux*(1. + model_comp["redshift"])
             else:
-                self.spectrum_neb_cont /= self.lum_flux * (1. + model_comp["redshift"])
-                self.spectrum_bc_cont /= self.lum_flux * (1. + model_comp["redshift"])
+                if self.nebular:
+                    self.spectrum_neb_cont /= self.lum_flux*(1. + model_comp["redshift"])
+                self.spectrum_bc_cont /= self.lum_flux*(1. + model_comp["redshift"])
         if add_lines:
             em_lines /= self.lum_flux
 
@@ -557,10 +564,12 @@ class model_galaxy(object):
 
         if self.dust_atten:
             if add_lines:
-                self.spectrum_neb *= 3.826*10**33
+                if self.nebular:
+                    self.spectrum_neb *= 3.826*10**33
                 self.spectrum_bc *= 3.826*10**33
             else:
-                self.spectrum_neb_cont *= 3.826*10**33
+                if self.nebular:
+                    self.spectrum_neb_cont *= 3.826*10**33
                 self.spectrum_bc_cont *= 3.826*10**33
         if add_lines:
             em_lines *= 3.826*10**33
