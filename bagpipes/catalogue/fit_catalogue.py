@@ -99,13 +99,15 @@ class fit_catalogue(object):
     """
 
     def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
-                 photometry_exists=True, make_plots=False, cat_filt_list=None,
-                 vary_filt_list=False, redshifts=None, redshift_sigma=0.,
-                 run=".", analysis_function=None, time_calls=False,
-                 n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None, track_backlog=False, save_pdf_txts=True, 
-                 em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
-                 load_data_kwargs={}):
+        photometry_exists=True, make_plots=False, cat_filt_list=None,
+        vary_filt_list=False, redshifts=None, redshift_sigma=0.,
+        run=".", analysis_function=None, time_calls=False,
+        n_posterior=500, full_catalogue=False, load_indices=None,
+        index_list=None, track_backlog=False, save_pdf_txts=True, 
+        em_line_fluxes_to_save = ['Halpha', 'Hbeta', 'Hgamma', 'OIII_5007', 'OIII_4959', 'NII_6548', 'NII_6584'],
+        em_line_ratios_to_save = ["OIII_4959+OIII_5007__Hbeta", "Halpha__Hbeta", "Hbeta__Hgamma", "NII_6548+NII_6584__Halpha"],
+        load_data_kwargs = {},
+    ):
 
         self.IDs = np.array(IDs).astype(str)
         if type(fit_instructions) is list:
@@ -133,6 +135,7 @@ class fit_catalogue(object):
         self.load_indices = load_indices
         self.index_list = index_list
         self.em_line_fluxes_to_save = em_line_fluxes_to_save
+        self.em_line_ratios_to_save = em_line_ratios_to_save
 
         self.n_objects = len(self.IDs)
         self.done = np.zeros(self.IDs.shape[0]).astype(bool)
@@ -334,7 +337,8 @@ class fit_catalogue(object):
                              photometry_exists=self.photometry_exists,
                              load_indices=self.load_indices,
                              index_list=self.index_list, 
-                             em_line_fluxes_to_save=self.em_line_fluxes_to_save,
+                             em_line_fluxes_to_save = self.em_line_fluxes_to_save,
+                             em_line_ratios_to_save = self.em_line_ratios_to_save)
                              load_data_kwargs=self.load_data_kwargs)
 
         # Fit the object
@@ -430,20 +434,20 @@ class fit_catalogue(object):
 
         self.vars = copy.copy(self.obj_fit.fitted_model.params)
         self.vars += ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
-                      "mass_weighted_age", "tform", "tquench"]
-        
-        # Added by tharvey 17/12/23
-        self.vars += ["sfr_10myr", "ssfr_10myr", "nsfr_10myr"]
+                          "sfr_10myr","ssfr_10myr", "nsfr_10myr", "burstiness",
+                          "mass_weighted_age", "tform", "tquench",
+                          "mass_weighted_zmet"]
 
         if self.full_catalogue:
             self.vars += ["UV_colour", "VJ_colour"]
-            # added by tharvey 15/10/23 + austind 08/12/23
             self.vars += ["beta_C94", "m_UV", "M_UV"]
-            self.vars += ["Halpha_EWrest", "xi_ion_caseB"]
-
-            for line in self.em_line_fluxes_to_save:
-                self.vars += [f"{line}_flux"]
-
+            for frame in ["rest", "obs"]:
+                for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
+                    self.vars += [f"{property}_{frame}"]
+                for line in self.em_line_fluxes_to_save:
+                    self.vars += [f"{line}_flux_{frame}", f"{line}_EW_{frame}"]
+            for ratio in self.em_line_ratios_to_save:
+                self.vars += [ratio]
 
     def _setup_catalogue(self):
         """ Set up the initial blank output catalogue. """
