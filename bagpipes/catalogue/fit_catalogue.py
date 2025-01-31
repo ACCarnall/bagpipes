@@ -96,13 +96,13 @@ class fit_catalogue(object):
     """
 
     def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
-                 photometry_exists=True, make_plots=False, cat_filt_list=None,
-                 vary_filt_list=False, redshifts=None, redshift_sigma=0.,
-                 run=".", analysis_function=None, time_calls=False,
-                 n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None, track_backlog=False, save_pdf_txts=True, 
-                 em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
-                 em_line_ratios_to_save = ["OIII_4959+OIII_5007/HBeta"]
+        photometry_exists=True, make_plots=False, cat_filt_list=None,
+        vary_filt_list=False, redshifts=None, redshift_sigma=0.,
+        run=".", analysis_function=None, time_calls=False,
+        n_posterior=500, full_catalogue=False, load_indices=None,
+        index_list=None, track_backlog=False, save_pdf_txts=True, 
+        em_line_fluxes_to_save = ['Halpha', 'Hbeta', 'Hgamma', 'OIII_5007', 'OIII_4959', 'NII_6548', 'NII_6584'],
+        em_line_ratios_to_save = ["OIII_4959+OIII_5007__Hbeta", "Halpha__Hbeta", "Hbeta__Hgamma", "NII_6548+NII_6584__Halpha"],
     ):
 
         self.IDs = np.array(IDs).astype(str)

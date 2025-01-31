@@ -19,8 +19,8 @@ class check_priors:
         spec_wavs=None,
         n_draws=10_000,
         phot_units="ergscma",
-        lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
-        line_ratios_to_save = ["OIII_4959+OIII_5007/HBeta"]
+        lines_to_save = ['Halpha', 'Hbeta', 'Hgamma', 'OIII_5007', 'OIII_4959', 'NII_6548', 'NII_6584'],
+        line_ratios_to_save = ["OIII_4959+OIII_5007__Hbeta", "Halpha__Hbeta", "Hbeta__Hgamma", "NII_6548+NII_6584__Halpha"],
     ):
 
         self.fit_instructions = deepcopy(fit_instructions)

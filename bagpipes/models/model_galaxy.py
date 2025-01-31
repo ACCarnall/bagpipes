@@ -122,8 +122,8 @@ class model_galaxy(object):
         phot_units="ergscma",
         index_list=None,
         extra_model_components=False, 
-        lines_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
-        line_ratios_to_save = ["OIII_4959+OIII_5007/HBeta"]
+        lines_to_save = ['Halpha', 'Hbeta', 'Hgamma', 'OIII_5007', 'OIII_4959', 'NII_6548', 'NII_6584'],
+        line_ratios_to_save = ["OIII_4959+OIII_5007__Hbeta", "Halpha__Hbeta", "Hbeta__Hgamma", "NII_6548+NII_6584__Halpha"],
     ):
 
         if (spec_wavs is not None) and (index_list is not None):
@@ -718,7 +718,7 @@ class model_galaxy(object):
     def _save_emission_line_fluxes(
         self,
         model_comp,
-        lines = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
+        lines = ['Halpha', 'Hbeta', 'Hgamma', 'OIII_5007', 'OIII_4959', 'NII_6548', 'NII_6584'],
         frame = "rest",
     ):
         if not hasattr(self, f"line_fluxes_dustcorr_{frame}"):
@@ -741,7 +741,7 @@ class model_galaxy(object):
     def _save_emission_line_EWs(
         self,
         model_comp,
-        lines = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
+        lines = ['Halpha', 'Hbeta', 'Hgamma', 'OIII_5007', 'OIII_4959', 'NII_6548', 'NII_6584'],
         frame = "rest", 
         out_units = u.AA
     ):
@@ -771,15 +771,20 @@ class model_galaxy(object):
     def _save_line_ratios(
         self,
         model_comp,
-        line_ratios = ["OIII_5007+OIII_4959/HBeta"],
+        line_ratios = [
+            "OIII_4959+OIII_5007__Hbeta",
+            "Halpha__Hbeta",
+            "Hbeta__Hgamma",
+            "NII_6548+NII_6584__Halpha"
+        ],
     ):
         self._calculate_dustcorr_em_lines(model_comp, frame = "rest")
         line_fluxes = getattr(self, "line_fluxes_dustcorr_rest")
         for line_ratio in line_ratios:
-            assert line_ratio.count("/") == 1, "Line ratios must contain a single '/'"
-            lines_a = line_ratio.split("/")[0].split("+")
+            assert line_ratio.count("__") == 1, "Line ratios must contain a single '__'"
+            lines_a = line_ratio.split("__")[0].split("+")
             line_fluxes_a = np.sum([line_fluxes[utils.lines_dict[line]] for line in lines_a])
-            lines_b = line_ratio.split("/")[1].split("+")
+            lines_b = line_ratio.split("__")[1].split("+")
             line_fluxes_b = np.sum([line_fluxes[utils.lines_dict[line]] for line in lines_b])
             setattr(self, line_ratio, np.array([line_fluxes_a / line_fluxes_b]))
 
@@ -811,7 +816,6 @@ class model_galaxy(object):
         xi_ion = np.array([(ndot_ion / L_UV).to(out_units).value])
         setattr(self, f"xi_ion_caseB_{frame}", xi_ion)
     
-    # added by austind 13/10/23
     def _calculate_stellar_spectrum(self, model_comp):
         t_bc = 0.01
         if "t_bc" in list(model_comp):
@@ -872,7 +876,6 @@ class model_galaxy(object):
         self.stellar_spectrum = spectrum * 3.826*10**33
         return self.stellar_spectrum
     
-    # added by austind 01/08/24
     def _calculate_full_dustcorr_spectrum(self, model_comp, add_lines = True):
         """ This method combines the models for the various emission
         and absorption processes to generate the internal (dust free) 

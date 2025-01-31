@@ -73,11 +73,11 @@ class galaxy:
     """
 
     def __init__(self, ID, load_data, spec_units="ergscma", phot_units="mujy",
-                 spectrum_exists=True, photometry_exists=True, filt_list=None,
-                 out_units="ergscma", load_indices=None, index_list=None,
-                 index_redshift=None, input_spec_cov_matrix=False, 
-                 em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959'],
-                 em_line_ratios_to_save = ["OIII_4959+OIII_5007/HBeta"]
+        spectrum_exists=True, photometry_exists=True, filt_list=None,
+        out_units="ergscma", load_indices=None, index_list=None,
+        index_redshift=None, input_spec_cov_matrix=False, 
+        em_line_fluxes_to_save = ['Halpha', 'Hbeta', 'Hgamma', 'OIII_5007', 'OIII_4959', 'NII_6548', 'NII_6584'],
+        em_line_ratios_to_save = ["OIII_4959+OIII_5007__Hbeta", "Halpha__Hbeta", "Hbeta__Hgamma", "NII_6548+NII_6584__Halpha"],
     ):
 
         self.ID = str(ID)
