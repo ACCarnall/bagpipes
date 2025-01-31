@@ -338,7 +338,7 @@ class fit_catalogue(object):
                              load_indices=self.load_indices,
                              index_list=self.index_list, 
                              em_line_fluxes_to_save = self.em_line_fluxes_to_save,
-                             em_line_ratios_to_save = self.em_line_ratios_to_save)
+                             em_line_ratios_to_save = self.em_line_ratios_to_save,
                              load_data_kwargs=self.load_data_kwargs)
 
         # Fit the object
