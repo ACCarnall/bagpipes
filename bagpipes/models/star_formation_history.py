@@ -138,7 +138,8 @@ class star_formation_history:
         age_mask_10myr = (self.ages < 10**7)
         self.sfr_10myr =  np.sum(self.sfh[age_mask_10myr]*self.age_widths[age_mask_10myr])
         self.sfr_10myr /= self.age_widths[age_mask_10myr].sum()
-      
+        self.burstiness = self.sfr_10myr / self.sfr_100myr
+
         self.ssfr = np.log10(self.sfr) - self.stellar_mass
         self.ssfr_10myr = np.log10(self.sfr_10myr) - self.stellar_mass
         self.ssfr_100myr = self.ssfr
@@ -156,8 +157,6 @@ class star_formation_history:
         self.mass_weighted_zmet = np.sum(self.mass_weighted_zmet)
 
         self.tform = self.age_of_universe - self.mass_weighted_age
-        # added by austind 16/12/23
-        self._calc_burstiness()
         self.tform *= 10**-9
         self.mass_weighted_age *= 10**-9
 
@@ -170,7 +169,6 @@ class star_formation_history:
 
         if self.sfr > 0.1*mean_sfrs[0]:
             self.tquench = 99.
-
         else:
             quench_ind = np.argmax(normed_sfrs > 0.1)
             self.tquench = tunivs[quench_ind]*10**-9
@@ -185,10 +183,6 @@ class star_formation_history:
             self.live_frac_grid[i, :] = np.interp(config.age_sampling,
                                                   config.raw_stellar_ages,
                                                   raw_live_frac_grid[:, i])
-     # added by austind 12/16/23
-    def _calc_burstiness(self):
-        self.burstiness = 0.
-        pass
 
     def massformed_at_redshift(self, redshift):
         t_hubble_at_z = np.interp(redshift, utils.z_array, utils.age_at_z)

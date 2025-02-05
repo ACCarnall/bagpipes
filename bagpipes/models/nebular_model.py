@@ -98,7 +98,6 @@ class nebular(object):
         """
         return self._interpolate_grid(self.combined_grid, sfh_ceh, t_bc, logU)
     
-    # added by austind 01/08/24
     def continuum_spectrum(self, sfh_ceh, t_bc, logU):
         """ Obtain a 1D continuum spectrum for a given star-formation and
         chemical enrichment history, ionization parameter and t_bc.

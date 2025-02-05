@@ -365,7 +365,9 @@ class fit_catalogue_old(object):
 
         self.vars = copy.copy(self.obj_fit.fitted_model.params)
         self.vars += ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
-                      "mass_weighted_age", "tform", "tquench"]
+                          "sfr_10myr","ssfr_10myr", "nsfr_10myr", "burstiness",
+                          "mass_weighted_age", "tform", "tquench",
+                          "mass_weighted_zmet"]
 
         if self.full_catalogue:
             self.vars += ["UV_colour", "VJ_colour"]
