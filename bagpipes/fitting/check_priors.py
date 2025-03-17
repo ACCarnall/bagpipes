@@ -217,6 +217,8 @@ class check_priors:
                 all_names.append(f"{line}_EW_{frame}")
             for ratio in self.model_galaxy.line_ratios_to_save:
                 all_names.append(ratio)
+        for line in self.model_galaxy.lines_to_save:
+            all_names.append(f"{line}_cont")
 
         self.model_galaxy.update(self.model_components, extra_model_components = True)
 
