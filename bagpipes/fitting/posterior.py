@@ -76,7 +76,6 @@ class posterior(object):
                 print('Read BPASS from .h5. Attempting to set config, experimental.')
             elif self.config_used['type'] == 'BC03':
                 os.environ['use_bpass'] = str(int(False))
-
         except KeyError:
             pass
 
@@ -112,9 +111,7 @@ class posterior(object):
                 data = file['advanced_quantities'][param][:]
                 if len(data) == n_samples:
                     self.samples[param] = data
-               
         
-
         self.get_basic_quantities()
 
         self.get_dirichlet_tx(dirichlet_comps)
@@ -218,8 +215,10 @@ class posterior(object):
             for line in self.lines_to_save:
                 all_names.append(f"{line}_flux_{frame}")
                 all_names.append(f"{line}_EW_{frame}")
-            for ratio in self.line_ratios_to_save:
-                all_names.append(ratio)
+        for ratio in self.line_ratios_to_save:
+            all_names.append(ratio)
+        for line in self.model_galaxy.lines_to_save:
+            all_names.append(f"{line}_cont")
 
         if getattr(self.model_galaxy, 'line_names', None) is not None:
             all_names.extend(self.model_galaxy.line_names)
@@ -282,7 +281,6 @@ class posterior(object):
                     spectrum = getattr(self.fitted_model.model_galaxy, q)[:, 1]
                     self.samples[q][i] = spectrum
                     continue
-
                 self.samples[q][i] = getattr(self.fitted_model.model_galaxy, q)
 
     def predict(self, filt_list=None, spec_wavs=None, spec_units="ergscma",
@@ -308,8 +306,10 @@ class posterior(object):
             for line in self.lines_to_save:
                 all_names.append(f"{line}_flux_{frame}")
                 all_names.append(f"{line}_EW_{frame}")
-            for ratio in self.line_ratios_to_save:
-                all_names.append(ratio)
+        for ratio in self.line_ratios_to_save:
+            all_names.append(ratio)
+        for line in self.model_galaxy.lines_to_save:
+            all_names.append(f"{line}_cont")
 
         all_model_keys = dir(model)
         quantity_names = [q for q in all_names if q in all_model_keys]
