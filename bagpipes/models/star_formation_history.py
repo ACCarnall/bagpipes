@@ -128,15 +128,14 @@ class star_formation_history:
         self.sfr = np.sum(self.sfh[age_mask]*self.age_widths[age_mask])
         self.sfr /= self.age_widths[age_mask].sum()
 
-        # ssfr and nsfr: set sfr=0 as nan to avoid divide by 0 warning
-        self.ssfr = np.empty(self.sfr.shape)
-        self.ssfr[:] = np.nan
-        self.ssfr[self.sfr>0] = np.log10(self.sfr[self.sfr>0]) - self.stellar_mass
-
-        self.nsfr = np.empty(self.sfr.shape)
-        self.nsfr[:] = np.nan
-        self.nsfr[self.sfr>0] = np.log10(self.sfr[self.sfr>0]*self.age_of_universe) - self.stellar_mass
-
+        # ssfr and nsfr: if sfr=0, set as nan to avoid divide by 0 warning
+        if self.sfr == 0:
+            self.ssfr = np.nan
+            self.nsfr = np.nan
+        else:
+            self.ssfr = np.log10(self.sfr) - self.stellar_mass
+            self.nsfr = np.log10(self.sfr*self.age_of_universe) - self.stellar_mass
+        
         self.mass_weighted_age = np.sum(self.sfh*self.age_widths*self.ages)
         self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
 
