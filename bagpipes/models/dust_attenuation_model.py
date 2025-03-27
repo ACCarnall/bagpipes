@@ -30,6 +30,7 @@ class dust_attenuation(object):
     def __init__(self, wavelengths, param):
         self.wavelengths = wavelengths
         self.type = param["type"]
+        self.two_component = False
 
         # Pre-compute dust curve shape if fixed for the chosen model.
         if self.type == "Calzetti":
@@ -59,7 +60,7 @@ class dust_attenuation(object):
             return
 
         # Variable shape dust laws have to be computed every time.
-        self.A_cont, self.A_line = getattr(self, self.type)(param)
+        self.A_cont, self.A_line, self.A_cont_bc = getattr(self, self.type)(param)
 
     def CF00(self, param):
         """ Modified Charlot + Fall (2000) model of Carnall et al.
@@ -67,7 +68,8 @@ class dust_attenuation(object):
         A_cont = (5500./self.wavelengths)**param["n"]
         A_line = (5500./config.line_wavs)**param["n"]
 
-        return A_cont, A_line
+        # Third output is A_cont_bc, None for single-component dust laws
+        return A_cont, A_line, None
 
     def Salim(self, param):
         delta = param["delta"]
@@ -84,7 +86,25 @@ class dust_attenuation(object):
         A_line = self.A_line_calz*Rv_m*(config.line_wavs/5500.)**delta + drude
         A_line /= Rv_m
 
-        return A_cont, A_line
+        # Third output is A_cont_bc, None for single-component dust laws
+        return A_cont, A_line, None
+    
+    def VW07(self, param):
+        """ 
+        Two component dust law based on Charlot + Fall (2000) model, 
+        Stars still embedded in birth clouds (age < 10Myr) have steeper
+        dust slopes n=1.3, while older stars have shallower dust slopes
+        n=0.7. Nebular lines have n=1.3
+        For details, see Wild et al. 2007 
+        (https://ui.adsabs.harvard.edu/abs/2007MNRAS.381..543W)
+        """
+        A_cont = (5500./self.wavelengths)**0.7
+        A_cont_bc = (5500./self.wavelengths)**1.3
+        A_line = (5500./config.line_wavs)**1.3
+
+        self.two_component = True
+
+        return A_cont, A_line, A_cont_bc
 
     def _cardelli(self, wavs):
         """ Calculate the ratio A(lambda)/A(V) for the Cardelli et al.
