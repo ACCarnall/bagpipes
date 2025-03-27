@@ -319,12 +319,19 @@ class star_formation_history:
         mask = self.ages < self.age_of_universe
         tburst = self.age_of_universe - self.ages[mask]
         tau_plaw = self.age_of_universe - burstage
-        sfr_burst = ((tburst/tau_plaw)**alpha + (tburst/tau_plaw)**-beta)**-1
+        # using masks to avoid numpy64 float overflow
+        # create a mask where we only perform calculations when both the alpha and beta
+        # elements in Eq5 in Wild et al. 2020 are less than 1e250.
+        # Otherwise, set sfr from the burst component as 0
+        ratio = tburst/tau_plaw
+        mask_overflow = ((np.log10(ratio) * alpha < 250) & (np.log10(ratio) * -beta < 250))
+        sfr_burst = np.zeros_like(tburst)
+        sfr_burst[mask_overflow] = ((tburst[mask_overflow]/tau_plaw)**alpha + (tburst[mask_overflow]/tau_plaw)**-beta)**-1
         sfr_burst_tot = np.sum(sfr_burst*self.age_widths[mask])
 
         sfr[ind] = (1-fburst) * np.exp(-texp/tau) / sfr_exp_tot
 
-        dpl_form = ((tburst/tau_plaw)**alpha + (tburst/tau_plaw)**-beta)**-1
+        dpl_form = sfr_burst
         sfr[mask] += fburst * dpl_form / sfr_burst_tot
 
     def continuity(self, sfr, param):
