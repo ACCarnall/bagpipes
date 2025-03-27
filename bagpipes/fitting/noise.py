@@ -7,6 +7,12 @@ try:
 except ImportError:
     pass
 
+try:
+    import celerite2
+    from celerite2 import terms
+
+except ImportError:
+    pass
 
 class noise_model(object):
     """ A class for modelling the noise properties of spectroscopic
