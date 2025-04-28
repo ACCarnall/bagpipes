@@ -146,7 +146,7 @@ class fit_catalogue(object):
             utils.make_dirs(run=run)
 
     def fit(self, verbose=False, n_live=400, mpi_serial=False,
-            track_backlog=False, sampler="multinest", pool=1, use_mpi=True):
+            track_backlog=False, sampler="multinest", pool=1, use_mpi=True, overwrite_h5=False):
         """ Run through the catalogue fitting each object.
 
         Parameters
@@ -200,7 +200,7 @@ class fit_catalogue(object):
 
             # If not fit the object and update the output catalogue
             self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live,
-                             sampler=sampler, pool=pool, use_MPI=use_mpi)
+                             sampler=sampler, pool=pool, use_MPI=use_mpi, overwrite_h5=overwrite_h5)
 
             self.done[i] = True
 
@@ -214,7 +214,7 @@ class fit_catalogue(object):
                       self.done.shape[0], "objects completed.")
 
     def _fit_mpi_serial(self, verbose=False, n_live=400,
-                        track_backlog=False, sampler="multinest"):
+                        track_backlog=False, sampler="multinest", overwrite_h5=False):
         """ Run through the catalogue fitting multiple objects at once
         on different cores. """
 
@@ -251,7 +251,7 @@ class fit_catalogue(object):
                 # Load posterior for finished object to update catalogue
                 print('Rank 0 core generating posterior and updating catalogue for', oldID)
                 self._fit_object(oldID, use_MPI=False, verbose=False,
-                                 n_live=n_live, sampler=sampler)
+                                 n_live=n_live, sampler=sampler, overwrite_h5=overwrite_h5)
 
                 save_cat = Table.from_pandas(self.cat)
                 save_cat.write("pipes/cats/" + self.run + ".fits",
@@ -281,7 +281,7 @@ class fit_catalogue(object):
 
                 self.n_posterior = 5 # hacky, these don't get used
                 self._fit_object(ID, use_MPI=False, verbose=False,
-                                 n_live=n_live, sampler=sampler)
+                                 n_live=n_live, sampler=sampler, overwrite_h5=overwrite_h5)
 
                 comm.send([ID, rank], dest=0)  # Tell 0 object is done
 
@@ -316,7 +316,7 @@ class fit_catalogue(object):
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
     def _fit_object(self, ID, verbose=False, n_live=400, use_MPI=True,
-                    sampler="multinest", pool=1):
+                    sampler="multinest", pool=1, overwrite_h5=False):
         """ Fit the specified object and update the catalogue. """
 
         if self.fit_instructions_list is not None:
@@ -347,7 +347,7 @@ class fit_catalogue(object):
                            n_posterior=self.n_posterior)
 
         self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI,
-                         sampler=sampler, pool=pool)
+                         sampler=sampler, pool=pool, overwrite_h5 = overwrite_h5)
 
         if rank == 0 or not use_MPI:
             if self.vars is None:
@@ -404,7 +404,7 @@ class fit_catalogue(object):
 
                 else:
                     values = samples[v]
-                # added by austind 08/12/23
+
                 if self.save_pdf_txts:
                     self._save_PDF(v, values, ID)
                 
@@ -421,7 +421,6 @@ class fit_catalogue(object):
                 n_bands = np.sum(self.galaxy.photometry[:, 1] != 0.)
                 self.cat.loc[ID, "n_bands"] = n_bands
     
-    # added by austind 08/12/23 - updated by tharvey 09/12/23 to not overwrite
     def _save_PDF(self, var_name, values, ID):
         pdf_file = f"pipes/pdfs/{self.run}/{var_name}/{ID}.txt"
         os.makedirs("/".join(pdf_file.split("/")[:-1]), exist_ok = True)
@@ -448,11 +447,14 @@ class fit_catalogue(object):
                     self.vars += [f"{line}_flux_{frame}", f"{line}_EW_{frame}"]
             for ratio in self.em_line_ratios_to_save:
                 self.vars += [ratio]
+            for line in self.em_line_fluxes_to_save:
+                self.vars += [f"{line}_cont"]
 
     def _setup_catalogue(self):
         """ Set up the initial blank output catalogue. """
 
         cols = ["#ID"]
+
         for var in self.vars:
             cols += [var + "_16", var + "_50", var + "_84"]
 
@@ -461,8 +463,7 @@ class fit_catalogue(object):
         if self.full_catalogue and self.photometry_exists:
             cols += ["chisq_phot", "n_bands"]
 
-        self.cat = pd.DataFrame(np.zeros((self.IDs.shape[0], len(cols))),
-                                columns=cols)
+        self.cat = pd.DataFrame(np.zeros((self.IDs.shape[0], len(cols))), columns=cols)
 
         self.cat.loc[:, "#ID"] = self.IDs
         self.cat.index = self.IDs

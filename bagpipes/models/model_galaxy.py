@@ -771,11 +771,21 @@ class model_galaxy(object):
                 raise ValueError("The line %s is not in the lines_dict" % line)
 
             line_flux = getattr(self, f"line_fluxes_dustcorr_{frame}")[utils.lines_dict[line]]
-            f_cont_line = dustcorr_cont_spectrum[abs(self.wavelengths - line_wav).argmin()] # observed frame f_lambda
+            line_index = abs(self.wavelengths - line_wav).argmin()
+            f_cont_line = dustcorr_cont_spectrum[line_index] # observed frame f_lambda
+            
+            # save continuum flux in f_nu
+            f_cont_line_Jy = (f_cont_line * u.erg / (u.s * u.cm ** 2 * u.AA) \
+                * ((self.wavelengths[line_index] * (1. + self.model_comp["redshift"]) \
+                * u.AA) ** 2) / const.c).to(u.nJy).value
+            setattr(self, f"{line}_cont", np.array([f_cont_line_Jy]))
+
             if frame == "rest":
                 f_cont_line *= (1. + self.model_comp["redshift"]) ** 2
             EW_line = (line_flux * u.AA / f_cont_line).to(out_units).value
             setattr(self, f"{line}_EW_{frame}", np.array([EW_line]))
+
+
 
     def _save_line_ratios(
         self,
