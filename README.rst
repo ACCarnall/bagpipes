@@ -6,7 +6,7 @@
 **Changes**
 
 1. Saving advanced quantities to .h5, which increases speed up of loading in already computed models.
-2. Adding new quantites: UV Beta slope (in Calzetti filters), absolute and apparent UV magnitudes, Emission line equivalent widths and fluxes, escape fraction, ionizing photon production efficiency (use with caution). 
+2. Adding new quantites: UV Beta slope (in Calzetti filters), absolute and apparent UV magnitudes, Emission line equivalent widths and fluxes, continuum measurements, escape fraction, ionizing photon production efficiency (use with caution). 
 3. Multiple SFH timescales - 10 and 100 Myr by default.
 4. Calculating and plotting cumulative star formation histories, to trace buildup of stellar mass.
 5. Allow varying of fit_instructions dictionary inside a fitting catalogue, and allowing different redshift constraints for each galaxy.
