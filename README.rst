@@ -10,6 +10,8 @@
 3. Multiple SFH timescales - 10 and 100 Myr by default.
 4. Calculating and plotting cumulative star formation histories, to trace buildup of stellar mass.
 5. Allow varying of fit_instructions dictionary inside a fitting catalogue, and allowing different redshift constraints for each galaxy.
+6. Compressing .h5 outputs to improve space efficiency.
+
 
 
 If you clone this repo you will have to download the grids seperately - you can download the grids from the Python Package index (pip) `here <https://pypi.org/project/bagpipes/#files>`_, and place them in the models/grids directory. You can then install by typing  ``pip install setup.py`` (add a -e tag if you want to link it directly to your cloned version, otherwise it will be copied into your site-packages directory. 
