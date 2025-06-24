@@ -93,14 +93,21 @@ class fit_catalogue(object):
     full_catalogue : bool - optional
         Adds minimum chi-squared values and rest-frame UVJ mags to the
         output catalogue, takes extra time, default False.
+
+    load_data_kwargs : dict - optional
+        Any additional keyword arguments to be passed to load_data.
     """
 
     def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
-                 photometry_exists=True, make_plots=False, cat_filt_list=None,
-                 vary_filt_list=False, redshifts=None, redshift_sigma=0.,
-                 run=".", analysis_function=None, time_calls=False,
-                 n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None, track_backlog=False, save_pdf_txts=True, em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
+        photometry_exists=True, make_plots=False, cat_filt_list=None,
+        vary_filt_list=False, redshifts=None, redshift_sigma=0.,
+        run=".", analysis_function=None, time_calls=False,
+        n_posterior=500, full_catalogue=False, load_indices=None,
+        index_list=None, track_backlog=False, save_pdf_txts=True, 
+        em_line_fluxes_to_save = ['Halpha', 'Hbeta', 'Hgamma', 'OIII_5007', 'OIII_4959', 'NII_6548', 'NII_6584'],
+        em_line_ratios_to_save = ["OIII_4959+OIII_5007__Hbeta", "Halpha__Hbeta", "Hbeta__Hgamma", "NII_6548+NII_6584__Halpha"],
+        load_data_kwargs = {},
+    ):
 
         self.IDs = np.array(IDs).astype(str)
         if type(fit_instructions) is list:
@@ -111,6 +118,7 @@ class fit_catalogue(object):
             self.fit_instructions = fit_instructions
             self.fit_instructions_list = None
         self.load_data = load_data
+        self.load_data_kwargs = load_data_kwargs
         self.spectrum_exists = spectrum_exists
         self.photometry_exists = photometry_exists
         self.make_plots = make_plots
@@ -127,6 +135,7 @@ class fit_catalogue(object):
         self.load_indices = load_indices
         self.index_list = index_list
         self.em_line_fluxes_to_save = em_line_fluxes_to_save
+        self.em_line_ratios_to_save = em_line_ratios_to_save
 
         self.n_objects = len(self.IDs)
         self.done = np.zeros(self.IDs.shape[0]).astype(bool)
@@ -137,7 +146,7 @@ class fit_catalogue(object):
             utils.make_dirs(run=run)
 
     def fit(self, verbose=False, n_live=400, mpi_serial=False,
-            track_backlog=False, sampler="multinest", pool=1, use_mpi=True):
+            track_backlog=False, sampler="multinest", pool=1, use_mpi=True, overwrite_h5=False):
         """ Run through the catalogue fitting each object.
 
         Parameters
@@ -191,7 +200,7 @@ class fit_catalogue(object):
 
             # If not fit the object and update the output catalogue
             self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live,
-                             sampler=sampler, pool=pool, use_MPI=use_mpi)
+                             sampler=sampler, pool=pool, use_MPI=use_mpi, overwrite_h5=overwrite_h5)
 
             self.done[i] = True
 
@@ -205,7 +214,7 @@ class fit_catalogue(object):
                       self.done.shape[0], "objects completed.")
 
     def _fit_mpi_serial(self, verbose=False, n_live=400,
-                        track_backlog=False, sampler="multinest"):
+                        track_backlog=False, sampler="multinest", overwrite_h5=False):
         """ Run through the catalogue fitting multiple objects at once
         on different cores. """
 
@@ -242,7 +251,7 @@ class fit_catalogue(object):
                 # Load posterior for finished object to update catalogue
                 print('Rank 0 core generating posterior and updating catalogue for', oldID)
                 self._fit_object(oldID, use_MPI=False, verbose=False,
-                                 n_live=n_live, sampler=sampler)
+                                 n_live=n_live, sampler=sampler, overwrite_h5=overwrite_h5)
 
                 save_cat = Table.from_pandas(self.cat)
                 save_cat.write("pipes/cats/" + self.run + ".fits",
@@ -272,7 +281,7 @@ class fit_catalogue(object):
 
                 self.n_posterior = 5 # hacky, these don't get used
                 self._fit_object(ID, use_MPI=False, verbose=False,
-                                 n_live=n_live, sampler=sampler)
+                                 n_live=n_live, sampler=sampler, overwrite_h5=overwrite_h5)
 
                 comm.send([ID, rank], dest=0)  # Tell 0 object is done
 
@@ -307,7 +316,7 @@ class fit_catalogue(object):
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
     def _fit_object(self, ID, verbose=False, n_live=400, use_MPI=True,
-                    sampler="multinest", pool=1):
+                    sampler="multinest", pool=1, overwrite_h5=False):
         """ Fit the specified object and update the catalogue. """
 
         if self.fit_instructions_list is not None:
@@ -327,7 +336,10 @@ class fit_catalogue(object):
                              spectrum_exists=self.spectrum_exists,
                              photometry_exists=self.photometry_exists,
                              load_indices=self.load_indices,
-                             index_list=self.index_list, em_line_fluxes_to_save = self.em_line_fluxes_to_save)
+                             index_list=self.index_list, 
+                             em_line_fluxes_to_save = self.em_line_fluxes_to_save,
+                             em_line_ratios_to_save = self.em_line_ratios_to_save,
+                             load_data_kwargs=self.load_data_kwargs)
 
         # Fit the object
         self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,
@@ -335,7 +347,7 @@ class fit_catalogue(object):
                            n_posterior=self.n_posterior)
 
         self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI,
-                         sampler=sampler, pool=pool)
+                         sampler=sampler, pool=pool, overwrite_h5 = overwrite_h5)
 
         if rank == 0 or not use_MPI:
             if self.vars is None:
@@ -347,16 +359,30 @@ class fit_catalogue(object):
             if self.analysis_function is not None:
                 self.analysis_function(self.obj_fit)
 
-            # Make plots if necessary
+            # Make plots if necessary - wrap in try/except
             if self.make_plots:
-                self.obj_fit.plot_spectrum_posterior()
-                self.obj_fit.plot_corner()
-                self.obj_fit.plot_1d_posterior()
-                self.obj_fit.plot_sfh_posterior()
-                self.obj_fit.plot_csfh_posterior()
-
+                plots = [
+                    self.obj_fit.plot_spectrum_posterior,
+                    self.obj_fit.plot_corner,
+                    self.obj_fit.plot_1d_posterior,
+                    self.obj_fit.plot_sfh_posterior,
+                    self.obj_fit.plot_csfh_posterior
+                ]
+                names = [
+                    "spectrum_posterior",
+                    "corner",
+                    "1d_posterior",
+                    "sfh_posterior",
+                    "csfh_posterior"
+                ]
                 if "calib" in list(self.obj_fit.fitted_model.fit_instructions):
-                    self.obj_fit.plot_calibration()
+                    plots.append(self.obj_fit.plot_calibration)
+                    names.append("calibration")
+                for plot, name in zip(plots, names):
+                    try:
+                        plot()
+                    except:
+                        print(f"Error plotting {name} for {ID}")
 
             # Add fitting results to output catalogue
             if self.full_catalogue:
@@ -378,7 +404,7 @@ class fit_catalogue(object):
 
                 else:
                     values = samples[v]
-                # added by austind 08/12/23
+
                 if self.save_pdf_txts:
                     self._save_PDF(v, values, ID)
                 
@@ -394,37 +420,41 @@ class fit_catalogue(object):
                 self.cat.loc[ID, "chisq_phot"] = np.min(samples["chisq_phot"])
                 n_bands = np.sum(self.galaxy.photometry[:, 1] != 0.)
                 self.cat.loc[ID, "n_bands"] = n_bands
-    # added by austind 08/12/23 - updated by tharvey 09/12/23 to not overwrite
+    
     def _save_PDF(self, var_name, values, ID):
         pdf_file = f"pipes/pdfs/{self.run}/{var_name}/{ID}.txt"
         os.makedirs("/".join(pdf_file.split("/")[:-1]), exist_ok = True)
         os.chmod("/".join(pdf_file.split("/")[:-1]), 0o777)
         np.savetxt(pdf_file, values)
         os.chmod(pdf_file, 0o777)
+    
     def _setup_vars(self):
         """ Set up list of variables to go in the output catalogue. """
 
         self.vars = copy.copy(self.obj_fit.fitted_model.params)
         self.vars += ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
-                      "mass_weighted_age", "tform", "tquench"]
-        
-        # Added by tharvey 17/12/23
-        self.vars += ["sfr_10myr", "ssfr_10myr", "nsfr_10myr"]
+                          "sfr_10myr","ssfr_10myr", "nsfr_10myr", "burstiness",
+                          "mass_weighted_age", "tform", "tquench",
+                          "mass_weighted_zmet"]
 
         if self.full_catalogue:
             self.vars += ["UV_colour", "VJ_colour"]
-            # added by tharvey 15/10/23 + austind 08/12/23
             self.vars += ["beta_C94", "m_UV", "M_UV"]
-            self.vars += ["Halpha_EWrest", "xi_ion_caseB"]
-
+            for frame in ["rest", "obs"]:
+                for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
+                    self.vars += [f"{property}_{frame}"]
+                for line in self.em_line_fluxes_to_save:
+                    self.vars += [f"{line}_flux_{frame}", f"{line}_EW_{frame}"]
+            for ratio in self.em_line_ratios_to_save:
+                self.vars += [ratio]
             for line in self.em_line_fluxes_to_save:
-                self.vars += [f"{line}_flux"]
-
+                self.vars += [f"{line}_cont"]
 
     def _setup_catalogue(self):
         """ Set up the initial blank output catalogue. """
 
         cols = ["#ID"]
+
         for var in self.vars:
             cols += [var + "_16", var + "_50", var + "_84"]
 
@@ -433,8 +463,7 @@ class fit_catalogue(object):
         if self.full_catalogue and self.photometry_exists:
             cols += ["chisq_phot", "n_bands"]
 
-        self.cat = pd.DataFrame(np.zeros((self.IDs.shape[0], len(cols))),
-                                columns=cols)
+        self.cat = pd.DataFrame(np.zeros((self.IDs.shape[0], len(cols))), columns=cols)
 
         self.cat.loc[:, "#ID"] = self.IDs
         self.cat.index = self.IDs

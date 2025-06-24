@@ -75,3 +75,27 @@ ldist_at_z = cosmo.luminosity_distance(z_array).value
 install_dir = os.path.dirname(os.path.realpath(__file__))
 grid_dir = install_dir + "/models/grids"
 working_dir = os.getcwd()
+
+# A dictionary to convert between inputted line names and the cloudy output keys
+lines_dict = {
+    "Halpha": "H  1  6562.81A",
+    "Hbeta": "H  1  4861.33A",
+    "Hgamma": "H  1  4340.46A",
+    "OIII_5007": "O  3  5006.84A",
+    "OIII_4959": "O  3  4958.91A",
+    # "OII_3727": "O  2  3727.09A",
+    # "OII_3729": "O  2  3729.88A",
+    "NII_6548": "N  2  6548.05A",
+    "NII_6584": "N  2  6583.45A",
+    # "SII_6717": "S  2  6716.44A",
+    # "SII_6731": "S  2  6730.82A",
+    # "NeIII_3869": "Ne 3  3868.76A",
+    # "NeIII_3968": "Ne 3  3967.47A",
+    # "NeIII_3974": "Ne 3  3974.98A",
+    # "NeIII_3342": "Ne 3  3342.18A",
+    # "HeII_1640": "He 2  1640.42A",
+    # "HeII_4686": "He 2  4685.68A",
+    # "HeI_6678": "He 1  6678.15A",
+    # "HeI_5876": "He 1  5875.62A",
+    # "HeI_4471": "He 1  4471.48A",
+}

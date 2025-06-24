@@ -60,7 +60,6 @@ def single_index(ind_dict, spectrum, redshift, calculate_errs=False):
 
     if "units" in list(ind_dict):
         units = ind_dict["units"]
-
     else:
         units = "AA"
 

@@ -205,7 +205,7 @@ class fit(object):
 
     def fit(self, verbose=False, n_live=400, use_MPI=True,
             sampler="multinest", n_eff=0, discard_exploration=False,
-            n_networks=4, pool=1):
+            n_networks=4, pool=1, overwrite_h5=False):
         """ Fit the specified model to the input galaxy data.
 
         Parameters
@@ -237,12 +237,11 @@ class fit(object):
             MultiNest is parallelized with MPI.
 
         """
-        if "lnz" in list(self.results):
+        if "lnz" in list(self.results) and not overwrite_h5:
             if rank == 0:
                 print("Fitting not performed as results have already been"
                       + " loaded from " + self.fname[:-1] + ".h5. To start"
                       + " over delete this file or change run.\n")
-
             return
 
         # Figure out which sampling algorithm to use
@@ -264,40 +263,43 @@ class fit(object):
         elif not (multinest_available or nautilus_available):
             raise RuntimeError("No sampling algorithm could be loaded.")
 
-        if rank == 0 or not use_MPI:
-            print("\nBagpipes: fitting object " + self.galaxy.ID + "\n")
+        if not os.path.exists(self.fname[:-1] + ".h5"):
+            # run the fitting if the results are already saved
 
-            start_time = time.time()
+            if rank == 0 or not use_MPI:
+                print("\nBagpipes: fitting object " + self.galaxy.ID + "\n")
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            os.environ["PYTHONWARNINGS"] = "ignore"
+                start_time = time.time()
 
-            if sampler == "multinest":
-                pmn.run(self.fitted_model.lnlike,
-                        self.fitted_model.prior.transform,
-                        self.fitted_model.ndim, n_live_points=n_live,
-                        importance_nested_sampling=False, verbose=verbose,
-                        sampling_efficiency="model",
-                        outputfiles_basename=self.fname, use_MPI=use_MPI)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                os.environ["PYTHONWARNINGS"] = "ignore"
 
-            elif sampler == "nautilus":
-                n_sampler = Sampler(self.fitted_model.prior.transform,
-                                    self.fitted_model.lnlike, n_live=n_live,
-                                    n_networks=n_networks, pool=pool,
-                                    n_dim=self.fitted_model.ndim,
-                                    filepath=self.fname + ".h5")
+                if sampler == "multinest":
+                    pmn.run(self.fitted_model.lnlike,
+                            self.fitted_model.prior.transform,
+                            self.fitted_model.ndim, n_live_points=n_live,
+                            importance_nested_sampling=False, verbose=verbose,
+                            sampling_efficiency="model",
+                            outputfiles_basename=self.fname, use_MPI=use_MPI)
 
-                n_sampler.run(verbose=verbose, n_eff=n_eff,
-                              discard_exploration=discard_exploration)
+                elif sampler == "nautilus":
+                    n_sampler = Sampler(self.fitted_model.prior.transform,
+                                        self.fitted_model.lnlike, n_live=n_live,
+                                        n_networks=n_networks, pool=pool,
+                                        n_dim=self.fitted_model.ndim,
+                                        filepath=self.fname + ".h5")
 
-            os.environ["PYTHONWARNINGS"] = ""
+                    n_sampler.run(verbose=verbose, n_eff=n_eff,
+                                discard_exploration=discard_exploration)
 
-        if rank == 0 or not use_MPI:
-            print(f'Rank 0 for {self.galaxy.ID}', use_MPI)
-            runtime = time.time() - start_time
+                os.environ["PYTHONWARNINGS"] = ""
+        
+            if rank == 0 or not use_MPI:
+                print(f'Rank 0 for {self.galaxy.ID}', use_MPI)
+                runtime = time.time() - start_time
 
-            print("\nCompleted in " + str("%.1f" % runtime) + " seconds.\n")
+                print("\nCompleted in " + str("%.1f" % runtime) + " seconds.\n")
 
             # Load MultiNest outputs and save basic quantities to file.
             if sampler == "multinest":
@@ -314,98 +316,119 @@ class fit(object):
                 self.results["lnz"] = float(lnz_line[-3])
                 self.results["lnz_err"] = float(lnz_line[-1])
 
-            elif sampler == "nautilus":
-                samples2d = np.zeros((0, self.fitted_model.ndim))
-                log_l = np.zeros(0)
-                while len(samples2d) < self.n_posterior:
-                    result = n_sampler.posterior(equal_weight=True)
-                    samples2d = np.vstack((samples2d, result[0]))
-                    log_l = np.concatenate((log_l, result[2]))
-                self.results["samples2d"] = samples2d
-                self.results["lnlike"] = log_l
-                self.results["lnz"] = n_sampler.log_z
-                self.results["lnz_err"] = 1.0 / np.sqrt(n_sampler.n_eff)
+                elif sampler == "nautilus":
+                    samples2d = np.zeros((0, self.fitted_model.ndim))
+                    log_l = np.zeros(0)
+                    while len(samples2d) < self.n_posterior:
+                        result = n_sampler.posterior(equal_weight=True)
+                        samples2d = np.vstack((samples2d, result[0]))
+                        log_l = np.concatenate((log_l, result[2]))
+                    self.results["samples2d"] = samples2d
+                    self.results["lnlike"] = log_l
+                    self.results["lnz"] = n_sampler.log_z
+                    self.results["lnz_err"] = 1.0 / np.sqrt(n_sampler.n_eff)
 
-            self.results["median"] = np.median(samples2d, axis=0)
+                self.results["median"] = np.median(samples2d, axis=0)
+                self.results["conf_int"] = np.percentile(self.results["samples2d"],
+                                                        (16, 84), axis=0)
+                
+                fit_instructions = str(self.fit_instructions)
+                try:
+                    use_bpass = bool(int(os.environ['use_bpass']))
+                except KeyError:
+                    use_bpass = False
+
+                if use_bpass:
+                    print('Setup to use BPASS')
+                    mtype = 'BPASS'
+                    from .. import config_bpass as config
+                else:
+                    from .. import config
+                    mtype = 'BC03'
+
+                config_dict = str({'stellar_file':config.stellar_file, 'neb_cont_file':config.neb_cont_file, 'neb_line_file':config.neb_line_file, 'type':mtype})
+                
+                os.system("rm " + self.fname + "*")
+
+        else:
+            # load results
+            file = h5py.File(self.fname[:-1] + ".h5", "r")
+            self.results["samples2d"] = np.array(file["samples2d"])
+            self.results["lnlike"] = np.array(file["lnlike"])
+            self.results["lnz"] = float(np.array(file["lnz"]))
+            self.results["lnz_err"] = float(np.array(file["lnz_err"]))
+            self.results["median"] = np.array(file["median"])
             self.results["conf_int"] = np.percentile(self.results["samples2d"],
-                                                     (16, 84), axis=0)
+                                                        (16, 84), axis=0)
+            fit_instructions = file.attrs["fit_instructions"]
+            config_dict = file.attrs["config"]
+            file.close()
+            # move file to 'old' subdir
+            old_filename = f"{'/'.join(self.fname.split('/')[:-1])}/old/{self.fname.split('/')[-1][:-1]}.h5"
+            #breakpoint()
+            os.makedirs('/'.join(old_filename.split('/')[:-1]), exist_ok=True)
+            os.system("mv " + self.fname[:-1] + ".h5 " + old_filename)
+            # delete old files
+            #os.system("rm " + self.fname + "*")
 
-            file = h5py.File(self.fname[:-1] + ".h5", "w")
+        file = h5py.File(self.fname[:-1] + ".h5", "w")
+        # This is necessary for converting large arrays to strings
+        np.set_printoptions(threshold=10**7)
+        file.attrs["fit_instructions"] = fit_instructions
+        file.attrs["config"] = config_dict
+        np.set_printoptions(threshold=10**4)
 
-            # This is necessary for converting large arrays to strings
-            np.set_printoptions(threshold=10**7)
-            file.attrs["fit_instructions"] = str(self.fit_instructions)
-            try:
-                use_bpass = bool(int(os.environ['use_bpass']))
-            except KeyError:
-                use_bpass = False
-
-            if use_bpass:
-                print('Setup to use BPASS')
-                mtype = 'BPASS'
-                from .. import config_bpass as config
-            else:
-                from .. import config
-                mtype = 'BC03'
-
-            config_dict = str({'stellar_file':config.stellar_file, 'neb_cont_file':config.neb_cont_file, 'neb_line_file':config.neb_line_file, 'type':mtype})
-
-            file.attrs["config"] = config_dict
-            np.set_printoptions(threshold=10**4)
-
-            for k in self.results.keys():
+        for k in self.results.keys():
+            if k not in ["basic_quantities", "advanced_quantities"]:
                 file.create_dataset(k, data=self.results[k], compression="gzip" if type(self.results[k]) is np.ndarray else None)
 
-            file.close()
+        file.close()
 
-            os.system("rm " + self.fname + "*")
+        # Create a posterior object to hold the results of the fit.
+        self.posterior = posterior(self.galaxy, run=self.run,
+                                    n_samples=self.n_posterior)
+        self.results['basic_quantities'] = {i:j for i, j in self.posterior.samples.items() if i in self.posterior.basic_quantity_names}
+        # Get quantities
+        try:
+            # Attempt to add advanced quantities to the .h5 file
+            self.posterior.get_advanced_quantities()
+            self.results['advanced_quantities'] = {i:j for i, j in self.posterior.samples.items() if i not in self.posterior.basic_quantity_names}
+        except Exception as e:
+            print(e)
+            import traceback
+            traceback.print_exc()
 
-            # Create a posterior object to hold the results of the fit.
-            self.posterior = posterior(self.galaxy, run=self.run,
-                                       n_samples=self.n_posterior)
-            self.results['basic_quantities'] = {i:j for i, j in self.posterior.samples.items() if i in self.posterior.basic_quantity_names}
-             # Get quantities
-            try:
-                # Attempt to add advanced quantities to the .h5 file
-                self.posterior.get_advanced_quantities()
-                self.results['advanced_quantities'] = {i:j for i, j in self.posterior.samples.items() if i not in self.posterior.basic_quantity_names}
-            except Exception as e:
-                print(e)
-                import traceback
-                traceback.print_exc()
-                
-                pass
-            # Do it again with advanced quantities. 
-            file = h5py.File(self.fname[:-1] + ".h5", "w")
+        # Do it again with advanced quantities. 
+        file = h5py.File(self.fname[:-1] + ".h5", "w")
 
-            # This is necessary for converting large arrays to strings
-            np.set_printoptions(threshold=10**7)
-            file.attrs["fit_instructions"] = str(self.fit_instructions)
-            file.attrs["config"] = config_dict
-            np.set_printoptions(threshold=10**4)
+        # This is necessary for converting large arrays to strings
+        np.set_printoptions(threshold=10**7)
+        file.attrs["fit_instructions"] = fit_instructions
+        file.attrs["config"] = config_dict
+        np.set_printoptions(threshold=10**4)
 
-            for k in self.results.keys():
-                if k in ['basic_quantities', 'advanced_quantities']:
-                    data = self.posterior.samples  
-                    file.create_group(k)
-                    for j in self.results[k].keys():
-                            if len(data[j]) > 5: # Dont save dummies
-                                # if data if array of float64, convert to float32
-                                if type(data[j]) == np.ndarray and data[j].dtype == 'float64':
-                                    sdata = data[j].astype('float32')
-                                else:
-                                    sdata = data[j]
-                                
-                                file[k].create_dataset(j, data=sdata, compression="gzip" if type(sdata) is np.ndarray else None) 
-                        
-                else:
-                    data = self.results[k]
-
+        for k in self.results.keys():
+            if k in ['basic_quantities', 'advanced_quantities']:
+                data = self.posterior.samples  
+                file.create_group(k)
+                for j in self.results[k].keys():
+                    if len(data[j]) > 5: # Dont save dummies
+                        # if data is array of float64, convert to float32
+                        if type(data[j]) == np.ndarray and data[j].dtype == 'float64':
+                            sdata = data[j].astype('float32')
+                            # if the data goes to infinity, do not convert to float32
+                            if np.isinf(sdata).any():
+                                sdata = data[j]
+                        else:
+                            sdata = data[j]
+                        file[k].create_dataset(j, data=sdata, compression="gzip" if type(sdata) is np.ndarray else None) 
+            else:
+                data = self.results[k]
+                if k not in file.keys():
                     file.create_dataset(k, data=data, compression="gzip" if type(data) is np.ndarray else None)
-
-            file.close()
-            
-            self._print_results()
+        file.close()
+        
+        self._print_results()
 
     def _print_results(self):
         """ Print the 16th, 50th, 84th percentiles of the posterior. """
@@ -435,8 +458,8 @@ class fit(object):
         return plotting.plot_1d_posterior(self, show=show, save=save)
 
     def plot_sfh_posterior(self, show=False, save=True, colorscheme="bw"):
-        return plotting.plot_sfh_posterior(self, show=show, save=save,
-                                           colorscheme=colorscheme)
+        return plotting.plot_sfh_posterior(
+            self, show=show, save=save,colorscheme=colorscheme)
 
     def plot_spectrum_posterior(self, show=False, save=True):
         return plotting.plot_spectrum_posterior(self, show=show, save=save)

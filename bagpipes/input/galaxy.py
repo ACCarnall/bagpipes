@@ -69,13 +69,19 @@ class galaxy:
         user requests the code to calculate spectral indices from the
         observed spectrum.
 
+    load_data_kwargs: dict - optional
+        Any additional keyword arguments to be passed to load_data.
 
     """
 
     def __init__(self, ID, load_data, spec_units="ergscma", phot_units="mujy",
-                 spectrum_exists=True, photometry_exists=True, filt_list=None,
-                 out_units="ergscma", load_indices=None, index_list=None,
-                 index_redshift=None, input_spec_cov_matrix=False, em_line_fluxes_to_save = ['Halpha', 'HBeta', 'OIII_5007', 'OIII_4959']):
+        spectrum_exists=True, photometry_exists=True, filt_list=None,
+        out_units="ergscma", load_indices=None, index_list=None,
+        index_redshift=None, input_spec_cov_matrix=False, 
+        em_line_fluxes_to_save = ['Halpha', 'Hbeta', 'Hgamma', 'OIII_5007', 'OIII_4959', 'NII_6548', 'NII_6584'],
+        em_line_ratios_to_save = ["OIII_4959+OIII_5007__Hbeta", "Halpha__Hbeta", "Hbeta__Hgamma", "NII_6548+NII_6584__Halpha"],
+        load_data_kwargs = {}
+    ):
 
         self.ID = str(ID)
         self.phot_units = phot_units
@@ -88,6 +94,7 @@ class galaxy:
         self.index_list = index_list
         self.index_redshift = index_redshift
         self.em_line_fluxes_to_save = em_line_fluxes_to_save
+        self.em_line_ratios_to_save = em_line_ratios_to_save
 
         # Attempt to load the data from the load_data function.
         try:
@@ -95,13 +102,13 @@ class galaxy:
                 raise ValueError("Bagpipes: Object must have some data.")
 
             elif spectrum_exists and not photometry_exists:
-                self.spectrum = load_data(self.ID)
+                self.spectrum = load_data(self.ID, **load_data_kwargs)
 
             elif photometry_exists and not spectrum_exists:
-                phot_nowavs = load_data(self.ID)
+                phot_nowavs = load_data(self.ID, **load_data_kwargs)
 
             else:
-                self.spectrum, phot_nowavs = load_data(self.ID)
+                self.spectrum, phot_nowavs = load_data(self.ID, **load_data_kwargs)
 
         except ValueError:
                 print("load_data did not return expected outputs, did you "
