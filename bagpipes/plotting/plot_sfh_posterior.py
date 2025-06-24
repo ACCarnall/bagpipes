@@ -38,7 +38,7 @@ def plot_sfh_posterior(fit, show=False, save=True, colorscheme="bw", zvals=[0, 0
 
 
 def add_sfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4, alpha=0.6, plottype='absolute', 
-                      label=None, zvals=[0, 0.5, 1, 2, 4, 10], color='black', use_color=False, timescale='Gyr', save = True, return_sfh = False):
+                      label=None, zvals=[0, 0.5, 1, 2, 4, 10], color='black', use_color=False, timescale='Gyr', save = True, return_sfh = False, **kwargs):
 
     color1 = "black"
     color2 = "gray"
@@ -91,7 +91,7 @@ def add_sfh_posterior(fit, ax, colorscheme="bw", z_axis=True, zorder=4, alpha=0.
         x = age_of_universe - fit.posterior.sfh.ages*factor
     
 
-    ax.plot(x, post[:, 1], color=color1, zorder=zorder+1, lw=1, alpha=1, label=label)
+    ax.plot(x, post[:, 1], color=color1, zorder=zorder+1, label=label, **kwargs)
     ax.fill_between(x, post[:, 0], post[:, 2], color=color2,
                     alpha=alpha, zorder=zorder, lw=0)
 

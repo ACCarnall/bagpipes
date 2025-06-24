@@ -303,6 +303,11 @@ class fit(object):
             if sampler == "multinest":
                 multinest_fname = self.fname + 'post_equal_weights.dat'
                 samples2d = _read_multinest_data(multinest_fname)
+                # if samples is 1d, print it
+                if len(samples2d.shape) == 1:
+                    print('Probable issue with samples from multinest.')
+                    print(samples2d)
+                    
                 lnz_line = open(self.fname + "stats.dat").readline().split()
                 self.results["samples2d"] = samples2d[:, :-1]
                 self.results["lnlike"] = samples2d[:, -1]
@@ -438,3 +443,6 @@ class fit(object):
 
     def plot_calibration(self, show=False, save=True):
         return plotting.plot_calibration(self, show=show, save=save)
+
+    def plot_csfh_posterior(self, show=False, save=True):
+        return plotting.plot_csfh_posterior(self, show=show, save=save)

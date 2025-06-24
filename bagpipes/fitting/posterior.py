@@ -88,6 +88,8 @@ class posterior(object):
         if self.samples2d.shape[0] < self.n_samples:
             self.n_samples = self.samples2d.shape[0]
 
+        print(f'Generating {self.n_samples} samples from posterior. Total samples: {self.samples2d.shape[0]}')
+
         # Randomly choose points to generate posterior quantities
         self.indices = np.random.choice(self.samples2d.shape[0],
                                         size=self.n_samples, replace=False)
