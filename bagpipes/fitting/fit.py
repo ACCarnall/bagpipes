@@ -316,27 +316,27 @@ class fit(object):
                 self.results["lnz"] = float(lnz_line[-3])
                 self.results["lnz_err"] = float(lnz_line[-1])
 
-                elif sampler == "nautilus":
-                    samples2d = np.zeros((0, self.fitted_model.ndim))
-                    log_l = np.zeros(0)
-                    while len(samples2d) < self.n_posterior:
-                        result = n_sampler.posterior(equal_weight=True)
-                        samples2d = np.vstack((samples2d, result[0]))
-                        log_l = np.concatenate((log_l, result[2]))
-                    self.results["samples2d"] = samples2d
-                    self.results["lnlike"] = log_l
-                    self.results["lnz"] = n_sampler.log_z
-                    self.results["lnz_err"] = 1.0 / np.sqrt(n_sampler.n_eff)
+            elif sampler == "nautilus":
+                samples2d = np.zeros((0, self.fitted_model.ndim))
+                log_l = np.zeros(0)
+                while len(samples2d) < self.n_posterior:
+                    result = n_sampler.posterior(equal_weight=True)
+                    samples2d = np.vstack((samples2d, result[0]))
+                    log_l = np.concatenate((log_l, result[2]))
+                self.results["samples2d"] = samples2d
+                self.results["lnlike"] = log_l
+                self.results["lnz"] = n_sampler.log_z
+                self.results["lnz_err"] = 1.0 / np.sqrt(n_sampler.n_eff)
 
-                self.results["median"] = np.median(samples2d, axis=0)
-                self.results["conf_int"] = np.percentile(self.results["samples2d"],
-                                                        (16, 84), axis=0)
-                
-                fit_instructions = str(self.fit_instructions)
-                try:
-                    use_bpass = bool(int(os.environ['use_bpass']))
-                except KeyError:
-                    use_bpass = False
+            self.results["median"] = np.median(samples2d, axis=0)
+            self.results["conf_int"] = np.percentile(self.results["samples2d"],
+                                                    (16, 84), axis=0)
+            
+            fit_instructions = str(self.fit_instructions)
+            try:
+                use_bpass = bool(int(os.environ['use_bpass']))
+            except KeyError:
+                use_bpass = False
 
                 if use_bpass:
                     print('Setup to use BPASS')
@@ -346,9 +346,9 @@ class fit(object):
                     from .. import config
                     mtype = 'BC03'
 
-                config_dict = str({'stellar_file':config.stellar_file, 'neb_cont_file':config.neb_cont_file, 'neb_line_file':config.neb_line_file, 'type':mtype})
-                
-                os.system("rm " + self.fname + "*")
+            config_dict = str({'stellar_file':config.stellar_file, 'neb_cont_file':config.neb_cont_file, 'neb_line_file':config.neb_line_file, 'type':mtype})
+            
+            os.system("rm " + self.fname + "*")
 
         else:
             # load results
