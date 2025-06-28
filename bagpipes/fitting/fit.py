@@ -346,8 +346,10 @@ class fit(object):
                     from .. import config
                     mtype = 'BC03'
 
-            config_dict = str({'stellar_file':config.stellar_file, 'neb_cont_file':config.neb_cont_file, 'neb_line_file':config.neb_line_file, 'type':mtype})
-            
+            try:
+                config_dict = str({'stellar_file':config.stellar_file, 'neb_cont_file':config.neb_cont_file, 'neb_line_file':config.neb_line_file, 'type':mtype})
+            except:
+                config_dict = str({})
             os.system("rm " + self.fname + "*")
 
         else:
