@@ -208,7 +208,7 @@ class check_priors:
         if "spectrum_full" in list(self.samples):
             return
 
-        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94', "m_UV", "M_UV", "indices", "burstiness"]
+        all_names = ["photometry", "spectrum", "spectrum_full", "uvj", 'beta_C94', "m_UV", "M_UV", "indices", "burstiness", "D4000"]
         for frame in ["rest", "obs"]:
             for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
                 all_names.append(f"{property}_{frame}")

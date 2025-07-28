@@ -107,7 +107,7 @@ class model_galaxy(object):
         angstrom, can also be set to "mujy" for microjanskys.
 
     extra_model_components - boolean - optional
-        whether to calculate non critical outputs -UVJ, beta_C94, M_UV, L_UV_dustcorr, Halpha_EWrest, xi_ion_caseB, ndot_ion_caseB
+        whether to calculate non critical outputs -UVJ, beta_C94, D4000, M_UV, L_UV_dustcorr, Halpha_EWrest, xi_ion_caseB, ndot_ion_caseB
 
     index_list : list - optional
         list of dicts containining definitions for spectral indices.
@@ -359,7 +359,7 @@ class model_galaxy(object):
         model_components : dict
             A dictionary containing information about the model you wish to
             generate.
-        extra_model_components : boolean - whether to calculate non critical outputs -UVJ, beta_C94, M_UV, L_UV_dustcorr, Halpha_EWrest, xi_ion_caseB
+        extra_model_components : boolean - whether to calculate non critical outputs -UVJ, beta_C94, D4000, M_UV, L_UV_dustcorr, Halpha_EWrest, xi_ion_caseB
         """
 
 
@@ -406,6 +406,7 @@ class model_galaxy(object):
                 self._calculate_uvj_mags()
                 self._calculate_beta_C94(model_components)
                 self._calculate_M_UV(model_components)
+                self._calculate_D4000(model_components)
                 for frame in ["rest", "obs"]:
                     self._calculate_xi_ion_caseB(model_components, frame = frame)
                     self._calculate_ndot_ion_caseB(model_components, frame = frame)
@@ -689,6 +690,17 @@ class model_galaxy(object):
         self._calculate_full_continuum_spectrum(model_comp)
         wav_obs_C94, f_lambda_obs_C94 = crop_to_C94_filters(self.wavelengths, self.spectrum_full_cont, model_comp)
         self.beta_C94 = np.array([curve_fit(beta_slope_power_law_func, wav_obs_C94, f_lambda_obs_C94, maxfev = 10_000)[0][1]])
+
+    def _calculate_D4000(self, model_comp):
+        """ This method calculates the D4000 spectral index from the full spectrum. 
+        Only gives correctly normalized values when model spectrum has already been fitted."""
+        # constrain to D4000 filters
+        blue_mask = (self.wavelengths >= 3400. ) & (self.wavelengths <= 3600.)
+        red_mask = (self.wavelengths >= 4150.) & (self.wavelengths <= 4250.)
+        blue_fluxes = ((self.spectrum_full_cont[blue_mask]  * u.erg / (u.s * (u.cm ** 2) * u.AA)) * ((self.wavelengths[blue_mask] * (1 + model_comp["redshift"]) * u.AA) ** 2) / const.c).to(u.Jy).value
+        red_fluxes = ((self.spectrum_full_cont[red_mask] * u.erg / (u.s * (u.cm ** 2) * u.AA)) * ((self.wavelengths[red_mask] * (1 + model_comp["redshift"]) * u.AA) ** 2) / const.c).to(u.Jy).value
+        # calculate D4000
+        self.D4000 = np.array([2.5*np.log10(np.median(red_fluxes) / np.median(blue_fluxes))])
 
     def _calculate_m_UV(self, model_comp):
         """This method calculates the UV apparent magnitude from the full spectrum in a top-hat filter between 1450<wav_rest<1550 Angstrom. 

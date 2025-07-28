@@ -439,7 +439,7 @@ class fit_catalogue(object):
 
         if self.full_catalogue:
             self.vars += ["UV_colour", "VJ_colour"]
-            self.vars += ["beta_C94", "m_UV", "M_UV"]
+            self.vars += ["beta_C94", "m_UV", "M_UV", "D4000"]
             for frame in ["rest", "obs"]:
                 for property in ["xi_ion_caseB", "ndot_ion_caseB"]:
                     self.vars += [f"{property}_{frame}"]
