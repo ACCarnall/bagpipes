@@ -9,7 +9,6 @@ except ImportError:
     pass
 
 from scipy.optimize import fsolve
-from copy import copy, deepcopy
 
 from .. import utils
 from .. import config
@@ -125,7 +124,7 @@ class star_formation_history:
         self.stellar_mass = np.log10(np.sum(self.live_frac_grid*self.ceh.grid))
         self.formed_mass = np.log10(np.sum(self.ceh.grid))
 
-        age_mask = (self.ages < 10**8)
+        age_mask = (self.ages < config.sfr_timescale)
         self.sfr = np.sum(self.sfh[age_mask]*self.age_widths[age_mask])
         self.sfr /= self.age_widths[age_mask].sum()
         self.ssfr = np.log10(self.sfr) - self.stellar_mass

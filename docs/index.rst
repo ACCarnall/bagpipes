@@ -5,6 +5,7 @@ Bayesian Analysis of Galaxies for Physical Inference and Parameter EStimation is
 
 I hope you will find everything you need to know here, however feel free to get in touch if you have further questions, or to get an opinion on specific use cases. I've recently added a :ref:`latest news <latest-news>` page, which I'll use to track updates to the code and any issues people make me aware of.
 
+
 What can Bagpipes do?
 ---------------------
 
@@ -16,7 +17,7 @@ Star-formation history recovery from spectroscopy (see `Carnall et al. 2019b <ht
 
 Identification of z > 3 quiescent galaxies from photometry (see `Carnall et al. 2020 <https://arxiv.org/abs/2001.11975>`_)
 
-Bagpipes has been used in ~130 papers as of April 2023. For more example use cases take a look at this `ADS library listing papers that use Bagpipes <https://ui.adsabs.harvard.edu/public-libraries/VOrR8ITjTTSYNXVYiQ1oag>`_.
+Bagpipes has been used in ~230 papers as of March 2024. For more example use cases take a look at this `ADS library listing papers that use Bagpipes <https://ui.adsabs.harvard.edu/public-libraries/VOrR8ITjTTSYNXVYiQ1oag>`_.
 
 
 Source and installation
@@ -29,7 +30,13 @@ Bagpipes is `developed at GitHub <https://github.com/ACCarnall/bagpipes>`_, howe
     pip install bagpipes
 
 
-All of the code's Python dependencies will be automatically installed. The only non-Python dependency is the MultiNest nested sampling algorithm (used only for fitting).
+All of the code's Python dependencies will be automatically installed.
+
+
+Sampling algorithms within Bagpipes
+-----------------------------------
+
+Historically, fitting with Bagpipes has relied on the `MultiNest <https://github.com/JohannesBuchner/MultiNest>`_ nested sampling algorithm, a non-Python dependency that requires separate installation. This is sometimes challenging on certain systems. Recently, Bagpipes has been updated such that it will now automatically use the Python-based `nautilus <https://nautilus-sampler.readthedocs.io/en/stable/>`_ sampler for fitting if MultiNest is not installed. If you wish to use MultiNest, the installation instructions below may be of assistance.
 
 The simplest way to install MultiNest if you have an anaconda python disribution is with the command **conda install -c conda-forge multinest**.
 
@@ -68,6 +75,7 @@ Note: Depending on when you install, the gcc version might be different. One can
 
 If you are running a Linux operating system, or have MacPorts instead of Homebrew, you may run into additional issues. I may be able to provide advice if you get stuck.
 
+
 Published papers and citing the code
 ------------------------------------
 
@@ -100,7 +108,7 @@ A few of the excellent projects Bagpipes relies on are:
  - The `MultiNest <https://ccpforge.cse.rl.ac.uk/gf/project/multinest>`_ nested sampling algorithm `(Feroz et al. 2013) <https://arxiv.org/abs/1306.2144>`_
  - The `PyMultiNest <https://johannesbuchner.github.io/PyMultiNest>`_ Python interface for Multinest `(Buchner et al. 2014) <https://arxiv.org/abs/1402.0004>`_.
  - The `Cloudy <https://www.nublado.org>`_ photoionization code `(Ferland et al. 2017) <https://arxiv.org/abs/1705.10877>`_.
-
+ - The `nautilus <https://nautilus-sampler.readthedocs.io/en/stable/>`_ importance nested sampling algorithm `(Lange 2023) <https://arxiv.org/abs/2306.16923>`_.
 
  .. toctree::
     :maxdepth: 1

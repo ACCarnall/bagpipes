@@ -50,6 +50,9 @@ age_widths = age_bins[1:] - age_bins[:-1]
 # Convert the age sampling from log10(Gyr) to Gyr.
 age_sampling = 10**age_sampling
 
+# Timescale for the code to calculate SFRs over in years.
+sfr_timescale = 10**8  # This is 100 Myr by default
+
 
 """ These variables tell the code where to find the raw stellar emission
 models, as well as some of their basic properties. """
@@ -91,8 +94,8 @@ models, as well as some of their basic properties. """
 
 try:
     # Names of files containing the nebular grids.
-    neb_cont_file = "bc03_miles_nebular_cont_grids.fits"
-    neb_line_file = "bc03_miles_nebular_line_grids.fits"
+    neb_cont_file = "bc03_miles_nebular_cont_grids_extended.fits"
+    neb_line_file = "bc03_miles_nebular_line_grids_extended.fits"
 
     # Names for the emission features to be tracked.
     line_names = np.loadtxt(grid_dir + "/cloudy_lines.txt",
@@ -109,13 +112,15 @@ try:
     neb_wavs = fits.open(grid_dir + "/" + neb_cont_file)[1].data[0, 1:]
 
     # LogU values for the nebular emission grids.
-    logU = np.arange(-4., -1.99, 0.5)
+    logU = np.arange(-4., 0.01, 0.5)
 
     # Grid of line fluxes.
-    line_grid = fits.open(grid_dir + "/" + neb_line_file)
+    line_grid = [fits.open(grid_dir + "/" + neb_line_file)[i].data for
+                 i in range(len(metallicities) * len(logU) + 1)]
 
     # Grid of nebular continuum fluxes.
-    cont_grid = fits.open(grid_dir + "/" + neb_cont_file)
+    cont_grid = [fits.open(grid_dir + "/" + neb_cont_file)[i].data for
+                 i in range(len(metallicities) * len(logU) + 1)]
 
 except IOError:
     print("Failed to load nebular grids, these should be placed in the"
@@ -136,9 +141,13 @@ try:
                           2.37, 2.50, 3.19, 3.90, 4.58])
 
     # Draine + Li (2007) dust emission grids, stored as a FITS HDUList.
-    dust_grid_umin_only = fits.open(grid_dir + "/dl07_grids_umin_only.fits")
+    dust_grid_umin_only = [
+        fits.open(grid_dir + "/dl07_grids_umin_only.fits")[i].data for i
+        in range(len(qpah_vals) + 1)]
 
-    dust_grid_umin_umax = fits.open(grid_dir + "/dl07_grids_umin_umax.fits")
+    dust_grid_umin_umax = [
+        fits.open(grid_dir + "/dl07_grids_umin_umax.fits")[i].data for i
+        in range(len(qpah_vals) + 1)]
 
 except IOError:
     print("Failed to load dust emission grids, these should be placed in the"
@@ -166,7 +175,7 @@ else:
 
     else:
         wav_check = np.min(igm_file[2].data == igm_wavelengths)
-        z_check = np.min(igm_file[3].data == igm_redshifts)
+        z_check = igm_file[3].data.shape[0] == igm_redshifts.shape[0]
 
         if not wav_check or not z_check:
             igm_inoue2014.make_table(igm_redshifts, igm_wavelengths)

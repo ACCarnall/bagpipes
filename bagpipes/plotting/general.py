@@ -1,5 +1,7 @@
 from __future__ import print_function, division, absolute_import
 
+from shutil import which
+
 import numpy as np
 
 try:
@@ -9,12 +11,11 @@ try:
 except RuntimeError:
     pass
 
-from distutils.spawn import find_executable
 from scipy.ndimage import gaussian_filter
 
 from .. import utils
 
-tex_on = find_executable("latex")
+tex_on = which("latex")
 
 if not tex_on:
     print("Bagpipes: Latex distribution not found, plots may look strange.")

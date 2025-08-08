@@ -14,3 +14,4 @@ dependencies:
       - numpy==1.22.0
       - scipy
       - matplotlib
+      - nautilus-sampler

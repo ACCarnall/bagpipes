@@ -100,7 +100,8 @@ class fit_catalogue(object):
                  vary_filt_list=False, redshifts=None, redshift_sigma=0.,
                  run=".", analysis_function=None, time_calls=False,
                  n_posterior=500, full_catalogue=False, load_indices=None,
-                 index_list=None, track_backlog=False):
+                 index_list=None, track_backlog=False, spec_units="ergscma",
+                 phot_units="mujy"):
 
         self.IDs = np.array(IDs).astype(str)
         self.fit_instructions = fit_instructions
@@ -119,6 +120,8 @@ class fit_catalogue(object):
         self.full_catalogue = full_catalogue
         self.load_indices = load_indices
         self.index_list = index_list
+        self.spec_units = spec_units
+        self.phot_units = phot_units
 
         self.n_objects = len(self.IDs)
         self.done = np.zeros(self.IDs.shape[0]).astype(bool)
@@ -129,7 +132,7 @@ class fit_catalogue(object):
             utils.make_dirs(run=run)
 
     def fit(self, verbose=False, n_live=400, mpi_serial=False,
-            track_backlog=False, sampler="multinest"):
+            track_backlog=False, sampler="multinest", pool=1):
         """ Run through the catalogue fitting each object.
 
         Parameters
@@ -182,7 +185,7 @@ class fit_catalogue(object):
 
             # If not fit the object and update the output catalogue
             self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live,
-                             sampler=sampler)
+                             sampler=sampler, pool=pool)
 
             self.done[i] = True
 
@@ -284,7 +287,7 @@ class fit_catalogue(object):
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
     def _fit_object(self, ID, verbose=False, n_live=400, use_MPI=True,
-                    sampler="multinest"):
+                    sampler="multinest", pool=1):
         """ Fit the specified object and update the catalogue. """
 
         # Set the correct redshift for this object
@@ -300,7 +303,9 @@ class fit_catalogue(object):
                              spectrum_exists=self.spectrum_exists,
                              photometry_exists=self.photometry_exists,
                              load_indices=self.load_indices,
-                             index_list=self.index_list)
+                             index_list=self.index_list,
+                             spec_units=self.spec_units,
+                             phot_units=self.phot_units)
 
         # Fit the object
         self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,
@@ -308,7 +313,7 @@ class fit_catalogue(object):
                            n_posterior=self.n_posterior)
 
         self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI,
-                         sampler=sampler)
+                         sampler=sampler, pool=pool)
 
         if rank == 0:
             if self.vars is None:

@@ -3,7 +3,6 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 from .. import config
-from .. import utils
 
 
 class nebular(object):
@@ -44,8 +43,8 @@ class nebular(object):
 
                 hdu_index = config.metallicities.shape[0]*j + i + 1
 
-                raw_cont_grid = config.cont_grid[hdu_index].data
-                raw_line_grid = config.line_grid[hdu_index].data
+                raw_cont_grid = config.cont_grid[hdu_index]
+                raw_line_grid = config.line_grid[hdu_index]
 
                 line_grid[:, i, j, :] = raw_line_grid[1:, 1:].T
 

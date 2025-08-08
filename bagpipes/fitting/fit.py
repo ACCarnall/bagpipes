@@ -5,20 +5,26 @@ import os
 import time
 import warnings
 import h5py
+import contextlib
 
 from copy import deepcopy
 
 try:
-    import pymultinest as pmn
-
-except (ImportError, RuntimeError, SystemExit) as e:
-    print("Bagpipes: PyMultiNest import failed, fitting will be unavailable.")
+    with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
+        import pymultinest as pmn
+    multinest_available = True
+except (ImportError, RuntimeError, SystemExit):
+    print("Bagpipes: PyMultiNest import failed, fitting will use the Nautilus" +
+          " sampler instead.")
+    multinest_available = False
 
 try:
     from nautilus import Sampler
-
-except (ImportError, RuntimeError, SystemExit) as e:
-    pass
+    nautilus_available = True
+except (ImportError, RuntimeError, SystemExit):
+    print("Bagpipes: Nautilus import failed, fitting with Nautilus will be " +
+          "unavailable.")
+    nautilus_available = False
 
 # detect if run through mpiexec/mpirun
 try:
@@ -27,15 +33,8 @@ try:
     size = MPI.COMM_WORLD.Get_size()
     from mpi4py.futures import MPIPoolExecutor
 
-    if size == 1:
-        pool = None
-
-    else:
-        pool = MPIPoolExecutor(size)
-
 except ImportError:
     rank = 0
-    pool = None
 
 from .. import utils
 from .. import plotting
@@ -45,13 +44,15 @@ from .posterior import posterior
 
 
 class fit(object):
-    """ Top-level class for fitting models to observational data.
-    Interfaces with MultiNest to sample from the posterior distribution
-    of a fitted_model object. Performs loading and saving of results.
+    """
+    Top-level class for fitting models to observational data.
+
+    Interfaces with MultiNest or nautilus to sample from the posterior
+    distribution of a fitted_model object. Performs loading and saving of
+    results.
 
     Parameters
     ----------
-
     galaxy : bagpipes.galaxy
         A galaxy object containing the photomeric and/or spectroscopic
         data you wish to fit.
@@ -101,6 +102,7 @@ class fit(object):
             fit_info_str = file.attrs["fit_instructions"]
             fit_info_str = fit_info_str.replace("array", "np.array")
             fit_info_str = fit_info_str.replace("float", "np.float")
+            fit_info_str = fit_info_str.replace("np.np.", "np.")
             self.fit_instructions = eval(fit_info_str)
 
             for k in file.keys():
@@ -115,7 +117,9 @@ class fit(object):
         self.fitted_model = fitted_model(galaxy, self.fit_instructions,
                                          time_calls=time_calls)
 
-    def fit(self, verbose=False, n_live=400, use_MPI=True, sampler="multinest"):
+    def fit(self, verbose=False, n_live=400, use_MPI=True,
+            sampler="multinest", n_eff=0, discard_exploration=False,
+            n_networks=4, pool=1):
         """ Fit the specified model to the input galaxy data.
 
         Parameters
@@ -127,8 +131,26 @@ class fit(object):
         n_live : int - optional
             Number of live points: reducing speeds up the code but may
             lead to unreliable results.
-        """
 
+        sampler : string - optional
+            The sampler to use. Available options are "multinest" and
+            "nautilus".
+
+        n_eff : float - optional
+            Target minimum effective sample size. Only used by nautilus.
+
+        discard_exploration : bool - optional
+            Whether to discard the exploration phase to get more accurate
+            results. Only used by nautilus.
+
+        n_networks : int - optional
+            Number of neural networks. Only used by nautilus.
+
+        pool : int - optional
+            Pool size used for parallelization. Only used by nautilus.
+            MultiNest is parallelized with MPI.
+
+        """
         if "lnz" in list(self.results):
             if rank == 0:
                 print("Fitting not performed as results have already been"
@@ -137,6 +159,25 @@ class fit(object):
 
             return
 
+        # Figure out which sampling algorithm to use
+        sampler = sampler.lower()
+
+        if (sampler == "multinest" and not multinest_available and
+                nautilus_available):
+            sampler = "nautilus"
+            print("MultiNest not available. Switching to nautilus.")
+
+        elif (sampler == "nautilus" and not nautilus_available and
+                multinest_available):
+            sampler = "multinest"
+            print("Nautilus not available. Switching to MultiNest.")
+
+        elif sampler not in ["multinest", "nautilus"]:
+            raise ValueError("Sampler {} not supported.".format(sampler))
+
+        elif not (multinest_available or nautilus_available):
+            raise RuntimeError("No sampling algorithm could be loaded.")
+
         if rank == 0 or not use_MPI:
             print("\nBagpipes: fitting object " + self.galaxy.ID + "\n")
 
@@ -144,6 +185,7 @@ class fit(object):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
+            os.environ["PYTHONWARNINGS"] = "ignore"
 
             if sampler == "multinest":
                 pmn.run(self.fitted_model.lnlike,
@@ -155,12 +197,15 @@ class fit(object):
 
             elif sampler == "nautilus":
                 n_sampler = Sampler(self.fitted_model.prior.transform,
-                                        self.fitted_model.lnlike, n_live=n_live,
-                                        n_networks=1, pool=pool,
-                                        n_dim=self.fitted_model.ndim,
-                                        filepath=self.fname + "temp.h5")
+                                    self.fitted_model.lnlike, n_live=n_live,
+                                    n_networks=n_networks, pool=pool,
+                                    n_dim=self.fitted_model.ndim,
+                                    filepath=self.fname + ".h5")
 
-                n_sampler.run(verbose=verbose)
+                n_sampler.run(verbose=verbose, n_eff=n_eff,
+                              discard_exploration=discard_exploration)
+
+            os.environ["PYTHONWARNINGS"] = ""
 
         if rank == 0 or not use_MPI:
             runtime = time.time() - start_time
@@ -177,11 +222,16 @@ class fit(object):
                 self.results["lnz_err"] = float(lnz_line[-1])
 
             elif sampler == "nautilus":
-                samples2d, log_w, log_l = n_sampler.posterior(equal_weight=True)
+                samples2d = np.zeros((0, self.fitted_model.ndim))
+                log_l = np.zeros(0)
+                while len(samples2d) < self.n_posterior:
+                    result = n_sampler.posterior(equal_weight=True)
+                    samples2d = np.vstack((samples2d, result[0]))
+                    log_l = np.concatenate((log_l, result[2]))
                 self.results["samples2d"] = samples2d
                 self.results["lnlike"] = log_l
-                self.results["lnz"] = n_sampler.evidence()
-                self.results["lnz_err"] = -99
+                self.results["lnz"] = n_sampler.log_z
+                self.results["lnz_err"] = 1.0 / np.sqrt(n_sampler.n_eff)
 
             self.results["median"] = np.median(samples2d, axis=0)
             self.results["conf_int"] = np.percentile(self.results["samples2d"],

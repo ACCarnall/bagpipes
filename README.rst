@@ -10,7 +10,11 @@ Bagpipes can be installed with pip:
 
     pip install bagpipes
 
-Please note you cannot run the code just by cloning the repository as the large grids of models aren't included. To fit models to data with the code you will also need to install the `MultiNest <https://github.com/JohannesBuchner/MultiNest>`_ code. For more information please see the `bagpipes documentation <http://bagpipes.readthedocs.io>`_.
+Please note you cannot run the code just by cloning the repository as the large grids of models aren't included.
+
+**Sampling algorithms within Bagpipes**
+
+The default sampler (and historically the only option) for fitting models to data is the `MultiNest <https://github.com/JohannesBuchner/MultiNest>`_ code, however this requires separate installation, which can be challenging on some systems. Bagpipes is now also compatible with the pure Python `nautilus <https://github.com/johannesulf/nautilus>`_ nested sampling algorithm, which is now installed by default along with Bagpipes, and will be automatically used for fitting if MultiNest is not installed. Even if you are used to using Bagpipes with Multinest, you may wish to try out Nautlus, as this may yield faster and/or more accurate results in some circumstances. For more information please see the `bagpipes documentation <http://bagpipes.readthedocs.io>`_.
 
 **Published papers and citing the code**
 

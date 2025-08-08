@@ -2,8 +2,6 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 
-from scipy.interpolate import CubicSpline
-
 from .. import config
 
 
@@ -77,12 +75,12 @@ class dust_attenuation(object):
         Rv_m = 4.05/((4.05+1)*(4400./5500.)**delta - 4.05)
 
         drude = B*self.wavelengths**2*350.**2
-        drude /= (self.wavelengths**2 - 2175.**2)**2 + self.wavelengths**2*375.**2
+        drude /= (self.wavelengths**2 - 2175.**2)**2 + self.wavelengths**2*350.**2
         A_cont = self.A_cont_calz*Rv_m*(self.wavelengths/5500.)**delta + drude
         A_cont /= Rv_m
 
         drude = B*config.line_wavs**2*350.**2
-        drude /= (config.line_wavs**2 - 2175.**2)**2 + config.line_wavs**2*375.**2
+        drude /= (config.line_wavs**2 - 2175.**2)**2 + config.line_wavs**2*350.**2
         A_line = self.A_line_calz*Rv_m*(config.line_wavs/5500.)**delta + drude
         A_line /= Rv_m
 
