@@ -13,7 +13,7 @@ from .general import *
 from .plot_spectrum import add_spectrum
 
 
-def plot_model_galaxy(model, show=True):
+def plot_model_galaxy(model, show=True, color="default"):
     """ Make a quick plot of an individual model galaxy. """
 
     update_rcParams()
@@ -27,7 +27,7 @@ def plot_model_galaxy(model, show=True):
 
     if model.spec_wavs is not None:
         spec_ax = plt.subplot(gs[0, 0])
-        add_spectrum(model.spectrum, spec_ax,
+        add_spectrum(model.spectrum, spec_ax, color=color,
                      z_non_zero=model.model_comp["redshift"])
 
         axes = [spec_ax]

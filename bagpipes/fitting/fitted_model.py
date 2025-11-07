@@ -80,15 +80,15 @@ class fitted_model(object):
                 if isinstance(all_vals[i], tuple):
                     self.params.append(all_keys[i])
                     self.limits.append(all_vals[i])  # Limits on prior.
-    
+
                     # Prior probability densities between these limits.
                     prior_key = all_keys[i] + "_prior"
                     if prior_key in list(all_keys):
                         self.pdfs.append(all_vals[all_keys.index(prior_key)])
-    
+
                     else:
                         self.pdfs.append("uniform")
-    
+
                     # Any hyper-parameters of these prior distributions.
                     self.hyper_params.append({})
                     for i in range(len(all_keys)):
@@ -99,7 +99,7 @@ class fitted_model(object):
                 # Find any parameters which mirror the value of a fit param.
                 if all_vals[i] in all_keys:
                     self.mirror_pars[all_keys[i]] = all_vals[i]
-    
+
                 if all_vals[i] == "dirichlet":
                     n = all_vals[all_keys.index(all_keys[i][:-6])]
                     comp = all_keys[i].split(":")[0]
@@ -147,6 +147,7 @@ class fitted_model(object):
 
         # Return zero likelihood if SFH is older than the universe.
         if self.model_galaxy.sfh.unphysical:
+            self.chisq_phot = np.nan
             return -9.99*10**99
 
         lnlike = 0.

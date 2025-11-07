@@ -133,6 +133,11 @@ class star_formation_history:
         self.mass_weighted_age = np.sum(self.sfh*self.age_widths*self.ages)
         self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
 
+        # Calculate nth percentile formation time
+        #perc = 90
+        #cum_sfh = np.cumsum(self.sfh*self.age_widths)/np.sum(self.sfh*self.age_widths)
+        #self.tform_percentile = self.ages[np.argmin(np.abs(cum_sfh - (100 - perc)/100.))]  # In years
+
         self.mass_weighted_zmet = np.sum(self.live_frac_grid*self.ceh.grid,
                                         axis=1)
         self.mass_weighted_zmet /= np.sum(self.live_frac_grid*self.ceh.grid)
@@ -278,6 +283,9 @@ class star_formation_history:
 
         if tau > self.age_of_universe:
             self.unphysical = True
+
+    def iyer(self, sfr, param):
+        self.iyer2019(sfr, param)
 
     def iyer2019(self, sfr, param):
         tx = param["tx"]

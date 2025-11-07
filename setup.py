@@ -11,7 +11,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='bagpipes',
 
-    version='1.2.0',
+    version='1.2.1',
 
     description='Galaxy spectral fitting',
 

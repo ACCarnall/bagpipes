@@ -3,7 +3,7 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 from scipy.special import erf, erfinv
-from scipy.stats import beta, t
+from scipy.stats import beta, t, expon
 
 
 def dirichlet(r, alpha):
@@ -81,6 +81,12 @@ class prior(object):
         """ Uniform prior in x where x is the parameter. """
 
         value = limits[0] + (limits[1] - limits[0])*value
+        return value
+
+    def exponential(self, value, limits, hyper_params):
+        """ Exponential prior in x where x is the parameter. """
+
+        value = expon.ppf(value, scale=hyper_params["scale"])
         return value
 
     def log_10(self, value, limits, hyper_params):

@@ -138,6 +138,7 @@ class model_galaxy(object):
         self.igm = igm(self.wavelengths)
         self.nebular = False
         self.dust_atten = False
+        self.agn_dust_atten = False
         self.dust_emission = False
         self.agn = False
 
@@ -155,6 +156,10 @@ class model_galaxy(object):
             self.dust_emission = dust_emission(self.wavelengths)
             self.dust_atten = dust_attenuation(self.wavelengths,
                                                model_components["dust"])
+
+        if "agn_dust" in list(model_components):
+            self.agn_dust_atten = dust_attenuation(self.wavelengths,
+                                                   model_components["agn_dust"])
 
         if "agn" in list(model_components):
             self.agn = agn(self.wavelengths)
@@ -314,6 +319,8 @@ class model_galaxy(object):
         self.sfh.update(model_components)
         if self.dust_atten:
             self.dust_atten.update(model_components["dust"])
+        if self.agn_dust_atten:
+            self.agn_dust_atten.update(model_components["agn_dust"])
 
         # If the SFH is unphysical do not caclulate the full spectrum
         if self.sfh.unphysical:
@@ -335,6 +342,10 @@ class model_galaxy(object):
             self.agn.update(self.model_comp["agn"])
             agn_spec = self.agn.spectrum
             agn_spec *= self.igm.trans(self.model_comp["redshift"])
+
+            if self.agn_dust_atten:
+                agn_trans = 10**(-self.model_comp["agn_dust"]["Av"]*self.agn_dust_atten.A_cont/2.5)
+                agn_spec *= agn_trans
 
             self.spectrum_full += agn_spec/(1. + self.model_comp["redshift"])
 
@@ -566,8 +577,8 @@ class model_galaxy(object):
 
         self.uvj = -2.5*np.log10(self._calculate_photometry(0., uvj=True))
 
-    def plot(self, show=True):
-        return plotting.plot_model_galaxy(self, show=show)
+    def plot(self, show=True, color="default"):
+        return plotting.plot_model_galaxy(self, show=show, color=color)
 
     def plot_full_spectrum(self, show=True):
         return plotting.plot_full_spectrum(self, show=show)
