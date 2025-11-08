@@ -88,14 +88,14 @@ class dust_attenuation(object):
 
         # Third output is A_cont_bc, None for single-component dust laws
         return A_cont, A_line, None
-    
+
     def VW07(self, param):
-        """ 
-        Two component dust law based on Charlot + Fall (2000) model, 
+        """
+        Two component dust law based on Charlot + Fall (2000) model,
         Stars still embedded in birth clouds (age < 10Myr) have steeper
         dust slopes n=1.3, while older stars have shallower dust slopes
         n=0.7. Nebular lines have n=1.3
-        For details, see Wild et al. 2007 
+        For details, see Wild et al. 2007
         (https://ui.adsabs.harvard.edu/abs/2007MNRAS.381..543W)
         """
         A_cont = (5500./self.wavelengths)**0.7

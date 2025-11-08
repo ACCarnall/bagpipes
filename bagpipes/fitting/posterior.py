@@ -164,7 +164,9 @@ class posterior(object):
         self.model_galaxy = model_galaxy(self.fitted_model.model_components,
                                          filt_list=self.galaxy.filt_list,
                                          spec_wavs=self.galaxy.spec_wavs,
-                                         index_list=self.galaxy.index_list)
+                                         index_list=self.galaxy.index_list,
+                                         spec_units=self.galaxy.spec_units,
+                                         phot_units=self.galaxy.phot_units)
 
         all_names = ["photometry", "spectrum", "spectrum_full", "uvj",
                      "indices"]

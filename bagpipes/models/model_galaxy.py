@@ -23,12 +23,12 @@ from ..input.spectral_indices import measure_index
 
 
 # The Voigt-Hjerting profile based on the numerical approximation by Garcia
-def H(a,x):
+def H(a, x):
     P = x**2
     H0 = np.exp(-x**2)
     Q = 1.5*x**(-2)
     return H0 - a / np.sqrt(np.pi) /\
-    P * ( H0 ** 2 * (4. * P**2 + 7. * P + 4. + Q) - Q - 1.0 )
+    P * (H0 ** 2 * (4. * P**2 + 7. * P + 4. + Q) - Q - 1.0)
 
 
 def addAbs(wl_mod, t, zabs):
@@ -55,7 +55,7 @@ def addAbs(wl_mod, t, zabs):
     x = (wl_mod/(zabs+1.0) - lamb)/dl_D+0.01
 
     # Optical depth
-    tau = np.array([C_a * t * H(a,x)], dtype=np.float64)
+    tau = np.array([C_a * t * H(a, x)], dtype=np.float64)
     return np.exp(-tau)[0]
 
 
@@ -459,8 +459,8 @@ class model_galaxy(object):
 
         if "dla" in list(model_comp):
             spectrum *= addAbs(self.wavelengths*self.model_comp["redshift"],
-                            self.model_comp["dla"]["t"],
-                            self.model_comp["dla"]["zabs"])
+                               self.model_comp["dla"]["t"],
+                               self.model_comp["dla"]["zabs"])
 
         if self.dust_atten:
             self.spectrum_bc *= self.igm.trans(model_comp["redshift"])

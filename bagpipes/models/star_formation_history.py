@@ -135,17 +135,17 @@ class star_formation_history:
         else:
             self.ssfr = np.log10(self.sfr) - self.stellar_mass
             self.nsfr = np.log10(self.sfr*self.age_of_universe) - self.stellar_mass
-        
+
         self.mass_weighted_age = np.sum(self.sfh*self.age_widths*self.ages)
         self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
 
         # Calculate nth percentile formation time
-        #perc = 90
-        #cum_sfh = np.cumsum(self.sfh*self.age_widths)/np.sum(self.sfh*self.age_widths)
-        #self.tform_percentile = self.ages[np.argmin(np.abs(cum_sfh - (100 - perc)/100.))]  # In years
+        # perc = 90
+        # cum_sfh = np.cumsum(self.sfh*self.age_widths)/np.sum(self.sfh*self.age_widths)
+        # self.tform_percentile = self.ages[np.argmin(np.abs(cum_sfh - (100 - perc)/100.))]  # In years
 
         self.mass_weighted_zmet = np.sum(self.live_frac_grid*self.ceh.grid,
-                                        axis=1)
+                                         axis=1)
         self.mass_weighted_zmet /= np.sum(self.live_frac_grid*self.ceh.grid)
         self.mass_weighted_zmet *= config.metallicities
         self.mass_weighted_zmet = np.sum(self.mass_weighted_zmet)
@@ -287,7 +287,8 @@ class star_formation_history:
 
         sfr[mask] = ((t/tau)**alpha + (t/tau)**-beta)**-1
 
-        if tau > self.age_of_universe:
+        # Added 1.5* after Hin tests showing SFH shape was being restricted
+        if 1.5*tau > self.age_of_universe:
             self.unphysical = True
 
     def iyer(self, sfr, param):
@@ -327,14 +328,18 @@ class star_formation_history:
         mask = self.ages < self.age_of_universe
         tburst = self.age_of_universe - self.ages[mask]
         tau_plaw = self.age_of_universe - burstage
+
         # using masks to avoid numpy64 float overflow
-        # create a mask where we only perform calculations when both the alpha and beta
+        # create mask where we only do calculations when both alpha, beta
         # elements in Eq5 in Wild et al. 2020 are less than 1e250.
         # Otherwise, set sfr from the burst component as 0
         ratio = tburst/tau_plaw
-        mask_overflow = ((np.log10(ratio) * alpha < 250) & (np.log10(ratio) * -beta < 250))
+        mask_overflow = ((np.log10(ratio) * alpha < 250)
+                         & (np.log10(ratio) * -beta < 250))
+
         sfr_burst = np.zeros_like(tburst)
-        sfr_burst[mask_overflow] = ((tburst[mask_overflow]/tau_plaw)**alpha + (tburst[mask_overflow]/tau_plaw)**-beta)**-1
+        sfr_burst[mask_overflow] = ((tburst[mask_overflow]/tau_plaw)**alpha
+                                    + (tburst[mask_overflow]/tau_plaw)**-beta)**-1
         sfr_burst_tot = np.sum(sfr_burst*self.age_widths[mask])
 
         sfr[ind] = (1-fburst) * np.exp(-texp/tau) / sfr_exp_tot

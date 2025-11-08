@@ -6,7 +6,6 @@ from . import filters
 from . import plotting
 from . import input
 from . import catalogue
-from . import moons
 
 from . import config
 from . import utils
