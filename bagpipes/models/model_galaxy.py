@@ -416,7 +416,10 @@ class model_galaxy(object):
             if "eta" in list(model_comp["dust"]):
                 eta = model_comp["dust"]["eta"]
                 bc_Av_reduced = (eta - 1.)*model_comp["dust"]["Av"]
-                bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont/2.5)
+                if self.dust_atten.two_component:
+                    bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont_bc/2.5)
+                else:
+                    bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont/2.5)
                 spectrum_bc_dust = spectrum_bc*bc_trans_red
                 dust_flux += np.trapz(spectrum_bc - spectrum_bc_dust,
                                       x=self.wavelengths)

@@ -7,6 +7,12 @@ try:
 except ImportError:
     pass
 
+try:
+    import celerite2
+    from celerite2 import terms
+
+except ImportError:
+    pass
 
 class noise_model(object):
     """ A class for modelling the noise properties of spectroscopic
@@ -88,6 +94,38 @@ class noise_model(object):
 
         self.gp = george.GP(kernel)
         self.gp.compute(self.x, self.y_err*scaling)
+
+        self.corellated = True
+
+    def GP_SHOTerm(self):
+        """ 
+        A GP noise model that uses celerite2's SHOTerm kernel 
+        for corellated noise and white noise (jitter term). 
+        This have been shown to be similar in behaviour to the
+        squared exponential kernel but at least 100x faster.
+        For more detail, see Leung et al. 2024
+        (https://ui.adsabs.harvard.edu/abs/2024MNRAS.528.4029L)
+        The kernel is implemented through Dan Foreman-Mackey's celerite2
+        For details, see https://celerite2.readthedocs.io/en/latest/ and
+        http://adsabs.harvard.edu/abs/2018RNAAS...2a..31F
+        """
+
+        scaling = self.param["scaling"]
+
+        # amplitude of the GP component
+        norm = self.param["norm"]
+        # the undamped period of the oscillator
+        period = self.param["period"]
+        # dampening quality factor Q
+        Q = self.param["Q"]
+
+        kernel = terms.SHOTerm(sigma=norm, rho=period, Q=Q)
+        self.gp = celerite2.GaussianProcess(kernel)
+        self.gp.compute(self.x, yerr=self.y_err*scaling)
+        # renaming the method gp.log_likelihood to gp.lnlikelihood 
+        # to be consistent with the old package george
+        # so _lnlike_spec in fitted_model.py does not need changing
+        self.gp.lnlikelihood = self.gp.log_likelihood
 
         self.corellated = True
 
