@@ -3,7 +3,9 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 import os
-import deepdish as dd
+import h5py
+
+from copy import deepcopy
 
 from .fitted_model import fitted_model
 from .prior import dirichlet
@@ -46,11 +48,18 @@ class posterior(object):
             raise IOError("Fit results not found for " + self.galaxy.ID + ".")
 
         # Reconstruct the fitted model.
-        self.fit_instructions = dd.io.load(fname, group="/fit_instructions")
+        file = h5py.File(fname, "r")
+
+        fit_info_str = file.attrs["fit_instructions"]
+        fit_info_str = fit_info_str.replace("array", "np.array")
+        fit_info_str = fit_info_str.replace("float", "np.float")
+        fit_info_str = fit_info_str.replace("np.np.", "np.")
+        self.fit_instructions = eval(fit_info_str)
+
         self.fitted_model = fitted_model(self.galaxy, self.fit_instructions)
 
         # 2D array of samples for the fitted parameters only.
-        self.samples2d = dd.io.load(fname, group="/samples2d")
+        self.samples2d = np.array(file["samples2d"])
 
         # If fewer than n_samples exist in posterior, reduce n_samples
         if self.samples2d.shape[0] < self.n_samples:
@@ -125,7 +134,8 @@ class posterior(object):
         self.sfh = star_formation_history(self.fitted_model.model_components)
 
         quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
-                          "mass_weighted_age", "tform", "tquench"]
+                          "mass_weighted_age", "tform", "tquench",
+                          "mass_weighted_zmet"]
 
         for q in quantity_names:
             self.samples[q] = np.zeros(self.n_samples)
@@ -154,7 +164,9 @@ class posterior(object):
         self.model_galaxy = model_galaxy(self.fitted_model.model_components,
                                          filt_list=self.galaxy.filt_list,
                                          spec_wavs=self.galaxy.spec_wavs,
-                                         index_list=self.galaxy.index_list)
+                                         index_list=self.galaxy.index_list,
+                                         spec_units=self.galaxy.spec_units,
+                                         phot_units=self.galaxy.phot_units)
 
         all_names = ["photometry", "spectrum", "spectrum_full", "uvj",
                      "indices"]
@@ -244,3 +256,45 @@ class posterior(object):
                     continue
 
                 self.prediction[q][i] = getattr(model, q)
+
+    def predict_basic_quantities_at_redshift(self, redshift,
+                                             sfh_type="dblplaw"):
+        """ Predicts basic (SFH-based) quantities at a specified higher
+        redshift. This is a bit experimental, there's probably a better
+        way. Only works for models with a single SFH component. """
+
+        self.prediction_at_z = {}
+
+        #if "stellar_mass" in list(self.prediction_at_z):
+        #    return
+
+        self.fitted_model._update_model_components(self.samples2d[0, :])
+        self.sfh = star_formation_history(self.fitted_model.model_components)
+
+        quantity_names = ["stellar_mass", "formed_mass", "sfr", "ssfr", "nsfr",
+                          "mass_weighted_age", "tform", "tquench"]
+
+        for q in quantity_names:
+            self.prediction_at_z[q] = np.zeros(self.n_samples)
+
+        self.prediction_at_z["sfh"] = np.zeros((self.n_samples,
+                                                self.sfh.ages.shape[0]))
+
+        quantity_names += ["sfh"]
+
+        for i in range(self.n_samples):
+            param = self.samples2d[self.indices[i], :]
+            self.fitted_model._update_model_components(param)
+            self.sfh.update(self.fitted_model.model_components)
+
+            formed_mass_at_z = self.sfh.massformed_at_redshift(redshift)
+
+            model_comp = deepcopy(self.fitted_model.model_components)
+
+            model_comp["redshift"] = redshift
+            model_comp[sfh_type]["massformed"] = formed_mass_at_z
+
+            self.sfh.update(model_comp)
+
+            for q in quantity_names:
+                self.prediction_at_z[q][i] = getattr(self.sfh, q)

@@ -11,9 +11,6 @@ except RuntimeError:
 
 from .general import *
 
-from .. import utils
-from .. import config
-
 
 def plot_sfh(sfh, show=True, save=False):
     """ Make a quick plot of an individual sfh. """
@@ -37,12 +34,12 @@ def plot_sfh(sfh, show=True, save=False):
 
 
 def add_sfh(sfh, ax, zorder=4, color="black", z_axis=True, lw=2,
-            zvals=[0, 0.5, 1, 2, 4, 10]):
+            zvals=[0, 0.5, 1, 2, 4, 10], alpha=1, ls="-", label=None):
     """ Creates a plot of sfr(t) for a given star-formation history. """
 
     # Plot the sfh
     ax.plot((sfh.age_of_universe - sfh.ages)*10**-9, sfh.sfh,
-            color=color, zorder=zorder, lw=lw)
+            color=color, zorder=zorder, lw=lw, alpha=alpha, ls=ls, label=label)
 
     # Set limits
     ax.set_xlim(sfh.age_of_universe*10**-9, 0.)

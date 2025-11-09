@@ -75,37 +75,39 @@ class fitted_model(object):
 
         # Find parameters to be fitted and extract their priors.
         for i in range(len(all_vals)):
-            if isinstance(all_vals[i], tuple):
-                self.params.append(all_keys[i])
-                self.limits.append(all_vals[i])  # Limits on prior.
+            # R_curve cannot be fitted and is either unset or must be a 2D numpy array
+            if not all_keys[i] == 'R_curve':
+                if isinstance(all_vals[i], tuple):
+                    self.params.append(all_keys[i])
+                    self.limits.append(all_vals[i])  # Limits on prior.
 
-                # Prior probability densities between these limits.
-                prior_key = all_keys[i] + "_prior"
-                if prior_key in list(all_keys):
-                    self.pdfs.append(all_vals[all_keys.index(prior_key)])
+                    # Prior probability densities between these limits.
+                    prior_key = all_keys[i] + "_prior"
+                    if prior_key in list(all_keys):
+                        self.pdfs.append(all_vals[all_keys.index(prior_key)])
 
-                else:
-                    self.pdfs.append("uniform")
+                    else:
+                        self.pdfs.append("uniform")
 
-                # Any hyper-parameters of these prior distributions.
-                self.hyper_params.append({})
-                for i in range(len(all_keys)):
-                    if all_keys[i].startswith(prior_key + "_"):
-                        hyp_key = all_keys[i][len(prior_key)+1:]
-                        self.hyper_params[-1][hyp_key] = all_vals[i]
-
-            # Find any parameters which mirror the value of a fit param.
-            if all_vals[i] in all_keys:
-                self.mirror_pars[all_keys[i]] = all_vals[i]
-
-            if all_vals[i] == "dirichlet":
-                n = all_vals[all_keys.index(all_keys[i][:-6])]
-                comp = all_keys[i].split(":")[0]
-                for j in range(1, n):
-                    self.params.append(comp + ":dirichletr" + str(j))
-                    self.pdfs.append("uniform")
-                    self.limits.append((0., 1.))
+                    # Any hyper-parameters of these prior distributions.
                     self.hyper_params.append({})
+                    for i in range(len(all_keys)):
+                        if all_keys[i].startswith(prior_key + "_"):
+                            hyp_key = all_keys[i][len(prior_key)+1:]
+                            self.hyper_params[-1][hyp_key] = all_vals[i]
+
+                # Find any parameters which mirror the value of a fit param.
+                if all_vals[i] in all_keys:
+                    self.mirror_pars[all_keys[i]] = all_vals[i]
+
+                if all_vals[i] == "dirichlet":
+                    n = all_vals[all_keys.index(all_keys[i][:-6])]
+                    comp = all_keys[i].split(":")[0]
+                    for j in range(1, n):
+                        self.params.append(comp + ":dirichletr" + str(j))
+                        self.pdfs.append("uniform")
+                        self.limits.append((0., 1.))
+                        self.hyper_params.append({})
 
         # Find the dimensionality of the fit
         self.ndim = len(self.params)
@@ -129,6 +131,9 @@ class fitted_model(object):
         if self.time_calls:
             time0 = time.time()
 
+            if self.n_calls == 0:
+                self.wall_time0 = time.time()
+
         # Update the model_galaxy with the parameters from the sampler.
         self._update_model_components(x)
 
@@ -136,12 +141,15 @@ class fitted_model(object):
             self.model_galaxy = model_galaxy(self.model_components,
                                              filt_list=self.galaxy.filt_list,
                                              spec_wavs=self.galaxy.spec_wavs,
-                                             index_list=self.galaxy.index_list)
+                                             index_list=self.galaxy.index_list,
+                                             spec_units=self.galaxy.spec_units,
+                                             phot_units=self.galaxy.phot_units)
 
         self.model_galaxy.update(self.model_components)
 
         # Return zero likelihood if SFH is older than the universe.
         if self.model_galaxy.sfh.unphysical:
+            self.chisq_phot = np.nan
             return -9.99*10**99
 
         lnlike = 0.
@@ -167,7 +175,8 @@ class fitted_model(object):
 
             if self.n_calls == 1000:
                 self.n_calls = 0
-                print("Mean likelihood call time:", np.mean(self.times))
+                print("Mean likelihood call time:", np.round(np.mean(self.times), 4))
+                print("Wall time per lnlike call:", np.round((time.time() - self.wall_time0)/1000., 4))
 
         return lnlike
 
@@ -237,7 +246,7 @@ class fitted_model(object):
     def _lnlike_indices(self):
         """ Calculates the log-likelihood for spectral indices. """
 
-        diff = (self.galaxy.indices[:, 1] - self.model_galaxy.indices)**2
+        diff = (self.galaxy.indices[:, 0] - self.model_galaxy.indices)**2
         self.chisq_ind = np.sum(diff*self.inv_sigma_sq_ind)
 
         return self.K_ind - 0.5*self.chisq_ind

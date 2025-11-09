@@ -13,28 +13,35 @@ from .general import *
 
 
 def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
-                 y_scale=None, ymax=None):
+                 y_scale=None, ymax=None, color="default", lw=2., label=None,
+                 alpha=1):
     """ Add a spectrum to the passed axes. Adds errors if they are
     included in the spectrum object as a third column. """
 
     # Sort out axis limits
     if not ymax:
-        ymax = 1.05*np.max(spectrum[:, 1])
+        ymax = 1.05*np.nanmax(spectrum[:, 1])
 
     if y_scale is None:
-        y_scale = int(np.log10(ymax))-1
+        y_scale = float(int(np.log10(ymax))-1)
 
     ax.set_ylim(0., ymax*10**-y_scale)
     ax.set_xlim(spectrum[0, 0], spectrum[-1, 0])
 
     # Plot the data
     if spectrum.shape[1] == 2:
+        if color == "default":
+            color = "sandybrown"
+
         ax.plot(spectrum[:, 0], spectrum[:, 1]*10**-y_scale,
-                color="sandybrown", zorder=zorder)
+                color=color, zorder=zorder, lw=lw, label=label, alpha=alpha)
 
     elif spectrum.shape[1] == 3:
+        if color == "default":
+            color = "dodgerblue"
+
         ax.plot(spectrum[:, 0], spectrum[:, 1]*10**-y_scale,
-                color="dodgerblue", zorder=zorder, lw=1)
+                color=color, zorder=zorder, lw=lw, label=label, alpha=alpha)
 
         lower = (spectrum[:, 1] - spectrum[:, 2])*10**-y_scale
         upper = (spectrum[:, 1] + spectrum[:, 2])*10**-y_scale
@@ -42,7 +49,7 @@ def add_spectrum(spectrum, ax, x_ticks=None, zorder=4, z_non_zero=True,
         upper[upper > ymax*10**-y_scale] = ymax*10**-y_scale
         lower[lower < 0.] = 0.
 
-        ax.fill_between(spectrum[:, 0], lower, upper, color="dodgerblue",
+        ax.fill_between(spectrum[:, 0], lower, upper, color=color,
                         zorder=zorder-1, alpha=0.75, linewidth=0)
 
     # Sort out x tick locations

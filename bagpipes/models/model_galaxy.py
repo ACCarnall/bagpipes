@@ -2,6 +2,10 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 import warnings
+import spectres
+
+from copy import deepcopy
+from numpy.polynomial.chebyshev import chebval, chebfit
 
 from .. import utils
 from .. import config
@@ -13,8 +17,46 @@ from .dust_emission_model import dust_emission
 from .dust_attenuation_model import dust_attenuation
 from .nebular_model import nebular
 from .igm_model import igm
+from .agn_model import agn
 from .star_formation_history import star_formation_history
 from ..input.spectral_indices import measure_index
+
+
+# The Voigt-Hjerting profile based on the numerical approximation by Garcia
+def H(a, x):
+    P = x**2
+    H0 = np.exp(-x**2)
+    Q = 1.5*x**(-2)
+    return H0 - a / np.sqrt(np.pi) /\
+    P * (H0 ** 2 * (4. * P**2 + 7. * P + 4. + Q) - Q - 1.0)
+
+
+def addAbs(wl_mod, t, zabs):
+    """
+    A function that calculates the absorption from foreground source:
+        wl_mod: list, wavelength values in units of Å
+        t: float, hydrogen column density in units of cm^{-2}
+        zabs: float, redshift of absorption source
+    Returns:
+        exp(-tau): float, absorption fraction
+    """
+    # Constants
+    m_e = 9.1095e-28
+    e = 4.8032e-10
+    c = 2.998e10
+    lamb = 1215.67
+    f = 0.416
+    gamma = 6.265e8
+    broad = 1
+
+    C_a = np.sqrt(np.pi) * e**2 * f * lamb * 1E-8 / m_e / c / broad
+    a = lamb * 1.E-8 * gamma / (4.*np.pi * broad)
+    dl_D = broad/c * lamb
+    x = (wl_mod/(zabs+1.0) - lamb)/dl_D+0.01
+
+    # Optical depth
+    tau = np.array([C_a * t * H(a, x)], dtype=np.float64)
+    return np.exp(-tau)[0]
 
 
 class model_galaxy(object):
@@ -58,6 +100,11 @@ class model_galaxy(object):
         if (spec_wavs is not None) and (index_list is not None):
             raise ValueError("Cannot specify both spec_wavs and index_list.")
 
+        if model_components["redshift"] > config.max_redshift:
+            raise ValueError("Bagpipes attempted to create a model with too "
+                             "high redshift. Please increase max_redshift in "
+                             "bagpipes/config.py before making this model.")
+
         self.spec_wavs = spec_wavs
         self.filt_list = filt_list
         self.spec_units = spec_units
@@ -91,15 +138,31 @@ class model_galaxy(object):
         self.igm = igm(self.wavelengths)
         self.nebular = False
         self.dust_atten = False
+        self.agn_dust_atten = False
         self.dust_emission = False
+        self.agn = False
 
         if "nebular" in list(model_components):
-            self.nebular = nebular(self.wavelengths)
+            if "velshift" not in model_components["nebular"]:
+                model_components["nebular"]["velshift"] = 0.
+
+            self.nebular = nebular(self.wavelengths,
+                                   model_components["nebular"]["velshift"])
+
+            if "metallicity" in list(model_components["nebular"]):
+                self.neb_sfh = star_formation_history(model_components)
 
         if "dust" in list(model_components):
             self.dust_emission = dust_emission(self.wavelengths)
             self.dust_atten = dust_attenuation(self.wavelengths,
                                                model_components["dust"])
+
+        if "agn_dust" in list(model_components):
+            self.agn_dust_atten = dust_attenuation(self.wavelengths,
+                                                   model_components["agn_dust"])
+
+        if "agn" in list(model_components):
+            self.agn = agn(self.wavelengths)
 
         self.update(model_components)
 
@@ -145,8 +208,8 @@ class model_galaxy(object):
                 self.R = [config.R_other, config.R_spec,
                           config.R_phot, config.R_other]
 
-            if (self.spec_wavs[0] > self.filter_set.min_phot_wav
-                    and self.spec_wavs[-1] > self.filter_set.max_phot_wav):
+            elif (self.spec_wavs[0] > self.filter_set.min_phot_wav
+                  and self.spec_wavs[-1] > self.filter_set.max_phot_wav):
 
                 self.max_wavs = [self.filter_set.min_phot_wav/(1.+max_z),
                                  self.spec_wavs[0]/(1.+max_z),
@@ -154,6 +217,14 @@ class model_galaxy(object):
 
                 self.R = [config.R_other, config.R_phot,
                           config.R_spec, config.R_other]
+
+            elif (self.spec_wavs[0] < self.filter_set.min_phot_wav
+                  and self.spec_wavs[-1] > self.filter_set.max_phot_wav):
+
+                self.max_wavs = [self.spec_wavs[0]/(1.+max_z),
+                                 self.spec_wavs[-1], 10**8]
+
+                self.R = [config.R_other, config.R_spec, config.R_other]
 
         # Generate the desired wavelength sampling.
         x = [1.]
@@ -166,6 +237,42 @@ class model_galaxy(object):
             else:
                 while x[-1]*(1.+0.5/self.R[i]) < self.max_wavs[i]:
                     x.append(x[-1]*(1.+0.5/self.R[i]))
+
+        return np.array(x)
+
+    def _get_R_curve_wav_sampling(self, oversample=4):
+        """ Calculate wavelength sampling for the model to be resampled
+        onto in order to apply variable spectral broadening. Only used
+        if a resolution curve is supplied in model_components. Has to
+        be re-run when a model is updated as it depends on redshift.
+
+        Parameters
+        ----------
+
+        oversample : float
+            Number of spectral samples per full width at half maximum.
+        """
+
+        R_curve = np.copy(self.model_comp["R_curve"])
+
+        if "resolution_p0" in list(self.model_comp):
+            x = R_curve[:, 0]
+            x = 2.*(x - (x[0] + (x[-1] - x[0])/2.))/(x[-1] - x[0])
+
+            coefs = []
+            while "resolution_p" + str(len(coefs)) in list(self.model_comp):
+                coefs.append(self.model_comp["resolution_p" + str(len(coefs))])
+
+            poly_coefs = np.array(coefs)
+
+            R_curve[:, 1] *= chebval(x, coefs)
+
+        x = [0.95*self.spec_wavs[0]]
+
+        while x[-1] < 1.05*self.spec_wavs[-1]:
+            R_val = np.interp(x[-1], R_curve[:, 0], R_curve[:, 1])
+            dwav = x[-1]/R_val/oversample
+            x.append(x[-1] + dwav)
 
         return np.array(x)
 
@@ -212,6 +319,8 @@ class model_galaxy(object):
         self.sfh.update(model_components)
         if self.dust_atten:
             self.dust_atten.update(model_components["dust"])
+        if self.agn_dust_atten:
+            self.agn_dust_atten.update(model_components["agn_dust"])
 
         # If the SFH is unphysical do not caclulate the full spectrum
         if self.sfh.unphysical:
@@ -224,13 +333,34 @@ class model_galaxy(object):
 
         else:
             self._calculate_full_spectrum(model_components)
-            self._calculate_uvj_mags()
+
+        if self.spec_wavs is not None:
+            self._calculate_spectrum(model_components)
+
+        # Add any AGN component:
+        if self.agn:
+            self.agn.update(self.model_comp["agn"])
+            agn_spec = self.agn.spectrum
+            agn_spec *= self.igm.trans(self.model_comp["redshift"])
+
+            if self.agn_dust_atten:
+                agn_trans = 10**(-self.model_comp["agn_dust"]["Av"]*self.agn_dust_atten.A_cont/2.5)
+                agn_spec *= agn_trans
+
+            self.spectrum_full += agn_spec/(1. + self.model_comp["redshift"])
+
+            if self.spec_wavs is not None:
+                zplus1 = (self.model_comp["redshift"] + 1.)
+                agn_interp = np.interp(self.spec_wavs, self.wavelengths*zplus1,
+                                       agn_spec/zplus1, left=0, right=0)
+
+                self.spectrum[:, 1] += agn_interp
 
         if self.filt_list is not None:
             self._calculate_photometry(model_components["redshift"])
 
-        if self.spec_wavs is not None:
-            self._calculate_spectrum(model_components)
+        if not self.sfh.unphysical:
+            self._calculate_uvj_mags()
 
         # Deal with any spectral index calculations.
         if self.index_list is not None:
@@ -257,12 +387,24 @@ class model_galaxy(object):
         em_lines = np.zeros(config.line_wavs.shape)
 
         if self.nebular:
-            em_lines += self.nebular.line_fluxes(self.sfh.ceh.grid, t_bc,
+            grid = np.copy(self.sfh.ceh.grid)
+
+            if "metallicity" in list(model_comp["nebular"]):
+                nebular_metallicity = model_comp["nebular"]["metallicity"]
+                neb_comp = deepcopy(model_comp)
+                for comp in list(neb_comp):
+                    if isinstance(neb_comp[comp], dict):
+                        neb_comp[comp]["metallicity"] = nebular_metallicity
+
+                self.neb_sfh.update(neb_comp)
+                grid = self.neb_sfh.ceh.grid
+
+            em_lines += self.nebular.line_fluxes(grid, t_bc,
                                                  model_comp["nebular"]["logU"])
 
             # All stellar emission below 912A goes into nebular emission
             spectrum_bc[self.wavelengths < 912.] = 0.
-            spectrum_bc += self.nebular.spectrum(self.sfh.ceh.grid, t_bc,
+            spectrum_bc += self.nebular.spectrum(grid, t_bc,
                                                  model_comp["nebular"]["logU"])
 
         # Add attenuation due to stellar birth clouds.
@@ -274,7 +416,10 @@ class model_galaxy(object):
             if "eta" in list(model_comp["dust"]):
                 eta = model_comp["dust"]["eta"]
                 bc_Av_reduced = (eta - 1.)*model_comp["dust"]["Av"]
-                bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont/2.5)
+                if self.dust_atten.two_component:
+                    bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont_bc/2.5)
+                else:
+                    bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont/2.5)
                 spectrum_bc_dust = spectrum_bc*bc_trans_red
                 dust_flux += np.trapz(spectrum_bc - spectrum_bc_dust,
                                       x=self.wavelengths)
@@ -294,6 +439,7 @@ class model_galaxy(object):
             dust_flux += np.trapz(spectrum - dust_spectrum, x=self.wavelengths)
 
             spectrum = dust_spectrum
+            self.spectrum_bc = spectrum_bc*trans
 
             # Add dust emission.
             qpah, umin, gamma = 2., 1., 0.01
@@ -311,6 +457,14 @@ class model_galaxy(object):
 
         spectrum *= self.igm.trans(model_comp["redshift"])
 
+        if "dla" in list(model_comp):
+            spectrum *= addAbs(self.wavelengths*self.model_comp["redshift"],
+                               self.model_comp["dla"]["t"],
+                               self.model_comp["dla"]["zabs"])
+
+        if self.dust_atten:
+            self.spectrum_bc *= self.igm.trans(model_comp["redshift"])
+
         # Convert from luminosity to observed flux at redshift z.
         self.lum_flux = 1.
         if model_comp["redshift"] > 0.:
@@ -318,16 +472,25 @@ class model_galaxy(object):
                                               utils.z_array, utils.ldist_at_z,
                                               left=0, right=0)
 
-            self.lum_flux = (4*np.pi*ldist_cm**2)*(1. + model_comp["redshift"])
+            self.lum_flux = 4*np.pi*ldist_cm**2
 
-        spectrum /= self.lum_flux
+        spectrum /= self.lum_flux*(1. + model_comp["redshift"])
+
+        if self.dust_atten:
+            self.spectrum_bc /= self.lum_flux*(1. + model_comp["redshift"])
+
         em_lines /= self.lum_flux
 
         # convert to erg/s/A/cm^2, or erg/s/A if redshift = 0.
         spectrum *= 3.826*10**33
+
+        if self.dust_atten:
+            self.spectrum_bc *= 3.826*10**33
+
         em_lines *= 3.826*10**33
 
         self.line_fluxes = dict(zip(config.line_names, em_lines))
+
         self.spectrum_full = spectrum
 
     def _calculate_photometry(self, redshift, uvj=False):
@@ -367,10 +530,10 @@ class model_galaxy(object):
             vres = 3*10**5/config.R_spec/2.
             sigma_pix = model_comp["veldisp"]/vres
             k_size = 4*int(sigma_pix+1)
-            x_kernel_pix = np.arange(-k_size, k_size+1, 1.)
+            x_kernel_pix = np.arange(-k_size, k_size+1)
 
-            kernel = ((1./np.sqrt(2*np.pi)/sigma_pix)
-                      * np.exp(-(x_kernel_pix**2)/(2*sigma_pix**2)))
+            kernel = np.exp(-(x_kernel_pix**2)/(2*sigma_pix**2))
+            kernel /= np.trapz(kernel)  # Explicitly normalise kernel
 
             spectrum = np.convolve(self.spectrum_full, kernel, mode="valid")
             redshifted_wavs = zplusone*self.wavelengths[k_size:-k_size]
@@ -379,9 +542,33 @@ class model_galaxy(object):
             spectrum = self.spectrum_full
             redshifted_wavs = zplusone*self.wavelengths
 
-        fluxes = np.interp(self.spec_wavs,
-                           redshifted_wavs,
-                           spectrum, left=0, right=0)
+        if "R_curve" in list(model_comp):
+            oversample = 4  # Number of samples per FWHM at resolution R
+            new_wavs = self._get_R_curve_wav_sampling(oversample=oversample)
+
+            # spectrum = np.interp(new_wavs, redshifted_wavs, spectrum)
+            spectrum = spectres.spectres(new_wavs, redshifted_wavs,
+                                         spectrum, fill=0)
+            redshifted_wavs = new_wavs
+
+            sigma_pix = oversample/2.35  # sigma width of kernel in pixels
+            k_size = 4*int(sigma_pix+1)
+            x_kernel_pix = np.arange(-k_size, k_size+1)
+
+            kernel = np.exp(-(x_kernel_pix**2)/(2*sigma_pix**2))
+            kernel /= np.trapz(kernel)  # Explicitly normalise kernel
+
+            # Disperse non-uniformly sampled spectrum
+            spectrum = np.convolve(spectrum, kernel, mode="valid")
+            redshifted_wavs = redshifted_wavs[k_size:-k_size]
+
+        # Converted to using spectres in response to issue with interp,
+        # see https://github.com/ACCarnall/bagpipes/issues/15
+        # fluxes = np.interp(self.spec_wavs, redshifted_wavs,
+        #                    spectrum, left=0, right=0)
+
+        fluxes = spectres.spectres(self.spec_wavs, redshifted_wavs,
+                                   spectrum, fill=0)
 
         if self.spec_units == "mujy":
             fluxes /= ((10**-29*2.9979*10**18/self.spec_wavs**2))
@@ -393,8 +580,8 @@ class model_galaxy(object):
 
         self.uvj = -2.5*np.log10(self._calculate_photometry(0., uvj=True))
 
-    def plot(self, show=True):
-        return plotting.plot_model_galaxy(self, show=show)
+    def plot(self, show=True, color="default"):
+        return plotting.plot_model_galaxy(self, show=show, color=color)
 
     def plot_full_spectrum(self, show=True):
         return plotting.plot_full_spectrum(self, show=show)

@@ -1,7 +1,6 @@
 from __future__ import print_function, division, absolute_import
 
 import numpy as np
-import sys
 import os
 
 from .. import plotting
@@ -181,7 +180,7 @@ class galaxy:
                     if self.spec_cov is not None:
                         self.spec_cov /= conversion
 
-                elif spec_units == "mujy":
+                elif self.spec_units == "mujy":
                     self.spectrum[:, 1] *= conversion
                     self.spectrum[:, 2] *= conversion
 
@@ -213,16 +212,18 @@ class galaxy:
         mask = np.loadtxt("masks/" + self.ID + "_mask")
         if len(mask.shape) == 1:
             wl_mask = (spec[:, 0] > mask[0]) & (spec[:, 0] < mask[1])
-            if spec[wl_mask, 2].shape[0] is not 0:
+            if spec[wl_mask, 2].shape[0] != 0:
                 spec[wl_mask, 2] = 9.9*10**99.
 
         if len(mask.shape) == 2:
             for i in range(mask.shape[0]):
                 wl_mask = (spec[:, 0] > mask[i, 0]) & (spec[:, 0] < mask[i, 1])
-                if spec[wl_mask, 2].shape[0] is not 0:
+                if spec[wl_mask, 2].shape[0] != 0:
                     spec[wl_mask, 2] = 9.9*10**99.
 
         return spec
 
-    def plot(self, show=True):
-        return plotting.plot_galaxy(self, show=show)
+    def plot(self, show=True, return_y_scale=False, y_scale_spec=None):
+        return plotting.plot_galaxy(self, show=show,
+                                    return_y_scale=return_y_scale,
+                                    y_scale_spec=y_scale_spec)

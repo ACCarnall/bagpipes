@@ -6,6 +6,7 @@ import pandas as pd
 import copy
 
 from astropy.table import Table
+from glob import glob
 
 # detect if run through mpiexec/mpirun
 try:
@@ -98,7 +99,9 @@ class fit_catalogue(object):
                  photometry_exists=True, make_plots=False, cat_filt_list=None,
                  vary_filt_list=False, redshifts=None, redshift_sigma=None,
                  run=".", analysis_function=None, time_calls=False,
-                 n_posterior=500, full_catalogue=False):
+                 n_posterior=500, full_catalogue=False, load_indices=None,
+                 index_list=None, track_backlog=False, spec_units="ergscma",
+                 phot_units="mujy"):
 
         self.IDs = np.array(IDs).astype(str)
         self.fit_instructions = fit_instructions
@@ -115,6 +118,10 @@ class fit_catalogue(object):
         self.time_calls = time_calls
         self.n_posterior = n_posterior
         self.full_catalogue = full_catalogue
+        self.load_indices = load_indices
+        self.index_list = index_list
+        self.spec_units = spec_units
+        self.phot_units = phot_units
 
         self.n_objects = len(self.IDs)
         self.done = np.zeros(self.IDs.shape[0]).astype(bool)
@@ -124,7 +131,8 @@ class fit_catalogue(object):
         if rank == 0:
             utils.make_dirs(run=run)
 
-    def fit(self, verbose=False, n_live=400, mpi_serial=False):
+    def fit(self, verbose=False, n_live=400, mpi_serial=False,
+            track_backlog=False, sampler="multinest", pool=1):
         """ Run through the catalogue fitting each object.
 
         Parameters
@@ -141,6 +149,12 @@ class fit_catalogue(object):
             When running through mpirun/mpiexec, the default behaviour
             is to fit one object at a time, using all available cores.
             When mpi_serial=True, each core will fit different objects.
+
+        track_backlog : bool - optional
+            When using mpi_serial, report the number of objects waiting
+            to be added to the catalogue by the "zero" core that
+            compiles results from all the others. High numbers mean
+            cores are waiting around doing nothing.
         """
 
         if rank == 0:
@@ -151,7 +165,7 @@ class fit_catalogue(object):
                 self.done = (self.cat.loc[:, "log_evidence"] != 0.).values
 
         if size > 1 and mpi_serial:
-            self._fit_mpi_serial(n_live=n_live)
+            self._fit_mpi_serial(n_live=n_live, track_backlog=track_backlog)
             return
 
         for i in range(self.n_objects):
@@ -170,7 +184,8 @@ class fit_catalogue(object):
                 continue
 
             # If not fit the object and update the output catalogue
-            self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live)
+            self._fit_object(self.IDs[i], verbose=verbose, n_live=n_live,
+                             sampler=sampler, pool=pool)
 
             self.done[i] = True
 
@@ -183,7 +198,8 @@ class fit_catalogue(object):
                 print("Bagpipes:", np.sum(self.done), "out of",
                       self.done.shape[0], "objects completed.")
 
-    def _fit_mpi_serial(self, verbose=False, n_live=400):
+    def _fit_mpi_serial(self, verbose=False, n_live=400,
+                        track_backlog=False, sampler="multinest"):
         """ Run through the catalogue fitting multiple objects at once
         on different cores. """
 
@@ -217,15 +233,24 @@ class fit_catalogue(object):
                     comm.send(None, dest=done_rank)
 
                 # Load posterior for finished object to update catalogue
-                self._fit_object(oldID, mpi_off=True, verbose=False,
-                                 n_live=n_live)
+                self._fit_object(oldID, use_MPI=False, verbose=False,
+                                 n_live=n_live, sampler=sampler)
 
                 save_cat = Table.from_pandas(self.cat)
                 save_cat.write("pipes/cats/" + self.run + ".fits",
                                format="fits", overwrite=True)
 
-                print("Bagpipes:", np.sum(self.done == 2), "out of",
-                      self.done.shape[0], "objects completed.")
+                if track_backlog:
+                    n_done = len(glob("pipes/posterior/" + self.run + "/*.h5"))
+                    n_cat = np.sum(self.cat["stellar_mass_50"] > 0.)
+                    backlog = n_done - n_cat
+
+                    print("Bagpipes:", np.sum(self.done == 2), "out of",
+                          self.done.shape[0], "objects completed.",
+                          "Backlog:", backlog, "/", size-1, "cores")
+                else:
+                    print("Bagpipes:", np.sum(self.done == 2), "out of",
+                          self.done.shape[0], "objects completed.")
 
                 if np.min(self.done) == 2:  # if all objects done end
                     return
@@ -237,8 +262,9 @@ class fit_catalogue(object):
                 if ID is None:  # If no new ID is given then end
                     return
 
-                self._fit_object(ID, mpi_off=True, verbose=False,
-                                 n_live=n_live)
+                self.n_posterior = 5 # hacky, these don't get used
+                self._fit_object(ID, use_MPI=False, verbose=False,
+                                 n_live=n_live, sampler=sampler)
 
                 comm.send([ID, rank], dest=0)  # Tell 0 object is done
 
@@ -272,7 +298,8 @@ class fit_catalogue(object):
             else:
                 self.fit_instructions["redshift"] = self.redshifts[ind]
 
-    def _fit_object(self, ID, verbose=False, n_live=400, mpi_off=False):
+    def _fit_object(self, ID, verbose=False, n_live=400, use_MPI=True,
+                    sampler="multinest", pool=1):
         """ Fit the specified object and update the catalogue. """
 
         # Set the correct redshift for this object
@@ -286,14 +313,19 @@ class fit_catalogue(object):
         # Load up the observational data for this object
         self.galaxy = galaxy(ID, self.load_data, filt_list=filt_list,
                              spectrum_exists=self.spectrum_exists,
-                             photometry_exists=self.photometry_exists)
+                             photometry_exists=self.photometry_exists,
+                             load_indices=self.load_indices,
+                             index_list=self.index_list,
+                             spec_units=self.spec_units,
+                             phot_units=self.phot_units)
 
         # Fit the object
         self.obj_fit = fit(self.galaxy, self.fit_instructions, run=self.run,
                            time_calls=self.time_calls,
                            n_posterior=self.n_posterior)
 
-        self.obj_fit.fit(verbose=verbose, n_live=n_live, mpi_off=mpi_off)
+        self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI,
+                         sampler=sampler, pool=pool)
 
         if rank == 0:
             if self.vars is None:
@@ -323,10 +355,10 @@ class fit_catalogue(object):
 
             for v in self.vars:
 
-                if v is "UV_colour":
+                if v == "UV_colour":
                     values = samples["uvj"][:, 0] - samples["uvj"][:, 1]
 
-                elif v is "VJ_colour":
+                elif v == "VJ_colour":
                     values = samples["uvj"][:, 1] - samples["uvj"][:, 2]
 
                 else:

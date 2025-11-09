@@ -3,7 +3,6 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 from .. import config
-from .. import utils
 
 
 class nebular(object):
@@ -19,9 +18,9 @@ class nebular(object):
         1D array of wavelength values desired for the stellar models.
     """
 
-    def __init__(self, wavelengths):
+    def __init__(self, wavelengths, velshift):
         self.wavelengths = wavelengths
-
+        self.velshift = velshift
         self.combined_grid, self.line_grid = self._setup_grids()
 
     def _setup_grids(self):
@@ -44,8 +43,8 @@ class nebular(object):
 
                 hdu_index = config.metallicities.shape[0]*j + i + 1
 
-                raw_cont_grid = config.cont_grid[hdu_index].data
-                raw_line_grid = config.line_grid[hdu_index].data
+                raw_cont_grid = config.cont_grid[hdu_index]
+                raw_line_grid = config.line_grid[hdu_index]
 
                 line_grid[:, i, j, :] = raw_line_grid[1:, 1:].T
 
@@ -57,7 +56,8 @@ class nebular(object):
 
         # Add the nebular lines to the resampled nebular continuum grid.
         for i in range(config.line_wavs.shape[0]):
-            ind = np.abs(self.wavelengths - config.line_wavs[i]).argmin()
+            line_wav_shift = config.line_wavs[i]*(1+(self.velshift/(3*10**5)))
+            ind = np.abs(self.wavelengths - line_wav_shift).argmin()
             if ind != 0 and ind != self.wavelengths.shape[0]-1:
                 width = (self.wavelengths[ind+1] - self.wavelengths[ind-1])/2
                 comb_grid[ind, :, :, :] += line_grid[i, :, :, :]/width

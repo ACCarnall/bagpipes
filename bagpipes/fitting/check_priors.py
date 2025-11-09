@@ -7,7 +7,7 @@ from copy import deepcopy
 from ..models.star_formation_history import star_formation_history
 from ..models.model_galaxy import model_galaxy
 
-from .prior import prior
+from .prior import prior, dirichlet
 
 
 class check_priors:
@@ -95,11 +95,22 @@ class check_priors:
             if all_vals[i] in all_keys:
                 self.mirror_pars[all_keys[i]] = all_vals[i]
 
+            if all_vals[i] == "dirichlet":
+                n = all_vals[all_keys.index(all_keys[i][:-6])]
+                comp = all_keys[i].split(":")[0]
+                for j in range(1, n):
+                    self.params.append(comp + ":dirichletr" + str(j))
+                    self.pdfs.append("uniform")
+                    self.limits.append((0., 1.))
+                    self.hyper_params.append({})
+
         # Find the dimensionality of the fit
         self.ndim = len(self.params)
 
     def _update_model_components(self, param):
         """ Generates a model object with the current parameters. """
+
+        dirichlet_comps = []
 
         # Substitute values of fit params from param into model_comp.
         for i in range(len(self.params)):
@@ -108,7 +119,12 @@ class check_priors:
                 self.model_components[self.params[i]] = param[i]
 
             elif len(split) == 2:
-                self.model_components[split[0]][split[1]] = param[i]
+                if "dirichlet" in split[1]:
+                    if split[0] not in dirichlet_comps:
+                        dirichlet_comps.append(split[0])
+
+                else:
+                    self.model_components[split[0]][split[1]] = param[i]
 
         # Set any mirror params to the value of the relevant fit param.
         for key in list(self.mirror_pars):
@@ -116,6 +132,29 @@ class check_priors:
             split_val = self.mirror_pars[key].split(":")
             fit_val = self.model_components[split_val[0]][split_val[1]]
             self.model_components[split_par[0]][split_par[1]] = fit_val
+
+        # Deal with any Dirichlet distributed parameters.
+        if len(dirichlet_comps) > 0:
+            comp = dirichlet_comps[0]
+            n_bins = 0
+            for i in range(len(self.params)):
+                split = self.params[i].split(":")
+                if (split[0] == comp) and ("dirichlet" in split[1]):
+                    n_bins += 1
+
+            self.model_components[comp]["r"] = np.zeros(n_bins)
+
+            j = 0
+            for i in range(len(self.params)):
+                split = self.params[i].split(":")
+                if (split[0] == comp) and "dirichlet" in split[1]:
+                    self.model_components[comp]["r"][j] = param[i]
+                    j += 1
+
+            tx = dirichlet(self.model_components[comp]["r"],
+                           self.model_components[comp]["alpha"])
+
+            self.model_components[comp]["tx"] = tx
 
     def get_basic_quantities(self):
         """Calculates basic prior quantities, these are fast as they

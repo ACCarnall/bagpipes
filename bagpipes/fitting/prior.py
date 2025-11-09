@@ -3,7 +3,7 @@ from __future__ import print_function, division, absolute_import
 import numpy as np
 
 from scipy.special import erf, erfinv
-from scipy.stats import beta
+from scipy.stats import beta, t, expon
 
 
 def dirichlet(r, alpha):
@@ -83,6 +83,12 @@ class prior(object):
         value = limits[0] + (limits[1] - limits[0])*value
         return value
 
+    def exponential(self, value, limits, hyper_params):
+        """ Exponential prior in x where x is the parameter. """
+
+        value = expon.ppf(value, scale=hyper_params["scale"])
+        return value
+
     def log_10(self, value, limits, hyper_params):
         """ Uniform prior in log_10(x) where x is the parameter. """
         value = 10**((np.log10(limits[1]/limits[0]))*value
@@ -118,5 +124,26 @@ class prior(object):
         uniform_min = erf((limits[0] - mu)/np.sqrt(2)/sigma)
         value = (uniform_max-uniform_min)*value + uniform_min
         value = sigma*np.sqrt(2)*erfinv(value) + mu
+
+        return value
+
+    def student_t(self, value, limits, hyper_params):
+
+        if "df" in list(hyper_params):
+            df = hyper_params["df"]
+        else:
+            df = 2.
+
+        if "scale" in list(hyper_params):
+            scale = hyper_params["scale"]
+        else:
+            scale = 0.3
+
+        uniform_min = t.cdf(limits[0], df=df, scale=scale)
+        uniform_max = t.cdf(limits[1], df=df, scale=scale)
+
+        value = (uniform_max-uniform_min)*value + uniform_min
+
+        value = t.ppf(value, df=df, scale=scale)
 
         return value

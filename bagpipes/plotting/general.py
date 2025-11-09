@@ -1,5 +1,7 @@
 from __future__ import print_function, division, absolute_import
 
+from shutil import which
+
 import numpy as np
 
 try:
@@ -9,15 +11,14 @@ try:
 except RuntimeError:
     pass
 
-from distutils.spawn import find_executable
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from .. import utils
 
-tex_on = find_executable("latex")
+tex_on = mpl.rcParams["text.usetex"]
 
 if not tex_on:
-    print("Bagpipes: Latex distribution not found, plots may look strange.")
+    print("Bagpipes: Latex turned off in rcParams, plots may look strange.")
 
 
 latex_names = {"redshift": "z",
@@ -103,11 +104,6 @@ def update_rcParams():
 
     if tex_on:
         mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-        mpl.rc('text', usetex=True)
-        mpl.rcParams["text.usetex"] = True
-
-    else:
-        mpl.rcParams["text.usetex"] = False
 
 
 def make_hist_arrays(x, y):
@@ -119,7 +115,8 @@ def make_hist_arrays(x, y):
 
 
 def hist1d(samples, ax, smooth=False, label=None, color="orange",
-           percentiles=True, zorder=4, bins=50):
+           percentiles=True, zorder=4, bins=50, lw=2, color1=None, color2=None,
+           alpha=None):
 
     if color == "orange":
         color1 = "darkorange"
@@ -135,6 +132,11 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         color1 = "blue"
         color2 = "dodgerblue"
         alpha = 0.6
+
+    if color == "gray":
+        color1 = "black"
+        color2 = "gray"
+        alpha = 0.7
 
     if label is not None:
         x_label = fix_param_names([label])
@@ -154,10 +156,10 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         ax.fill_between(x_midp, np.zeros_like(y), y,
                         color=color2, alpha=alpha, zorder=zorder-2)
         ax.plot([x_midp[0], x_midp[0]], [0, y[0]],
-                color=color1, zorder=zorder-1)
+                color=color1, zorder=zorder-1, lw=lw)
 
         ax.plot([x_midp[-1], x_midp[-1]], [0, y[-1]],
-                color=color1, zorder=zorder-1)
+                color=color1, zorder=zorder-1, lw=lw)
 
     else:
         x_hist, y_hist = make_hist_arrays(x, y)
@@ -176,29 +178,30 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
 
 def auto_x_ticks(ax, nticks=5.):
 
-        spacing = 1./nticks
+    spacing = 1./nticks
 
-        width = ax.get_xlim()[1] - ax.get_xlim()[0]
+    width = ax.get_xlim()[1] - ax.get_xlim()[0]
+    tick_locs = np.arange(ax.get_xlim()[0] + spacing/2.*width,
+                          ax.get_xlim()[1], spacing*width)
+
+    if tick_locs.max() < 0:
+        n_decimals = 0
+
+    else:
+        n_decimals = -int(np.log10(tick_locs.max()))+1
+
+    for i in range(tick_locs.shape[0]):
+        tick_locs[i] = np.round(tick_locs[i], decimals=n_decimals)
+
+    while ((tick_locs[1:] - tick_locs[:-1])/width).min() < (1./(nticks+1)):
         tick_locs = np.arange(ax.get_xlim()[0] + spacing/2.*width,
                               ax.get_xlim()[1], spacing*width)
+        n_decimals += 1
 
-        if tick_locs.max() < 0:
-            n_decimals = 0
+    for i in range(tick_locs.shape[0]):
+        tick_locs[i] = np.round(tick_locs[i], decimals=n_decimals)
 
-        else:
-            n_decimals = -int(np.log10(tick_locs.max()))+1
-
-        for i in range(tick_locs.shape[0]):
-            tick_locs[i] = np.round(tick_locs[i], decimals=n_decimals)
-
-        while ((tick_locs[1:] - tick_locs[:-1])/width).min() < (1./(nticks+1)):
-            tick_locs = np.arange(ax.get_xlim()[0] + spacing/2.*width,
-                                  ax.get_xlim()[1], spacing*width)
-            n_decimals += 1
-            for i in range(tick_locs.shape[0]):
-                tick_locs[i] = np.round(tick_locs[i], decimals=n_decimals)
-
-        ax.set_xticks(tick_locs)
+    ax.set_xticks(tick_locs)
 
 
 def fix_param_names(fit_params):
@@ -248,12 +251,12 @@ def auto_axis_label(ax, y_scale, z_non_zero=True, log_x=False):
     if tex_on:
         if z_non_zero:
             ax.set_ylabel("$\\mathrm{f_{\\lambda}}\\ \\mathrm{/\\ 10^{"
-                          + str(y_scale)
+                          + str(int(y_scale))
                           + "}\\ erg\\ s^{-1}\\ cm^{-2}\\ \\AA^{-1}}$")
 
         else:
             ax.set_ylabel("$\\mathrm{f_{\\lambda}}\\ \\mathrm{/\\ 10^{"
-                          + str(y_scale)
+                          + str(int(y_scale))
                           + "}\\ erg\\ s^{-1}\\ \\AA^{-1}}$")
 
         if log_x:

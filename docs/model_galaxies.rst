@@ -23,7 +23,7 @@ In order to obtain predictions for photometric observations of a galaxy with the
 
 This is simply a list of paths (absolute or from the directory in which the code is being run) to the locations at which these filter curves are stored. The filter curve files should contain wavelengths in Angstroms in their first column and relative transmission values in their second.
 
-Let's look at a simple example of some code which creates predictions for photometry through a series of filter curves. For this to work you'd first need to put the filter curve files in the correct location. For sourcing filter curves I recommed the `SVO Filter Profile Service <http://svo2.cab.inta-csic.es/svo/theory/fps>`_.
+Let's look at a simple example of some code that creates predictions for photometry through a series of filter curves. For this to work you'd first need to put the filter curve files in the correct location. For sourcing filter curves I recommed the `SVO Filter Profile Service <http://svo2.cab.inta-csic.es/svo/theory/fps>`_.
 
 .. code:: python
 

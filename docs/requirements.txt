@@ -1,0 +1,12 @@
+astropy
+pybind11
+h5py
+corner
+pymultinest
+msgpack
+pandas
+spectres
+numpy
+scipy
+matplotlib
+sphinx_rtd_theme

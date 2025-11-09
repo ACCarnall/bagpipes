@@ -13,7 +13,7 @@ from .general import *
 from .plot_spectrum import add_spectrum
 
 
-def plot_model_galaxy(model, show=True):
+def plot_model_galaxy(model, show=True, color="default"):
     """ Make a quick plot of an individual model galaxy. """
 
     update_rcParams()
@@ -27,7 +27,7 @@ def plot_model_galaxy(model, show=True):
 
     if model.spec_wavs is not None:
         spec_ax = plt.subplot(gs[0, 0])
-        add_spectrum(model.spectrum, spec_ax,
+        add_spectrum(model.spectrum, spec_ax, color=color,
                      z_non_zero=model.model_comp["redshift"])
 
         axes = [spec_ax]
@@ -49,8 +49,15 @@ def plot_model_galaxy(model, show=True):
     return fig, axes
 
 
-def add_model_photometry(model, ax, x_ticks=None, zorder=4):
+def add_model_photometry(model, ax, x_ticks=None, zorder=4, colorscheme=None):
     """ Adds model photometry to the passed axis. """
+
+    color1 = "navajowhite"
+    color2 = "darkorange"
+
+    if colorscheme == "bw":
+        color1 = "gray"
+        color2 = "black"
 
     # Sort out axis limits
     xmin = np.log10(model.filter_set.eff_wavs.min())-0.025
@@ -69,12 +76,12 @@ def add_model_photometry(model, ax, x_ticks=None, zorder=4):
 
     # Plot the data
     ax.plot(np.log10(redshifted_wavs),
-            model.spectrum_full*10**-y_scale, color="navajowhite",
+            model.spectrum_full*10**-y_scale, color=color1,
             zorder=zorder-1)
 
     ax.scatter(np.log10(model.filter_set.eff_wavs),
                model.photometry*10**-y_scale,
-               color="darkorange", s=150, zorder=zorder)
+               color=color2, s=150, zorder=zorder)
 
     # Sort out x tick locations
     if x_ticks is None:
@@ -119,8 +126,8 @@ def plot_full_spectrum(model, show=True):
     # Set axis labels
     if tex_on:
 
-        ax.set_ylabel("$\\mathrm{log_{10}}\\big(\\mathrm{\\lambda L_{\\lambda}}\\ \\mathrm{/\\ erg"
-                      + "\\ s^{-1}}\\big)$")
+        ax.set_ylabel("$\\mathrm{log_{10}}\\big(\\mathrm{\\lambda "
+                      + "L_{\\lambda}}\\ \\mathrm{/\\ erg\\ s^{-1}}\\big)$")
 
         ax.set_xlabel("$\\mathrm{log_{10}}\\big(\\lambda / \\mathrm{\\AA}"
                       + "\\big)$")

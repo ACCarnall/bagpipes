@@ -36,13 +36,13 @@ class dust_emission(object):
 
         umin_w = np.array([(1 - umin_fact), umin_fact])
 
-        lqpah_only = config.dust_grid_umin_only[qpah_ind].data
-        hqpah_only = config.dust_grid_umin_only[qpah_ind+1].data
+        lqpah_only = config.dust_grid_umin_only[qpah_ind]
+        hqpah_only = config.dust_grid_umin_only[qpah_ind+1]
         tqpah_only = (qpah_fact*hqpah_only[:, umin_ind:umin_ind+2]
                       + (1-qpah_fact)*lqpah_only[:, umin_ind:umin_ind+2])
 
-        lqpah_umax = config.dust_grid_umin_umax[qpah_ind].data
-        hqpah_umax = config.dust_grid_umin_umax[qpah_ind+1].data
+        lqpah_umax = config.dust_grid_umin_umax[qpah_ind]
+        hqpah_umax = config.dust_grid_umin_umax[qpah_ind+1]
         tqpah_umax = (qpah_fact*hqpah_umax[:, umin_ind:umin_ind+2]
                       + (1-qpah_fact)*lqpah_umax[:, umin_ind:umin_ind+2])
 
@@ -52,7 +52,7 @@ class dust_emission(object):
         model = gamma*interp_umax + (1 - gamma)*interp_only
 
         spectrum = np.interp(self.wavelengths,
-                             config.dust_grid_umin_only[1].data[:, 0],
+                             config.dust_grid_umin_only[1][:, 0],
                              model, left=0., right=0.)
 
         return spectrum

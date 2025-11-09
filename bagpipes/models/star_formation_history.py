@@ -9,7 +9,6 @@ except ImportError:
     pass
 
 from scipy.optimize import fsolve
-from copy import copy, deepcopy
 
 from .. import utils
 from .. import config
@@ -125,14 +124,31 @@ class star_formation_history:
         self.stellar_mass = np.log10(np.sum(self.live_frac_grid*self.ceh.grid))
         self.formed_mass = np.log10(np.sum(self.ceh.grid))
 
-        age_mask = (self.ages < 10**8)
+        age_mask = (self.ages < config.sfr_timescale)
         self.sfr = np.sum(self.sfh[age_mask]*self.age_widths[age_mask])
         self.sfr /= self.age_widths[age_mask].sum()
-        self.ssfr = np.log10(self.sfr) - self.stellar_mass
-        self.nsfr = np.log10(self.sfr*self.age_of_universe) - self.formed_mass
+
+        # ssfr and nsfr: if sfr=0, set as nan to avoid divide by 0 warning
+        if self.sfr == 0:
+            self.ssfr = np.nan
+            self.nsfr = np.nan
+        else:
+            self.ssfr = np.log10(self.sfr) - self.stellar_mass
+            self.nsfr = np.log10(self.sfr*self.age_of_universe) - self.stellar_mass
 
         self.mass_weighted_age = np.sum(self.sfh*self.age_widths*self.ages)
         self.mass_weighted_age /= np.sum(self.sfh*self.age_widths)
+
+        # Calculate nth percentile formation time
+        # perc = 90
+        # cum_sfh = np.cumsum(self.sfh*self.age_widths)/np.sum(self.sfh*self.age_widths)
+        # self.tform_percentile = self.ages[np.argmin(np.abs(cum_sfh - (100 - perc)/100.))]  # In years
+
+        self.mass_weighted_zmet = np.sum(self.live_frac_grid*self.ceh.grid,
+                                         axis=1)
+        self.mass_weighted_zmet /= np.sum(self.live_frac_grid*self.ceh.grid)
+        self.mass_weighted_zmet *= config.metallicities
+        self.mass_weighted_zmet = np.sum(self.mass_weighted_zmet)
 
         self.tform = self.age_of_universe - self.mass_weighted_age
 
@@ -163,6 +179,17 @@ class star_formation_history:
             self.live_frac_grid[i, :] = np.interp(config.age_sampling,
                                                   config.raw_stellar_ages,
                                                   raw_live_frac_grid[:, i])
+
+    def massformed_at_redshift(self, redshift):
+        t_hubble_at_z = np.interp(redshift, utils.z_array, utils.age_at_z)
+        t_hubble_at_z *= 10**9
+
+        mass_assembly = np.cumsum(self.sfh[::-1]*self.age_widths[::-1])[::-1]
+
+        indices = np.abs(self.ages - (self.age_of_universe - t_hubble_at_z))
+        ind = np.argmin(indices)
+
+        return np.log10(mass_assembly[ind])
 
     def burst(self, sfr, param):
         """ A delta function burst of star-formation. """
@@ -202,7 +229,11 @@ class star_formation_history:
         else:
             age = (param["tstart"] - self.age_of_universe)*10**9
 
-        tau = param["tau"]*10**9
+        if "tau" in list(param):
+            tau = param["tau"]*10**9
+
+        elif "efolds" in list(param):
+            tau = (param["age"]/param["efolds"])*10**9
 
         t = age - self.ages[self.ages < age]
 
@@ -256,8 +287,12 @@ class star_formation_history:
 
         sfr[mask] = ((t/tau)**alpha + (t/tau)**-beta)**-1
 
-        if tau > self.age_of_universe:
+        # Added 1.5* after Hin tests showing SFH shape was being restricted
+        if 1.5*tau > self.age_of_universe:
             self.unphysical = True
+
+    def iyer(self, sfr, param):
+        self.iyer2019(sfr, param)
 
     def iyer2019(self, sfr, param):
         tx = param["tx"]
@@ -267,6 +302,59 @@ class star_formation_history:
 
         mask = self.ages < self.age_of_universe
         sfr[mask] = np.interp(self.ages[mask], iyer_ages, iyer_sfh[::-1])
+
+    def psb_wild2020(self, sfr, param):
+        """
+        A 2-component SFH for post-starburst galaxies. An exponential
+        compoent represents the existing stellar population before the
+        starburst, while a double power law makes up the burst.
+        The weight of mass formed between the two is controlled by a
+        fburst factor: thefraction of mass formed in the burst.
+        For more detail, see Wild et al. 2020
+        (https://ui.adsabs.harvard.edu/abs/2020MNRAS.494..529W/abstract)
+        """
+        age = param["age"]*10**9
+        tau = param["tau"]*10**9
+        burstage = param["burstage"]*10**9
+        alpha = param["alpha"]
+        beta = param["beta"]
+        fburst = param["fburst"]
+
+        ind = (np.where((self.ages < age) & (self.ages > burstage)))[0]
+        texp = age - self.ages[ind]
+        sfr_exp = np.exp(-texp/tau)
+        sfr_exp_tot = np.sum(sfr_exp*self.age_widths[ind])
+
+        mask = self.ages < self.age_of_universe
+        tburst = self.age_of_universe - self.ages[mask]
+        tau_plaw = self.age_of_universe - burstage
+
+        # using masks to avoid numpy64 float overflow
+        # create mask where we only do calculations when both alpha, beta
+        # elements in Eq5 in Wild et al. 2020 are less than 1e250.
+        # Otherwise, set sfr from the burst component as 0
+        ratio = tburst/tau_plaw
+        mask_overflow = ((np.log10(ratio) * alpha < 250)
+                         & (np.log10(ratio) * -beta < 250))
+
+        sfr_burst = np.zeros_like(tburst)
+        sfr_burst[mask_overflow] = ((tburst[mask_overflow]/tau_plaw)**alpha
+                                    + (tburst[mask_overflow]/tau_plaw)**-beta)**-1
+        sfr_burst_tot = np.sum(sfr_burst*self.age_widths[mask])
+
+        sfr[ind] = (1-fburst) * np.exp(-texp/tau) / sfr_exp_tot
+
+        dpl_form = sfr_burst
+        sfr[mask] += fburst * dpl_form / sfr_burst_tot
+
+    def continuity(self, sfr, param):
+        bin_edges = np.array(param["bin_edges"])[::-1]*10**6
+        n_bins = len(bin_edges) - 1
+        dsfrs = [param["dsfr" + str(i)] for i in range(1, n_bins)]
+
+        for i in range(1, n_bins+1):
+            mask = (self.ages < bin_edges[i-1]) & (self.ages > bin_edges[i])
+            sfr[mask] += 10**np.sum(dsfrs[:i-1])
 
     def custom(self, sfr, param):
         history = param["history"]

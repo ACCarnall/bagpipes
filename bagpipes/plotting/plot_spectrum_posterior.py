@@ -41,14 +41,22 @@ def plot_spectrum_posterior(fit, show=False, save=True):
     return fig, ax
 
 
-def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
+def add_photometry_posterior(fit, ax, zorder=4, y_scale=None, color1=None,
+                             color2=None, skip_no_obs=False,
+                             background_spectrum=True, label=None):
+
+    if color1 == None:
+        color1 = "navajowhite"
+
+    if color2 == None:
+        color2 = "darkorange"
 
     mask = (fit.galaxy.photometry[:, 1] > 0.)
     upper_lims = fit.galaxy.photometry[:, 1] + fit.galaxy.photometry[:, 2]
     ymax = 1.05*np.max(upper_lims[mask])
 
     if not y_scale:
-        y_scale = int(np.log10(ymax))-1
+        y_scale = float(int(np.log10(ymax))-1)
 
     # Calculate posterior median redshift.
     if "redshift" in fit.fitted_model.params:
@@ -61,38 +69,44 @@ def add_photometry_posterior(fit, ax, zorder=4, y_scale=None):
     log_wavs = np.log10(fit.posterior.model_galaxy.wavelengths*(1.+redshift))
     log_eff_wavs = np.log10(fit.galaxy.filter_set.eff_wavs)
 
-    spec_post = np.percentile(fit.posterior.samples["spectrum_full"],
-                              (16, 84), axis=0).T*10**-y_scale
+    if background_spectrum:
+        spec_post = np.percentile(fit.posterior.samples["spectrum_full"],
+                                  (16, 84), axis=0).T*10**-y_scale
 
-    spec_post = spec_post.astype(float) #fixes weird isfinite error
+        spec_post = spec_post.astype(float)  # fixes weird isfinite error
 
-    ax.plot(log_wavs, spec_post[:, 0], color="navajowhite", zorder=zorder-1)
-    ax.plot(log_wavs, spec_post[:, 1], color="navajowhite", zorder=zorder-1)
+        ax.plot(log_wavs, spec_post[:, 0], color=color1,
+                zorder=zorder-1, label=label)
 
-    ax.fill_between(log_wavs, spec_post[:, 0], spec_post[:, 1],
-                    zorder=zorder-1, color="navajowhite", linewidth=0)
+        ax.plot(log_wavs, spec_post[:, 1], color=color1,
+                zorder=zorder-1)
 
+        ax.fill_between(log_wavs, spec_post[:, 0], spec_post[:, 1],
+                        zorder=zorder-1, color=color1, linewidth=0)
 
     phot_post = np.percentile(fit.posterior.samples["photometry"],
                               (16, 84), axis=0).T
 
     for j in range(fit.galaxy.photometry.shape[0]):
+
+        if skip_no_obs and fit.galaxy.photometry[j, 1] == 0.:
+            continue
+
         phot_band = fit.posterior.samples["photometry"][:, j]
         mask = (phot_band > phot_post[j, 0]) & (phot_band < phot_post[j, 1])
         phot_1sig = phot_band[mask]*10**-y_scale
         wav_array = np.zeros(phot_1sig.shape[0]) + log_eff_wavs[j]
 
         if phot_1sig.min() < ymax*10**-y_scale:
-            ax.scatter(wav_array, phot_1sig, color="darkorange",
+            ax.scatter(wav_array, phot_1sig, color=color2,
                        zorder=zorder, alpha=0.05, s=100, rasterized=True)
-
 
 def add_spectrum_posterior(fit, ax, zorder=4, y_scale=None):
 
     ymax = 1.05*np.max(fit.galaxy.spectrum[:, 1])
 
     if not y_scale:
-        y_scale = int(np.log10(ymax))-1
+        y_scale = float(int(np.log10(ymax))-1)
 
     wavs = fit.galaxy.spectrum[:, 0]
     spec_post = np.copy(fit.posterior.samples["spectrum"])

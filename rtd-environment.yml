@@ -1,16 +1,17 @@
 name: bagpipes
 
 dependencies:
-    - python=2.7
-    - astropy=2.0.5
-    - scipy
-    - matplotlib>=2.2.2
-    - numpy>=1.14.2
+    - python
+    - astropy
     - pybind11
+    - h5py
     - pip:
       - corner
       - pymultinest
       - msgpack
-      - deepdish
       - pandas
-      - sphinx_navtree
+      - spectres
+      - numpy==1.22.0
+      - scipy
+      - matplotlib
+      - nautilus-sampler

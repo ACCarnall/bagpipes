@@ -6,12 +6,12 @@ from .. import config
 
 
 def interp_discont(x, xp, fp, xdiscont, left=None, right=None):
-    """Interpolates separately on both sides of a discontinuity (not over it)"""
-    i  = np.searchsorted(x, xdiscont)
+    """Interpolates separately on both sides of a discontinuity, not over it"""
+    i = np.searchsorted(x, xdiscont)
     ip = np.searchsorted(xp, xdiscont)
     y1 = np.interp(x[:i], xp[:ip], fp[:ip], left=left)
     y2 = np.interp(x[i:], xp[ip:], fp[ip:], right=right)
-    y  = np.concatenate([y1, y2])
+    y = np.concatenate([y1, y2])
     return y
 
 
@@ -42,7 +42,7 @@ class igm(object):
                                         config.igm_wavelengths,
                                         config.raw_igm_grid[i, :], 1215.67,
                                         left=0., right=1.)
-                                   
+
         # Make sure the pixel containing Lya is always IGM attenuated
         lya_ind = np.abs(self.wavelengths - 1215.67).argmin()
         if self.wavelengths[lya_ind] > 1215.67:

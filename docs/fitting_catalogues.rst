@@ -21,6 +21,8 @@ Saving of output catalogues
 Parallelisation
 ---------------
 
-Bagpipes now supports parallelisation with MPI using the python package mpi4py. You can run both fit or fit_catalogue with MPI, just do ``mpirun/mpiexec -n nproc python fit_with_bagpipes.py``. The default behaviour is to fit one object at a time using all available cores, this is useful for complicated models (e.g. fitting spectroscopy).
+Bagpipes supports MPI parallelisation using the python package mpi4py. You can run both fit or fit_catalogue using MPI, just do ``mpirun/mpiexec -n nproc python fit_with_bagpipes.py``. The default behaviour is to fit one object at a time using all available cores. This is useful for complicated models (e.g. fitting spectroscopy).
 
-For catalogue fitting an alternative approach is also available, in which multiple objects are fitted at once, each using one core. This option can be activated using the ``mpi_serial`` keyword argument of fit_catalogue. This is better for fitting relatively simple models to large catalogues of photometry. This option currently requires a slightly modified version of pymultinest, which can be downloaded from `this github repository <https://www.github.com/ACCarnall/pymultinest>`_. Please get in touch if you're having difficulty getting this to work.
+For catalogue fitting, an alternative approach is also available, in which multiple objects are fitted at once, each using one core. This option can be activated by setting the ``mpi_serial`` keyword argument of fit_catalogue to True. This is better for fitting relatively simple models to large catalogues of photometry, and can readily be scaled up to fitting catalogues of tens to hundreds of thousands of objects using ~100 cores on a computing cluster.
+
+This feature no longer requires a special distribution of pymultinest, and will work with bagpipes >= v0.8.5 using normal distributions of pymultinest >= v2.11.
