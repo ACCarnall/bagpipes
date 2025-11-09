@@ -73,7 +73,7 @@ class fit_catalogue(object):
     redshifts : list - optional
         List of values for the redshift for each object to be fixed to.
 
-    redshift_sigma : float - optional
+    redshift_sigma : float or array-like - optional
         If this is set, the redshift for each object will be assigned a
         Gaussian prior centred on the value in redshifts with this
         standard deviation. Hard limits will be placed at 3 sigma.
@@ -280,15 +280,18 @@ class fit_catalogue(object):
                     if self.redshift_sigma > 0.:
                         z = self.redshifts[ind]
                         sig = self.redshift_sigma
+                        self.fit_instructions["redshift_prior"] = "Gaussian"
                         self.fit_instructions["redshift_prior_mu"] = z
                         self.fit_instructions["redshift_prior_sigma"] = sig
                         self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
                     else:
                         self.fit_instructions["redshift"] = self.redshifts[ind]
 
-                elif isinstance(self.redshift_sigma, list) & (self.redshift_sigma[ind] > 0.):
+                elif (isinstance(self.redshift_sigma, (list, np.ndarray))
+                      & (self.redshift_sigma[ind] > 0.)):
                     z = self.redshifts[ind]
                     sig = self.redshift_sigma[ind]
+                    self.fit_instructions["redshift_prior"] = "Gaussian"
                     self.fit_instructions["redshift_prior_mu"] = z
                     self.fit_instructions["redshift_prior_sigma"] = sig
                     self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)

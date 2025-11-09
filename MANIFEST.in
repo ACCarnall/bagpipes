@@ -3,6 +3,4 @@ include bagpipes/models/grids/dl07*.fits
 include bagpipes/models/grids/*.txt
 include bagpipes/filters/UVJ/*.dat
 include bagpipes/filters/UVJ.filt_list
-include bagpipes/moons/wavs/*.txt
-include bagpipes/moons/filters/*
 include LICENSE.txt
