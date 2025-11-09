@@ -22,7 +22,7 @@ class chemical_enrichment_history(object):
 
             zmet_keys = ['metallicity_type', 'metallicity_scatter']
 
-            if all(zmet_keys not in model_comp[comp].keys()):
+            if all(key not in model_comp[comp].keys() for key in zmet_keys):
                 self.grid_comp[comp] = self.delta(model_comp[comp],
                                                   sfh_weights[comp])
 
