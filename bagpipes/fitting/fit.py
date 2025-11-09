@@ -252,6 +252,16 @@ class fit(object):
             if sampler == "multinest":
                 multinest_fname = self.fname + 'post_equal_weights.dat'
                 samples2d = _read_multinest_data(multinest_fname)
+                if np.all(samples2d[:, -1] < 1e-300):
+                    raise RuntimeError("Bagpipes loaded a corrupted Multinest "
+                                       "posterior. This is usually because the "
+                                       "bagpipes likelihood function returned "
+                                       "only NaNs. Common causes are bad input "
+                                       "data, e.g., zero errors, or config.max_"
+                                       "redshift set too low. Once fixed, you "
+                                       "will need to delete the corrupted "
+                                       "MultiNest files in pipes/posterior.")
+
                 lnz_line = open(self.fname + "stats.dat").readline().split()
                 self.results["samples2d"] = samples2d[:, :-1]
                 self.results["lnlike"] = samples2d[:, -1]
