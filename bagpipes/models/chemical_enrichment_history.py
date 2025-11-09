@@ -40,7 +40,36 @@ class chemical_enrichment_history(object):
 
             self.grid += self.grid_comp[comp]
 
+    def delta(self, comp, sfh, zmet=None, nested=False):
+        """ Delta function metallicity history, default unless specified. """
+
+        if zmet is None:
+            zmet = comp["metallicity"]
+
+        weights = np.zeros(self.zmet_vals.shape[0])
+
+        high_ind = self.zmet_vals[self.zmet_vals < zmet].shape[0]
+
+        if high_ind == self.zmet_vals.shape[0]:
+            weights[-1] = 1.
+
+        elif high_ind == 0:
+            weights[0] = 1.
+
+        else:
+            low_ind = high_ind - 1
+            width = (self.zmet_vals[high_ind] - self.zmet_vals[low_ind])
+            weights[high_ind] = (zmet - self.zmet_vals[low_ind])/width
+            weights[high_ind-1] = 1 - weights[high_ind]
+
+        if nested:
+            return weights
+        else:
+            return np.expand_dims(weights, axis=1)*np.expand_dims(sfh, axis=0)
+
     def metallicity_bins(self, comp, sfh):
+        """ Different metallicities in each specificed time bin. """
+
         bin_edges = np.array(comp["bin_edges"])[::-1]*10**6
         n_bins = len(bin_edges) - 1
         ages = config.age_sampling
@@ -71,6 +100,8 @@ class chemical_enrichment_history(object):
         return grid*sfh
 
     def metallicity_bins_continuity(self, comp, sfh):
+        """ Work like Leja continuity SFH, zmet varies with dirichlet prior. """
+
         bin_edges = np.array(comp["bin_edges"])[::-1]*10**6
         n_bins = len(bin_edges) - 1
         ages = config.age_sampling
@@ -104,35 +135,8 @@ class chemical_enrichment_history(object):
 
         return grid*sfh
 
-    def delta(self, comp, sfh, zmet=None, nested=False):
-        """ Delta function metallicity history. """
-
-        if zmet is None:
-            zmet = comp["metallicity"]
-
-        weights = np.zeros(self.zmet_vals.shape[0])
-
-        high_ind = self.zmet_vals[self.zmet_vals < zmet].shape[0]
-
-        if high_ind == self.zmet_vals.shape[0]:
-            weights[-1] = 1.
-
-        elif high_ind == 0:
-            weights[0] = 1.
-
-        else:
-            low_ind = high_ind - 1
-            width = (self.zmet_vals[high_ind] - self.zmet_vals[low_ind])
-            weights[high_ind] = (zmet - self.zmet_vals[low_ind])/width
-            weights[high_ind-1] = 1 - weights[high_ind]
-
-        if nested:
-            return weights
-        else:
-            return np.expand_dims(weights, axis=1)*np.expand_dims(sfh, axis=0)
-
     def exp(self, comp, sfh, zmet=None, nested=False):
-        """ P(Z) = exp(-z/z_mean). Currently no age dependency! """
+        """ zmet distributed like P(Z) = exp(-z/z_mean), no age dependency. """
 
         if zmet is None:
             mean_zmet = comp["metallicity"]
@@ -157,7 +161,7 @@ class chemical_enrichment_history(object):
 
     def lognorm(self, comp, sfh, zmet=None, nested=False):
         """
-        log normal metallicity distribution of coeval stars.
+        log normal metallicity distribution for coeval stars.
         Functional form:
         P(x) = 1/(x*sigma*np.sqrt(2*np.pi))
                * np.exp(-(np.log(x)-mu)**2/(2*sigma**2))
