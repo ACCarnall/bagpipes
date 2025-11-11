@@ -120,6 +120,11 @@ class fitted_model(object):
             self.K_phot = -0.5*np.sum(log_error_factors)
             self.inv_sigma_sq_phot = 1./self.galaxy.photometry[:, 2]**2
 
+        if self.galaxy.line_labels is not None:
+            log_error_factors = np.log(2*np.pi*self.galaxy.line_fluxes[:, 1]**2)
+            self.K_lines = -0.5*np.sum(log_error_factors)
+            self.inv_sigma_sq_lines = 1./self.galaxy.line_fluxes[:, 1]**2
+
         if self.galaxy.index_list is not None:
             log_error_factors = np.log(2*np.pi*self.galaxy.indices[:, 1]**2)
             self.K_ind = -0.5*np.sum(log_error_factors)
@@ -159,6 +164,9 @@ class fitted_model(object):
 
         if self.galaxy.photometry_exists:
             lnlike += self._lnlike_phot()
+
+        if self.galaxy.line_labels is not None:
+            lnlike += self._lnlike_line_fluxes()
 
         if self.galaxy.index_list is not None:
             lnlike += self._lnlike_indices()
@@ -242,6 +250,18 @@ class fitted_model(object):
                 K_spec = 0.
 
             return K_spec - 0.5*self.chisq_spec
+
+    def _lnlike_line_fluxes(self):
+        """ Calculates the log-likelihood for spectral indices. """
+
+        labels = self.galaxy.line_labels
+        model_line_fluxes = [self.model_galaxy.line_fluxes[l] for l in labels]
+        model_line_fluxes = np.array(model_line_fluxes)
+
+        diff = (self.galaxy.line_fluxes[:, 0] - model_line_fluxes)**2
+        self.chisq_lines = np.sum(diff*self.inv_sigma_sq_lines)
+
+        return self.K_lines - 0.5*self.chisq_lines
 
     def _lnlike_indices(self):
         """ Calculates the log-likelihood for spectral indices. """

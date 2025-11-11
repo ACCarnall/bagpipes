@@ -54,6 +54,14 @@ class galaxy:
         Units to convert the inputs to within the class. Defaults to
         ergs s^-1 cm^-2 A^-1, "ergscma".
 
+    load_line_fluxes : function - optional
+        Load observed line fluxes for a galaxy. The function should
+        return a list of line labels in Cloudy format, as well as an
+        array with a column of flux values in erg/s/cm^2/AA and a column
+        of corresponding uncertainties in the same units. It is not
+        recommended to use this functionality at the same time as loading
+        and fitting observed spectroscopic data with the code.
+
     index_list : list - optional
         list of dicts containining definitions for spectral indices.
 
@@ -72,10 +80,11 @@ class galaxy:
 
     """
 
-    def __init__(self, ID, load_data, spec_units="ergscma", phot_units="mujy",
+    def __init__(self, ID, load_data=None, spec_units="ergscma", phot_units="mujy",
                  spectrum_exists=True, photometry_exists=True, filt_list=None,
-                 out_units="ergscma", load_indices=None, index_list=None,
-                 index_redshift=None, input_spec_cov_matrix=False):
+                 out_units="ergscma", load_line_fluxes=None, load_indices=None,
+                 index_list=None, index_redshift=None,
+                 input_spec_cov_matrix=False):
 
         self.ID = str(ID)
         self.phot_units = phot_units
@@ -85,28 +94,27 @@ class galaxy:
         self.photometry_exists = photometry_exists
         self.filt_list = filt_list
         self.spec_wavs = None
+        self.line_labels = None
         self.index_list = index_list
         self.index_redshift = index_redshift
 
         # Attempt to load the data from the load_data function.
-        try:
-            if not spectrum_exists and not photometry_exists:
-                raise ValueError("Bagpipes: Object must have some data.")
+        if spectrum_exists or photometry_exists:
+            try:
+                if not photometry_exists:
+                    self.spectrum = load_data(self.ID)
 
-            elif spectrum_exists and not photometry_exists:
-                self.spectrum = load_data(self.ID)
+                elif not spectrum_exists:
+                    phot_nowavs = load_data(self.ID)
 
-            elif photometry_exists and not spectrum_exists:
-                phot_nowavs = load_data(self.ID)
+                else:
+                    self.spectrum, phot_nowavs = load_data(self.ID)
 
-            else:
-                self.spectrum, phot_nowavs = load_data(self.ID)
-
-        except ValueError:
-                print("load_data did not return expected outputs, did you "
-                      "remember to set photometry_exists/spectrum_exists to "
-                      "false?")
-                raise
+            except TypeError:
+                    print("load_data did not return expected outputs, did you "
+                          "forget to set one or both of photometry_exists and "
+                          "spectrum_exists to False?")
+                    raise
 
         # If photometry is provided, add filter effective wavelengths to array
         if self.photometry_exists:
@@ -149,6 +157,10 @@ class galaxy:
                 self.spectrum = self.spectrum[startn:-endn, :]
 
             self.spec_wavs = self.spectrum[:, 0]
+
+        # Deal with loading any emission line fluxes
+        if load_line_fluxes is not None:
+            self.line_labels, self.line_fluxes = load_line_fluxes(self.ID)
 
         # Deal with any spectral index calculations.
         if load_indices is not None:

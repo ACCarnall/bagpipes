@@ -173,7 +173,11 @@ class model_galaxy(object):
 
         max_z = config.max_redshift
 
-        if self.spec_wavs is None:
+        if self.spec_wavs is None and self.filt_list is None:
+            self.max_wavs = [10**8]
+            self.R = [config.R_other]
+
+        elif self.spec_wavs is None:
             self.max_wavs = [(self.filter_set.min_phot_wav
                               / (1.+max_z)),
                              1.01*self.filter_set.max_phot_wav, 10**8]
