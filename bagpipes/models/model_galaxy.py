@@ -420,10 +420,11 @@ class model_galaxy(object):
             if "eta" in list(model_comp["dust"]):
                 eta = model_comp["dust"]["eta"]
                 bc_Av_reduced = (eta - 1.)*model_comp["dust"]["Av"]
-                if self.dust_atten.two_component:
+                if self.dust_atten.type == "VW07":
                     bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont_bc/2.5)
                 else:
                     bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont/2.5)
+
                 spectrum_bc_dust = spectrum_bc*bc_trans_red
                 dust_flux += np.trapz(spectrum_bc - spectrum_bc_dust,
                                       x=self.wavelengths)
@@ -431,8 +432,16 @@ class model_galaxy(object):
                 spectrum_bc = spectrum_bc_dust
 
             # Attenuate emission line fluxes.
-            bc_Av = eta*model_comp["dust"]["Av"]
-            em_lines *= 10**(-bc_Av*self.dust_atten.A_line/2.5)
+            if self.dust_atten.type == "VW07":
+                Av = model_comp["dust"]["Av"]
+                # Apply birth cloud attenuation first
+                em_lines *= 10**(-bc_Av_reduced*self.dust_atten.A_line_bc/2.5)
+                # Then apply general ISM attenuation
+                em_lines *= 10**(-Av*self.dust_atten.A_line_ism/2.5)
+                print("flarflarfl")
+            else:
+                bc_Av = eta*model_comp["dust"]["Av"]
+                em_lines *= 10**(-bc_Av*self.dust_atten.A_line/2.5)
 
         spectrum += spectrum_bc  # Add birth cloud spectrum to spectrum.
 

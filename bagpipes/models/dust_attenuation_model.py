@@ -30,7 +30,6 @@ class dust_attenuation(object):
     def __init__(self, wavelengths, param):
         self.wavelengths = wavelengths
         self.type = param["type"]
-        self.two_component = False
 
         # Pre-compute dust curve shape if fixed for the chosen model.
         if self.type == "Calzetti":
@@ -50,17 +49,20 @@ class dust_attenuation(object):
             self.A_cont_calz = self._calzetti(wavelengths)
             self.A_line_calz = self._calzetti(config.line_wavs)
 
+        elif self.type == "VW07":
+            self.A_cont, self.A_line_bc, self.A_cont_bc, self.A_line_ism = self.VW07()
+
         # Call update method (does nothing for Calzetti and Cardelli)
         self.update(param)
 
     def update(self, param):
 
         # Fixed-shape dust laws are pre-computed in __init__.
-        if self.type in ["Calzetti", "Cardelli", "SMC"]:
+        if self.type in ["Calzetti", "Cardelli", "SMC", "VW07"]:
             return
 
         # Variable shape dust laws have to be computed every time.
-        self.A_cont, self.A_line, self.A_cont_bc = getattr(self, self.type)(param)
+        self.A_cont, self.A_line= getattr(self, self.type)(param)
 
     def CF00(self, param):
         """ Modified Charlot + Fall (2000) model of Carnall et al.
@@ -68,8 +70,7 @@ class dust_attenuation(object):
         A_cont = (5500./self.wavelengths)**param["n"]
         A_line = (5500./config.line_wavs)**param["n"]
 
-        # Third output is A_cont_bc, None for single-component dust laws
-        return A_cont, A_line, None
+        return A_cont, A_line
 
     def Salim(self, param):
         delta = param["delta"]
@@ -86,10 +87,9 @@ class dust_attenuation(object):
         A_line = self.A_line_calz*Rv_m*(config.line_wavs/5500.)**delta + drude
         A_line /= Rv_m
 
-        # Third output is A_cont_bc, None for single-component dust laws
-        return A_cont, A_line, None
+        return A_cont, A_line
 
-    def VW07(self, param):
+    def VW07(self):
         """
         Two component dust law based on Charlot + Fall (2000) model,
         Stars still embedded in birth clouds (age < 10Myr) have steeper
@@ -100,11 +100,10 @@ class dust_attenuation(object):
         """
         A_cont = (5500./self.wavelengths)**0.7
         A_cont_bc = (5500./self.wavelengths)**1.3
-        A_line = (5500./config.line_wavs)**1.3
+        A_line_bc = (5500./config.line_wavs)**1.3
+        A_line_ism = (5500./config.line_wavs)**0.7
 
-        self.two_component = True
-
-        return A_cont, A_line, A_cont_bc
+        return A_cont, A_line_bc, A_cont_bc, A_line_ism
 
     def _cardelli(self, wavs):
         """ Calculate the ratio A(lambda)/A(V) for the Cardelli et al.
