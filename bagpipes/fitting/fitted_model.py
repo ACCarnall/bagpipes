@@ -80,15 +80,15 @@ class fitted_model(object):
                 if isinstance(all_vals[i], tuple):
                     self.params.append(all_keys[i])
                     self.limits.append(all_vals[i])  # Limits on prior.
-    
+
                     # Prior probability densities between these limits.
                     prior_key = all_keys[i] + "_prior"
                     if prior_key in list(all_keys):
                         self.pdfs.append(all_vals[all_keys.index(prior_key)])
-    
+
                     else:
                         self.pdfs.append("uniform")
-    
+
                     # Any hyper-parameters of these prior distributions.
                     self.hyper_params.append({})
                     for i in range(len(all_keys)):
@@ -99,7 +99,7 @@ class fitted_model(object):
                 # Find any parameters which mirror the value of a fit param.
                 if all_vals[i] in all_keys:
                     self.mirror_pars[all_keys[i]] = all_vals[i]
-    
+
                 if all_vals[i] == "dirichlet":
                     n = all_vals[all_keys.index(all_keys[i][:-6])]
                     comp = all_keys[i].split(":")[0]
@@ -119,6 +119,11 @@ class fitted_model(object):
             log_error_factors = np.log(2*np.pi*self.galaxy.photometry[:, 2]**2)
             self.K_phot = -0.5*np.sum(log_error_factors)
             self.inv_sigma_sq_phot = 1./self.galaxy.photometry[:, 2]**2
+
+        if self.galaxy.line_labels is not None:
+            log_error_factors = np.log(2*np.pi*self.galaxy.line_fluxes[:, 1]**2)
+            self.K_lines = -0.5*np.sum(log_error_factors)
+            self.inv_sigma_sq_lines = 1./self.galaxy.line_fluxes[:, 1]**2
 
         if self.galaxy.index_list is not None:
             log_error_factors = np.log(2*np.pi*self.galaxy.indices[:, 1]**2)
@@ -141,12 +146,15 @@ class fitted_model(object):
             self.model_galaxy = model_galaxy(self.model_components,
                                              filt_list=self.galaxy.filt_list,
                                              spec_wavs=self.galaxy.spec_wavs,
-                                             index_list=self.galaxy.index_list)
+                                             index_list=self.galaxy.index_list,
+                                             spec_units=self.galaxy.spec_units,
+                                             phot_units=self.galaxy.phot_units)
 
         self.model_galaxy.update(self.model_components)
 
         # Return zero likelihood if SFH is older than the universe.
         if self.model_galaxy.sfh.unphysical:
+            self.chisq_phot = np.nan
             return -9.99*10**99
 
         lnlike = 0.
@@ -156,6 +164,9 @@ class fitted_model(object):
 
         if self.galaxy.photometry_exists:
             lnlike += self._lnlike_phot()
+
+        if self.galaxy.line_labels is not None:
+            lnlike += self._lnlike_line_fluxes()
 
         if self.galaxy.index_list is not None:
             lnlike += self._lnlike_indices()
@@ -239,6 +250,18 @@ class fitted_model(object):
                 K_spec = 0.
 
             return K_spec - 0.5*self.chisq_spec
+
+    def _lnlike_line_fluxes(self):
+        """ Calculates the log-likelihood for spectral indices. """
+
+        labels = self.galaxy.line_labels
+        model_line_fluxes = [self.model_galaxy.line_fluxes[l] for l in labels]
+        model_line_fluxes = np.array(model_line_fluxes)
+
+        diff = (self.galaxy.line_fluxes[:, 0] - model_line_fluxes)**2
+        self.chisq_lines = np.sum(diff*self.inv_sigma_sq_lines)
+
+        return self.K_lines - 0.5*self.chisq_lines
 
     def _lnlike_indices(self):
         """ Calculates the log-likelihood for spectral indices. """

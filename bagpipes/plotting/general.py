@@ -15,10 +15,10 @@ from scipy.ndimage import gaussian_filter
 
 from .. import utils
 
-tex_on = which("latex")
+tex_on = mpl.rcParams["text.usetex"]
 
 if not tex_on:
-    print("Bagpipes: Latex distribution not found, plots may look strange.")
+    print("Bagpipes: Latex turned off in rcParams, plots may look strange.")
 
 
 latex_names = {"redshift": "z",
@@ -104,11 +104,6 @@ def update_rcParams():
 
     if tex_on:
         mpl.rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-        mpl.rc('text', usetex=True)
-        mpl.rcParams["text.usetex"] = True
-
-    else:
-        mpl.rcParams["text.usetex"] = False
 
 
 def make_hist_arrays(x, y):

@@ -23,8 +23,12 @@ This is very similar to the :ref:`model_components <model-components>` dictionar
 Running the sampler
 -------------------
 
-The MultiNest nested sampling algorithm can be run in order to sample from the posterior distribution using the ``fit`` method of the ``fit`` class. Nested sampling is similar to MCMC with a few key differences, for example no initial starting parameters are necessary.
+The MultiNest nested sampling algorithm can be run in order to sample from the posterior distribution using the ``fit`` method of the ``fit`` class. Nested sampling is similar to MCMC with a few key differences, for example no initial starting parameters are necessary. The code is now also compatible with the Nautilus sampling algorithm, which can be selected with the ``sampler`` keyword argument.
 
+Resuming previous fitting runs
+-------------------------------
+
+It is worth noting that, by default, both samplers will resume fitting where possible using progress files that are automatically stored in pipes/posterior/<your run name>. This is often helpful when fitting is accidentally interrupted, but can lead to issues if you find a bug in your code and need to start fresh. To avoid this, you'll need to delete the relevant progress files.
 
 Obtaining fitting results
 -------------------------

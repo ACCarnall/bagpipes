@@ -73,7 +73,7 @@ class fit_catalogue(object):
     redshifts : list - optional
         List of values for the redshift for each object to be fixed to.
 
-    redshift_sigma : float - optional
+    redshift_sigma : float or array-like - optional
         If this is set, the redshift for each object will be assigned a
         Gaussian prior centred on the value in redshifts with this
         standard deviation. Hard limits will be placed at 3 sigma.
@@ -97,7 +97,7 @@ class fit_catalogue(object):
 
     def __init__(self, IDs, fit_instructions, load_data, spectrum_exists=True,
                  photometry_exists=True, make_plots=False, cat_filt_list=None,
-                 vary_filt_list=False, redshifts=None, redshift_sigma=0.,
+                 vary_filt_list=False, redshifts=None, redshift_sigma=None,
                  run=".", analysis_function=None, time_calls=False,
                  n_posterior=500, full_catalogue=False, load_indices=None,
                  index_list=None, track_backlog=False, spec_units="ergscma",
@@ -275,13 +275,28 @@ class fit_catalogue(object):
         if self.redshifts is not None:
             ind = np.argmax(self.IDs == ID)
 
-            if self.redshift_sigma > 0.:
-                z = self.redshifts[ind]
-                sig = self.redshift_sigma
-                self.fit_instructions["redshift_prior"] = "Gaussian"
-                self.fit_instructions["redshift_prior_mu"] = z
-                self.fit_instructions["redshift_prior_sigma"] = sig
-                self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
+            if self.redshift_sigma is not None:
+                if isinstance(self.redshift_sigma, float):
+                    if self.redshift_sigma > 0.:
+                        z = self.redshifts[ind]
+                        sig = self.redshift_sigma
+                        self.fit_instructions["redshift_prior"] = "Gaussian"
+                        self.fit_instructions["redshift_prior_mu"] = z
+                        self.fit_instructions["redshift_prior_sigma"] = sig
+                        self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
+                    else:
+                        self.fit_instructions["redshift"] = self.redshifts[ind]
+
+                elif (isinstance(self.redshift_sigma, (list, np.ndarray))
+                      & (self.redshift_sigma[ind] > 0.)):
+                    z = self.redshifts[ind]
+                    sig = self.redshift_sigma[ind]
+                    self.fit_instructions["redshift_prior"] = "Gaussian"
+                    self.fit_instructions["redshift_prior_mu"] = z
+                    self.fit_instructions["redshift_prior_sigma"] = sig
+                    self.fit_instructions["redshift"] = (z - 3*sig, z + 3*sig)
+                else:
+                    self.fit_instructions["redshift"] = self.redshifts[ind]
 
             else:
                 self.fit_instructions["redshift"] = self.redshifts[ind]

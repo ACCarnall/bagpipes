@@ -2,6 +2,7 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 import os
+import re
 import time
 import warnings
 import h5py
@@ -41,6 +42,41 @@ from .. import plotting
 
 from .fitted_model import fitted_model
 from .posterior import posterior
+
+
+def _read_multinest_data(filename):
+    """
+    Read MultiNest data.
+
+    By default, Fortran drops the "E" symbol for 3-digit exponent output
+    (e.g., '0.148232-104'). This impacts the output files currently
+    being written by MultiNest. For such caes, this reader inserts
+    the "E" symbol into the number string so that the number can be
+    converted to a float.
+
+    Parameters
+    ----------
+    filename : str
+        The filename to read.
+    """
+    # count the columns in the first row of data;
+    # without a converter, genfromtxt will read 3-digit exponents as np.nan
+    ncolumns = np.genfromtxt(filename, max_rows=1).shape[0]
+
+    # insert "E" before the "+" or "-" exponent symbol if it is missing,
+    # so the string can be converted to a float
+    # '1.148232-104'  -> 1.148232e-104
+    # '1.148232+104'  -> 1.148232e+104
+    # '-1.148232-104' -> -1.148232e-104
+    # '+1.148232+104' -> 1.148232e+104
+    # '0.148232-104'  -> 1.482320e-105
+    # '0.148232E-10'  -> 1.482320e-011
+    # '1.148232'      -> 1.48232e+000
+    convert = lambda s: float(re.sub(r'(\d)([\+\-])(\d)', r'\1E\2\3',
+                                     s.decode()))
+    converters = dict(zip(range(ncolumns), [convert] * ncolumns))
+
+    return np.genfromtxt(filename, converters=converters)
 
 
 class fit(object):
@@ -214,7 +250,18 @@ class fit(object):
 
             # Load MultiNest outputs and save basic quantities to file.
             if sampler == "multinest":
-                samples2d = np.loadtxt(self.fname + "post_equal_weights.dat")
+                multinest_fname = self.fname + 'post_equal_weights.dat'
+                samples2d = _read_multinest_data(multinest_fname)
+                if np.all(samples2d[:, -1] < 1e-300):
+                    raise RuntimeError("Bagpipes loaded a corrupted Multinest "
+                                       "posterior. This is usually because the "
+                                       "bagpipes likelihood function returned "
+                                       "only NaNs. Common causes are bad input "
+                                       "data, e.g., zero errors, or config.max_"
+                                       "redshift set too low. Once fixed, you "
+                                       "will need to delete the corrupted "
+                                       "MultiNest files in pipes/posterior.")
+
                 lnz_line = open(self.fname + "stats.dat").readline().split()
                 self.results["samples2d"] = samples2d[:, :-1]
                 self.results["lnlike"] = samples2d[:, -1]
