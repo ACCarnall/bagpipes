@@ -17,46 +17,10 @@ from .dust_emission_model import dust_emission
 from .dust_attenuation_model import dust_attenuation
 from .nebular_model import nebular
 from .igm_model import igm
+from .dla_model import dla_trans
 from .agn_model import agn
 from .star_formation_history import star_formation_history
 from ..input.spectral_indices import measure_index
-
-
-# The Voigt-Hjerting profile based on the numerical approximation by Garcia
-def H(a, x):
-    P = x**2
-    H0 = np.exp(-x**2)
-    Q = 1.5*x**(-2)
-    return H0 - a / np.sqrt(np.pi) /\
-    P * (H0 ** 2 * (4. * P**2 + 7. * P + 4. + Q) - Q - 1.0)
-
-
-def addAbs(wl_mod, t, zabs):
-    """
-    A function that calculates the absorption from foreground source:
-        wl_mod: list, wavelength values in units of Å
-        t: float, hydrogen column density in units of cm^{-2}
-        zabs: float, redshift of absorption source
-    Returns:
-        exp(-tau): float, absorption fraction
-    """
-    # Constants
-    m_e = 9.1095e-28
-    e = 4.8032e-10
-    c = 2.998e10
-    lamb = 1215.67
-    f = 0.416
-    gamma = 6.265e8
-    broad = 1
-
-    C_a = np.sqrt(np.pi) * e**2 * f * lamb * 1E-8 / m_e / c / broad
-    a = lamb * 1.E-8 * gamma / (4.*np.pi * broad)
-    dl_D = broad/c * lamb
-    x = (wl_mod/(zabs+1.0) - lamb)/dl_D+0.01
-
-    # Optical depth
-    tau = np.array([C_a * t * H(a, x)], dtype=np.float64)
-    return np.exp(-tau)[0]
 
 
 class model_galaxy(object):
@@ -138,7 +102,6 @@ class model_galaxy(object):
         self.igm = igm(self.wavelengths)
         self.nebular = False
         self.dust_atten = False
-        self.agn_dust_atten = False
         self.dust_emission = False
         self.agn = False
 
@@ -157,10 +120,6 @@ class model_galaxy(object):
             self.dust_atten = dust_attenuation(self.wavelengths,
                                                model_components["dust"])
 
-        if "agn_dust" in list(model_components):
-            self.agn_dust_atten = dust_attenuation(self.wavelengths,
-                                                   model_components["agn_dust"])
-
         if "agn" in list(model_components):
             self.agn = agn(self.wavelengths)
 
@@ -173,11 +132,7 @@ class model_galaxy(object):
 
         max_z = config.max_redshift
 
-        if self.spec_wavs is None and self.filt_list is None:
-            self.max_wavs = [10**8]
-            self.R = [config.R_other]
-
-        elif self.spec_wavs is None:
+        if self.spec_wavs is None:
             self.max_wavs = [(self.filter_set.min_phot_wav
                               / (1.+max_z)),
                              1.01*self.filter_set.max_phot_wav, 10**8]
@@ -212,8 +167,8 @@ class model_galaxy(object):
                 self.R = [config.R_other, config.R_spec,
                           config.R_phot, config.R_other]
 
-            elif (self.spec_wavs[0] > self.filter_set.min_phot_wav
-                  and self.spec_wavs[-1] > self.filter_set.max_phot_wav):
+            if (self.spec_wavs[0] > self.filter_set.min_phot_wav
+                    and self.spec_wavs[-1] > self.filter_set.max_phot_wav):
 
                 self.max_wavs = [self.filter_set.min_phot_wav/(1.+max_z),
                                  self.spec_wavs[0]/(1.+max_z),
@@ -221,14 +176,6 @@ class model_galaxy(object):
 
                 self.R = [config.R_other, config.R_phot,
                           config.R_spec, config.R_other]
-
-            elif (self.spec_wavs[0] < self.filter_set.min_phot_wav
-                  and self.spec_wavs[-1] > self.filter_set.max_phot_wav):
-
-                self.max_wavs = [self.spec_wavs[0]/(1.+max_z),
-                                 self.spec_wavs[-1], 10**8]
-
-                self.R = [config.R_other, config.R_spec, config.R_other]
 
         # Generate the desired wavelength sampling.
         x = [1.]
@@ -323,8 +270,6 @@ class model_galaxy(object):
         self.sfh.update(model_components)
         if self.dust_atten:
             self.dust_atten.update(model_components["dust"])
-        if self.agn_dust_atten:
-            self.agn_dust_atten.update(model_components["agn_dust"])
 
         # If the SFH is unphysical do not caclulate the full spectrum
         if self.sfh.unphysical:
@@ -346,10 +291,6 @@ class model_galaxy(object):
             self.agn.update(self.model_comp["agn"])
             agn_spec = self.agn.spectrum
             agn_spec *= self.igm.trans(self.model_comp["redshift"])
-
-            if self.agn_dust_atten:
-                agn_trans = 10**(-self.model_comp["agn_dust"]["Av"]*self.agn_dust_atten.A_cont/2.5)
-                agn_spec *= agn_trans
 
             self.spectrum_full += agn_spec/(1. + self.model_comp["redshift"])
 
@@ -420,11 +361,7 @@ class model_galaxy(object):
             if "eta" in list(model_comp["dust"]):
                 eta = model_comp["dust"]["eta"]
                 bc_Av_reduced = (eta - 1.)*model_comp["dust"]["Av"]
-                if self.dust_atten.type == "VW07":
-                    bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont_bc/2.5)
-                else:
-                    bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont/2.5)
-
+                bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont/2.5)
                 spectrum_bc_dust = spectrum_bc*bc_trans_red
                 dust_flux += np.trapz(spectrum_bc - spectrum_bc_dust,
                                       x=self.wavelengths)
@@ -432,16 +369,8 @@ class model_galaxy(object):
                 spectrum_bc = spectrum_bc_dust
 
             # Attenuate emission line fluxes.
-            if self.dust_atten.type == "VW07":
-                Av = model_comp["dust"]["Av"]
-                # Apply birth cloud attenuation first
-                em_lines *= 10**(-bc_Av_reduced*self.dust_atten.A_line_bc/2.5)
-                # Then apply general ISM attenuation
-                em_lines *= 10**(-Av*self.dust_atten.A_line_ism/2.5)
-                print("flarflarfl")
-            else:
-                bc_Av = eta*model_comp["dust"]["Av"]
-                em_lines *= 10**(-bc_Av*self.dust_atten.A_line/2.5)
+            bc_Av = eta*model_comp["dust"]["Av"]
+            em_lines *= 10**(-bc_Av*self.dust_atten.A_line/2.5)
 
         spectrum += spectrum_bc  # Add birth cloud spectrum to spectrum.
 
@@ -470,13 +399,21 @@ class model_galaxy(object):
 
         spectrum *= self.igm.trans(model_comp["redshift"])
 
-        if "dla" in list(model_comp):
-            spectrum *= addAbs(self.wavelengths*self.model_comp["redshift"],
-                               self.model_comp["dla"]["t"],
-                               self.model_comp["dla"]["zabs"])
-
         if self.dust_atten:
             self.spectrum_bc *= self.igm.trans(model_comp["redshift"])
+
+        if "dla" in list(model_comp):
+            if "redshift" in list(model_comp["dla"]):
+                wavelengths_DLA_rest = self.wavelengths * (1.0 + model_comp["redshift"]) / (1.0 + model_comp["dla"]["redshift"])
+            else:
+                wavelengths_DLA_rest = self.wavelengths
+            self.dla_trans = dla_trans(wavelengths_DLA_rest,
+                                        N_HI=10**model_comp["dla"]["logN_HI"],
+                                        T=model_comp["dla"]['T'],
+                                        b_turb=model_comp["dla"]["b_turb"] if "b_turb" in list(model_comp["dla"]) else 0.0)
+            spectrum *= self.dla_trans
+            if self.dust_atten:
+                self.spectrum_bc *= self.dla_trans
 
         # Convert from luminosity to observed flux at redshift z.
         self.lum_flux = 1.
@@ -593,8 +530,8 @@ class model_galaxy(object):
 
         self.uvj = -2.5*np.log10(self._calculate_photometry(0., uvj=True))
 
-    def plot(self, show=True, color="default"):
-        return plotting.plot_model_galaxy(self, show=show, color=color)
+    def plot(self, show=True):
+        return plotting.plot_model_galaxy(self, show=show)
 
     def plot_full_spectrum(self, show=True):
         return plotting.plot_full_spectrum(self, show=show)
