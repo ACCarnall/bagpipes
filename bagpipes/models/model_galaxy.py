@@ -438,7 +438,7 @@ class model_galaxy(object):
                 em_lines *= 10**(-bc_Av_reduced*self.dust_atten.A_line_bc/2.5)
                 # Then apply general ISM attenuation
                 em_lines *= 10**(-Av*self.dust_atten.A_line_ism/2.5)
-                print("flarflarfl")
+
             else:
                 bc_Av = eta*model_comp["dust"]["Av"]
                 em_lines *= 10**(-bc_Av*self.dust_atten.A_line/2.5)
