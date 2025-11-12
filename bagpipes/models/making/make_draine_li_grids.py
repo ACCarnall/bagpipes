@@ -70,8 +70,8 @@ for qpah in qpah_vals_str:
 hdulist_umin_only = fits.HDUList(hdus=list_of_hdus_umin_only)
 hdulist_umin_umax = fits.HDUList(hdus=list_of_hdus_umin_umax)
 
-os.system("rm dl07_grids_umin_only.fits")
-os.system("rm dl07_grids_umin_umax.fits")
+os.system("rm dl07_grids_umin_only_no_norm.fits")
+os.system("rm dl07_grids_umin_umax_no_norm.fits")
 
-hdulist_umin_only.writeto("dl07_grids_umin_only.fits")
-hdulist_umin_umax.writeto("dl07_grids_umin_umax.fits")
+hdulist_umin_only.writeto("dl07_grids_umin_only_no_norm.fits")
+hdulist_umin_umax.writeto("dl07_grids_umin_umax_no_norm.fits")

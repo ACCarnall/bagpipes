@@ -1,5 +1,6 @@
-include bagpipes/models/grids/bc03*.fits
-include bagpipes/models/grids/dl07*.fits
+include bagpipes/models/grids/bc03_miles_stellar_grids.fits
+include bagpipes/models/grids/bc03*cloudy25.fits
+include bagpipes/models/grids/dl07*no_norm.fits
 include bagpipes/models/grids/*.txt
 include bagpipes/filters/UVJ/*.dat
 include bagpipes/filters/UVJ.filt_list

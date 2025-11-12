@@ -94,8 +94,8 @@ models, as well as some of their basic properties. """
 
 try:
     # Names of files containing the nebular grids.
-    neb_cont_file = "bc03_miles_nebular_cont_grids_extended.fits"
-    neb_line_file = "bc03_miles_nebular_line_grids_extended.fits"
+    neb_cont_file = "bc03_miles_nebular_cont_grids_extended_logU_nograins_cloudy25.fits"
+    neb_line_file = "bc03_miles_nebular_line_grids_extended_logU_nograins_cloudy25.fits"
 
     # Names for the emission features to be tracked.
     line_names = np.loadtxt(grid_dir + "/cloudy_lines.txt",
@@ -142,11 +142,11 @@ try:
 
     # Draine + Li (2007) dust emission grids, stored as a FITS HDUList.
     dust_grid_umin_only = [
-        fits.open(grid_dir + "/dl07_grids_umin_only.fits")[i].data for i
+        fits.open(grid_dir + "/dl07_grids_umin_only_no_norm.fits")[i].data for i
         in range(len(qpah_vals) + 1)]
 
     dust_grid_umin_umax = [
-        fits.open(grid_dir + "/dl07_grids_umin_umax.fits")[i].data for i
+        fits.open(grid_dir + "/dl07_grids_umin_umax_no_norm.fits")[i].data for i
         in range(len(qpah_vals) + 1)]
 
 except IOError:
