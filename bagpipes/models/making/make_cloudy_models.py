@@ -10,6 +10,9 @@ from ... import config
 
 from ..model_galaxy import model_galaxy
 
+if "CLOUDY_DATA_PATH" in list(os.environ):
+    cloudy_data_path = os.environ["CLOUDY_DATA_PATH"]
+
 try:
     from mpi4py import MPI
     comm = MPI.COMM_WORLD
@@ -90,7 +93,6 @@ def mpi_combine_array(core_array, total_len):
                 array[start:stop, ...] = comm.recv(source=i)
 
         array = comm.bcast(array, root=0)
-        comm.Barrier()
 
     else:
         array = core_array
@@ -117,7 +119,7 @@ def get_bagpipes_spectrum(age, zmet, spec_units="ergscma"):
     return model.spectrum
 
 
-def make_cloudy_sed_file(age, zmet, path):
+def make_cloudy_sed_file(age, zmet):
     """ Saves a bagpipes spectrum in the correct format to the cloudy
     sed files directory. """
 
@@ -129,7 +131,7 @@ def make_cloudy_sed_file(age, zmet, path):
 
     out_spectrum[out_spectrum[:, 1] <= 0., 1] = 9.9*10**-99
 
-    np.savetxt(path + "/SED/bagpipes_age_"
+    np.savetxt(cloudy_data_path + "/SED/bagpipes_age_"
                + "%.5f" % age + "_zmet_" + "%.3f" % zmet + ".sed",
                out_spectrum[::-1, :], header="Energy units: Rydbergs,"
                                              + " Flux units: erg/s/Hz")
@@ -138,62 +140,76 @@ def make_cloudy_sed_file(age, zmet, path):
 def make_cloudy_input_file(age, zmet, logU, path):
     """ Makes an instructions file for cloudy. """
 
-    with open(path + "/cloudy_temp_files/logU_" + "%.1f" % logU
-             + "_zmet_" + "%.3f" % zmet + "/" + "%.5f" % age + ".in", "w+") as f:
+    # Copy file with emission line names to the correct directory
+    if not os.path.exists(cloudy_data_path + "/pipes_cloudy_lines.txt"):
+        os.system("cp " + utils.install_dir + "/models/grids/cloudy_lines.txt "
+                  + cloudy_data_path + "/pipes_cloudy_lines.txt")
 
-        f.write("########################################\n")
+    logQ = np.log10(4*np.pi*(10.**19)**2*100*2.9979*10**10*10**logU)
 
-        f.write("##### Input spectrum #####\n")
-        f.write("table SED \"bagpipes_age_" + "%.5f" % age
-                + "_zmet_" + "%.3f" % zmet + ".sed\"\n")
+    f = open(path + "/cloudy_temp_files/logU_" + "%.1f" % logU
+             + "_zmet_" + "%.3f" % zmet + "/" + "%.5f" % age + ".in", "w+")
 
-        f.write("########################################\n")
+    f.write("########################################\n")
 
-        f.write("##### Geometry and physical conditions #####\n")
-        f.write("sphere\n")
-        f.write("cosmic rays background\n")
-        f.write("hden 2.000 log\n")
-        f.write("ionization parameter {:.3f} log\n".format(logU))
-        f.write("radius 19.000 log\n")
-        f.write('abundances "Asplund.abn"\n')
-        f.write("grains ISM\n")
-        f.write("metals and grains {:.3f}\n".format(zmet))
+    f.write("##### Input spectrum #####\n")
+    f.write("table SED \"bagpipes_age_" + "%.5f" % age
+            + "_zmet_" + "%.3f" % zmet + ".sed\"\n")
 
-        # Nitrogen abundances, -0.22 is the depletion factor, the final term
-        # is to offset the "metals and grains" command.
-        if np.log10(zmet) <= -0.63:
-            nitrogen_abund = -4.57 + np.log10(zmet) - 0.22 - np.log10(zmet)
-        else:
-            nitrogen_abund = -3.94 + 2.*np.log10(zmet) - 0.22 - np.log10(zmet)
+    f.write("########################################\n")
 
-        elemental_abundances = {"helium": np.log10(0.08096 + 0.02618*zmet), "nitrogen": nitrogen_abund}
-        
-        for element, abundance in elemental_abundances.items():
-            if abundance:
-                f.write("element abundance {} {} log\n".format(element, abundance))
+    f.write("##### Geometry and physical conditions #####\n")
+    f.write("sphere\n")
+    f.write("cosmic rays background\n")
+    f.write("hden 2.000 log\n")
+    f.write("Q(H) = " + str("%.3f" % logQ) + " log\n")
+    f.write("radius 19.000 log\n")
+    f.write("abundances old solar 84\n")
+    f.write("grains ISM\n")
+    f.write("metals grains " + "%.3f" % zmet + "\n")
 
-        f.write("########################################\n")
+    # Nitrogen abundances, -0.22 is the depletion factor, the final term
+    # is to offset the "metals grains" command.
+    if np.log10(zmet) <= -0.63:
+        nitrogen_abund = -4.57 + np.log10(zmet) - 0.22 - np.log10(zmet)
 
-        f.write("##### Stopping criteria #####\n")
-        f.write("iterate to convergence\n")
+    else:
+        nitrogen_abund = -3.94 + 2.*np.log10(zmet) - 0.22 - np.log10(zmet)
 
-        f.write("########################################\n")
+    elements = ["magnesium", "sulphur", "calcium", "carbon", "oxygen",
+                "neon", "silicon", "argon", "iron", "nitrogen", "helium"]
 
-        f.write("##### Output continuum and lines #####\n")
-        f.write("set save prefix \"" + "%.5f" % age + "\"\n")
-        f.write("save last outward continuum \".econ\" units microns\n")
-        f.write("save last line list intrinsic absolute column"
-                + " \".lines\" \"pipes_cloudy_lines.txt\"\n")
+    abundances = np.array([-5.12, -4.79, -8.16, -3.74, -3.29, -3.91, -5.45,
+                           -5.44, -6.33, nitrogen_abund,
+                           np.log10(0.08096 + 0.02618*zmet)])
 
-        f.write("########################################")
+    for i in range(len(elements)):
+        f.write("element abundance " + elements[i] + " "
+                + "%.2f" % abundances[i] + "\n")
+
+    f.write("########################################\n")
+
+    f.write("##### Stopping criteria #####\n")
+    f.write("iterate to convergence\n")
+
+    f.write("########################################\n")
+
+    f.write("##### Output continuum and lines #####\n")
+    f.write("set save prefix \"" + "%.5f" % age + "\"\n")
+    f.write("save last outward continuum \".econ\" units microns\n")
+    f.write("save last line list intrinsic absolute column"
+            + " \".lines\" \"pipes_cloudy_lines.txt\"\n")
+
+    f.write("########################################")
+
+    f.close()
 
 
 def run_cloudy_model(age, zmet, logU, path):
     """ Run an individual cloudy model. """
 
-    if not os.path.isfile(path + "/cloudy_temp_files/logU_" + "%.1f" % logU
-                            + "_zmet_" + "%.3f" % zmet + "/" + "%.5f" % age + ".in"):
-        make_cloudy_input_file(age, zmet, logU, path)
+    make_cloudy_sed_file(age, zmet)
+    make_cloudy_input_file(age, zmet, logU, path)
     os.chdir(path + "/cloudy_temp_files/"
              + "logU_" + "%.1f" % logU + "_zmet_" + "%.3f" % zmet)
 
@@ -215,9 +231,6 @@ def extract_cloudy_results(age, zmet, logU, path):
                              + "logU_" + "%.1f" % logU + "_zmet_"
                              + "%.3f" % zmet + "/" + "%.5f" % age + ".econ",
                              usecols=(0, 3, 8))[::-1, :]
-    
-    if cloudy_lines.size == 0 and cloudy_cont.size == 0:
-        return 0, 0
 
     # wavelengths from microns to angstroms
     cloudy_cont[:, 0] *= 10**4
@@ -264,92 +277,80 @@ def compile_cloudy_grid(path):
 
     line_wavs = np.loadtxt(utils.install_dir
                            + "/models/grids/cloudy_linewavs.txt")
-    if rank == 0:
-        if not os.path.exists(path + "/cloudy_temp_files/grids"):
-            os.mkdir(path + "/cloudy_temp_files/grids")
-    
-    # Assign grids to cores
-    n_grids = config.logU.shape[0] * config.metallicities.shape[0]
-    thread_nos = mpi_split_array(np.arange(n_grids))
 
-    n = 0
     for logU in config.logU:
         for zmet in config.metallicities:
-            if n in thread_nos:
-                print("logU: " + str(np.round(logU, 1))
-                    + ", zmet: " + str(np.round(zmet, 4)))
 
-                mask = (config.age_sampling < age_lim)
-                contgrid = np.zeros((config.age_sampling[mask].shape[0]+1,
-                                    config.wavelengths.shape[0]+1))
+            print("logU: " + str(np.round(logU, 1))
+                  + ", zmet: " + str(np.round(zmet, 4)))
 
-                contgrid[0, 1:] = config.wavelengths
-                contgrid[1:, 0] = config.age_sampling[config.age_sampling < age_lim]
+            mask = (config.age_sampling < age_lim)
+            contgrid = np.zeros((config.age_sampling[mask].shape[0]+1,
+                                 config.wavelengths.shape[0]+1))
 
-                linegrid = np.zeros((config.age_sampling[mask].shape[0]+1,
-                                    line_wavs.shape[0]+1))
+            contgrid[0, 1:] = config.wavelengths
+            contgrid[1:, 0] = config.age_sampling[config.age_sampling < age_lim]
 
-                linegrid[0, 1:] = line_wavs
-                linegrid[1:, 0] = config.age_sampling[mask]
+            linegrid = np.zeros((config.age_sampling[mask].shape[0]+1,
+                                line_wavs.shape[0]+1))
 
-                for i in range(config.age_sampling[mask].shape[0]):
-                    age = config.age_sampling[mask][i]
-                    cont_fluxes, line_fluxes = extract_cloudy_results(age*10**-9,
-                                                                    zmet, logU,
-                                                                    path)
+            linegrid[0, 1:] = line_wavs
+            linegrid[1:, 0] = config.age_sampling[mask]
 
-                    contgrid[i+1, 1:] = cont_fluxes
-                    linegrid[i+1, 1:] = line_fluxes
+            for i in range(config.age_sampling[mask].shape[0]):
+                age = config.age_sampling[mask][i]
+                cont_fluxes, line_fluxes = extract_cloudy_results(age*10**-9,
+                                                                  zmet, logU,
+                                                                  path)
 
-                np.savetxt(path + "/cloudy_temp_files/grids/"
-                        + "zmet_" + str(zmet) + "_logU_" + str(logU)
-                        + ".neb_lines", linegrid)
+                contgrid[i+1, 1:] = cont_fluxes
+                linegrid[i+1, 1:] = line_fluxes
 
-                np.savetxt(path + "/cloudy_temp_files/grids/"
-                        + "zmet_" + str(zmet) + "_logU_" + str(logU)
-                        + ".neb_cont", contgrid)
-            n += 1
+            if not os.path.exists(path + "/cloudy_temp_files/grids"):
+                os.mkdir(path + "/cloudy_temp_files/grids")
 
-    # Combine arrays of models assigned to cores, checks all is finished
-    mpi_combine_array(thread_nos, n_grids)
+            np.savetxt(path + "/cloudy_temp_files/grids/"
+                       + "zmet_" + str(zmet) + "_logU_" + str(logU)
+                       + ".neb_lines", linegrid)
 
-    if rank == 0:
-        # Nebular grids
-        list_of_hdus_lines = [fits.PrimaryHDU()]
-        list_of_hdus_cont = [fits.PrimaryHDU()]
+            np.savetxt(path + "/cloudy_temp_files/grids/"
+                       + "zmet_" + str(zmet) + "_logU_" + str(logU)
+                       + ".neb_cont", contgrid)
 
-        for logU in config.logU:
-            for zmet in config.metallicities:
+    # Nebular grids
+    list_of_hdus_lines = [fits.PrimaryHDU()]
+    list_of_hdus_cont = [fits.PrimaryHDU()]
 
-                line_data = np.loadtxt(path + "/cloudy_temp_files/"
-                                    + "grids/zmet_" + str(zmet)
-                                    + "_logU_" + str(logU) + ".neb_lines")
+    for logU in config.logU:
+        for zmet in config.metallicities:
 
-                hdu_line = fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_"
-                                        + "%.1f" % logU, data=line_data)
+            line_data = np.loadtxt(path + "/cloudy_temp_files/"
+                                   + "grids/zmet_" + str(zmet)
+                                   + "_logU_" + str(logU) + ".neb_lines")
 
-                cont_data = np.loadtxt(path + "/cloudy_temp_files/"
-                                    + "grids/zmet_" + str(zmet)
-                                    + "_logU_" + str(logU) + ".neb_cont")
+            hdu_line = fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_"
+                                     + "%.1f" % logU, data=line_data)
 
-                hdu_cont = fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_"
-                                        + "%.1f" % logU, data=cont_data)
+            cont_data = np.loadtxt(path + "/cloudy_temp_files/"
+                                   + "grids/zmet_" + str(zmet)
+                                   + "_logU_" + str(logU) + ".neb_cont")
 
-                list_of_hdus_lines.append(hdu_line)
-                list_of_hdus_cont.append(hdu_cont)
+            hdu_cont = fits.ImageHDU(name="zmet_" + "%.3f" % zmet + "_logU_"
+                                     + "%.1f" % logU, data=cont_data)
 
-        hdulist_lines = fits.HDUList(hdus=list_of_hdus_lines)
-        hdulist_cont = fits.HDUList(hdus=list_of_hdus_cont)
+            list_of_hdus_lines.append(hdu_line)
+            list_of_hdus_cont.append(hdu_cont)
 
-        hdulist_lines.writeto(path + "/cloudy_temp_files"
-                            + "/grids/bagpipes_nebular_line_grids.fits",
-                            overwrite=True)
+    hdulist_lines = fits.HDUList(hdus=list_of_hdus_lines)
+    hdulist_cont = fits.HDUList(hdus=list_of_hdus_cont)
 
-        hdulist_cont.writeto(path + "/cloudy_temp_files"
-                            + "/grids/bagpipes_nebular_cont_grids.fits",
-                            overwrite=True)
-    if size > 1:
-        comm.Barrier()
+    hdulist_lines.writeto(path + "/cloudy_temp_files"
+                          + "/grids/bagpipes_nebular_line_grids.fits",
+                          overwrite=True)
+
+    hdulist_cont.writeto(path + "/cloudy_temp_files"
+                         + "/grids/bagpipes_nebular_cont_grids.fits",
+                         overwrite=True)
 
 
 def run_cloudy_grid(path=None):
@@ -357,26 +358,14 @@ def run_cloudy_grid(path=None):
 
     if path is None:
         path = utils.working_dir
-    os.environ["CLOUDY_DATA_PATH"] = os.environ.get("CLOUDY_DATA_PATH", '+') + ':' + path
 
-    if rank == 0:
-        if not os.path.exists(path + "/cloudy_temp_files"):
-            os.mkdir(path + "/cloudy_temp_files")
-
-        # Copy file with emission line names to the correct directory
-        if not os.path.exists(path + "/pipes_cloudy_lines.txt"):
-            os.system("cp " + utils.install_dir + "/models/grids/cloudy_lines.txt "
-                        + path + "/pipes_cloudy_lines.txt")
+    if rank == 0 and not os.path.exists(path + "/cloudy_temp_files"):
+        os.mkdir(path + "/cloudy_temp_files")
 
     ages = config.age_sampling[config.age_sampling < age_lim]
 
-    n_SEDs = ages.shape[0] * config.metallicities.shape[0]
-    n_models = config.logU.shape[0] * n_SEDs
-    if rank == 0:
-        print("Running {:d} Cloudy models".format(n_models), "with {:d} cores".format(size) if size > 1 else '')
+    n_models = config.logU.shape[0]*ages.shape[0]*config.metallicities.shape[0]
 
-    # Assign SEDs to cores
-    thread_nos = mpi_split_array(np.arange(n_SEDs))
     params = np.zeros((n_models, 3))
 
     n = 0
@@ -395,16 +384,11 @@ def run_cloudy_grid(path=None):
 
             # Populate array of parameter values
             for k in range(ages.shape[0]):
-                if i == 0 and n in thread_nos:
-                    make_cloudy_sed_file(ages[k]*10**-9, config.metallicities[j], path)
 
                 params[n, 0] = ages[k]
                 params[n, 1] = config.metallicities[j]
                 params[n, 2] = config.logU[i]
                 n += 1
-
-    # Combine arrays of models assigned to cores, checks all is finished
-    mpi_combine_array(thread_nos, n_SEDs)
 
     # Assign models to cores
     thread_nos = mpi_split_array(np.arange(n_models))
@@ -425,4 +409,5 @@ def run_cloudy_grid(path=None):
     mpi_combine_array(thread_nos, n_models)
 
     # Put the final grid fits files together
-    compile_cloudy_grid(path)
+    if rank == 0:
+        compile_cloudy_grid(path)
