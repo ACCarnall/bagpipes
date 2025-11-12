@@ -56,12 +56,6 @@ for qpah in qpah_vals_str:
                 grid_umin_only[:,i+1] /= grid_umin_only[:,0]
                 grid_umin_umax[:,i+1] /= grid_umin_umax[:,0]
 
-                grid_umin_only[:,i+1] /= np.trapz(grid_umin_only[:,i+1],
-                                                  x=grid_umin_only[:,0])
-
-                grid_umin_umax[:,i+1] /= np.trapz(grid_umin_umax[:,i+1],
-                                                  x=grid_umin_umax[:,0])
-
                 break
 
             except:
