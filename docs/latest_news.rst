@@ -12,7 +12,7 @@ November 2025
 
 This includes a variety of new updates and bug fixes, most notably:
 
- - The nebular models have been re-run with Cloudy v25.00 and the "grains ISM" command has been removed from the loudy config files used to make the grid. This is because, at high ionization parameters (e.g., logU>-2), a lot of energy was being diverted from emission lines to IR thermal radiation from warm dust grains. This was leading to significantly fainter lines in spectra with high ionization parameter (e.g., up to an order of magnitude fainter than predicted by the Kennicutt 2012 relationship). Line ratios are largely unaffected, but lines are now up to ~1 dex brighter at high ionization parameters.
+ - The nebular models have been re-run with Cloudy v25.00 and the "grains ISM" command has been removed from the Cloudy config files used to make the grid. This is because, at high ionization parameters (e.g., logU>-2), a lot of energy was being diverted from emission lines to IR thermal radiation from warm dust grains. This was leading to significantly fainter lines in spectra with high ionization parameter (e.g., up to an order of magnitude fainter than predicted by the Kennicutt 2012 relationship). Line ratios are largely unaffected, but lines are now up to ~1 dex brighter at high ionization parameters.
 
  - A bug in the way the Draine + Li (2007) dust emission models were implemented has been fixed. The gamma parameter was previously being incorrectly applied in a light-weighted sense rather than mass-weighted.
 
