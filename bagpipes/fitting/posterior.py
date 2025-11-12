@@ -180,6 +180,10 @@ class posterior(object):
 
         if self.galaxy.photometry_exists:
             self.samples["chisq_phot"] = np.zeros(self.n_samples)
+        
+        if "dla" in list(self.fitted_model.model_components):
+            size = self.model_galaxy.spectrum_full.shape[0]
+            self.samples["dla_transmission"] = np.zeros((self.n_samples, size))
 
         if "dust" in list(self.fitted_model.model_components):
             size = self.model_galaxy.spectrum_full.shape[0]
@@ -202,6 +206,9 @@ class posterior(object):
 
             if self.galaxy.photometry_exists:
                 self.samples["chisq_phot"][i] = self.fitted_model.chisq_phot
+            
+            if "dla" in list(self.fitted_model.model_components):
+                self.samples["dla_transmission"][i] = self.fitted_model.model_galaxy.dla_trans
 
             if "dust" in list(self.fitted_model.model_components):
                 dust_curve = self.fitted_model.model_galaxy.dust_atten.A_cont

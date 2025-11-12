@@ -17,46 +17,10 @@ from .dust_emission_model import dust_emission
 from .dust_attenuation_model import dust_attenuation
 from .nebular_model import nebular
 from .igm_model import igm
+from .dla_model import dla_trans
 from .agn_model import agn
 from .star_formation_history import star_formation_history
 from ..input.spectral_indices import measure_index
-
-
-# The Voigt-Hjerting profile based on the numerical approximation by Garcia
-def H(a, x):
-    P = x**2
-    H0 = np.exp(-x**2)
-    Q = 1.5*x**(-2)
-    return H0 - a / np.sqrt(np.pi) /\
-    P * (H0 ** 2 * (4. * P**2 + 7. * P + 4. + Q) - Q - 1.0)
-
-
-def addAbs(wl_mod, t, zabs):
-    """
-    A function that calculates the absorption from foreground source:
-        wl_mod: list, wavelength values in units of Å
-        t: float, hydrogen column density in units of cm^{-2}
-        zabs: float, redshift of absorption source
-    Returns:
-        exp(-tau): float, absorption fraction
-    """
-    # Constants
-    m_e = 9.1095e-28
-    e = 4.8032e-10
-    c = 2.998e10
-    lamb = 1215.67
-    f = 0.416
-    gamma = 6.265e8
-    broad = 1
-
-    C_a = np.sqrt(np.pi) * e**2 * f * lamb * 1E-8 / m_e / c / broad
-    a = lamb * 1.E-8 * gamma / (4.*np.pi * broad)
-    dl_D = broad/c * lamb
-    x = (wl_mod/(zabs+1.0) - lamb)/dl_D+0.01
-
-    # Optical depth
-    tau = np.array([C_a * t * H(a, x)], dtype=np.float64)
-    return np.exp(-tau)[0]
 
 
 class model_galaxy(object):
@@ -470,13 +434,21 @@ class model_galaxy(object):
 
         spectrum *= self.igm.trans(model_comp["redshift"])
 
-        if "dla" in list(model_comp):
-            spectrum *= addAbs(self.wavelengths*self.model_comp["redshift"],
-                               self.model_comp["dla"]["t"],
-                               self.model_comp["dla"]["zabs"])
-
         if self.dust_atten:
             self.spectrum_bc *= self.igm.trans(model_comp["redshift"])
+
+        if "dla" in list(model_comp):
+            if "redshift" in list(model_comp["dla"]):
+                wavelengths_DLA_rest = self.wavelengths * (1.0 + model_comp["redshift"]) / (1.0 + model_comp["dla"]["redshift"])
+            else:
+                wavelengths_DLA_rest = self.wavelengths
+            self.dla_trans = dla_trans(wavelengths_DLA_rest,
+                                        N_HI=10**model_comp["dla"]["logN_HI"],
+                                        T=model_comp["dla"]['T'],
+                                        b_turb=model_comp["dla"]["b_turb"] if "b_turb" in list(model_comp["dla"]) else 0.0)
+            spectrum *= self.dla_trans
+            if self.dust_atten:
+                self.spectrum_bc *= self.dla_trans
 
         # Convert from luminosity to observed flux at redshift z.
         self.lum_flux = 1.
