@@ -14,7 +14,6 @@ from ..models.star_formation_history import star_formation_history
 from ..models.model_galaxy import model_galaxy
 
 from .. import utils
-from .. import config
 
 
 class posterior(object):
