@@ -370,10 +370,15 @@ class model_galaxy(object):
             em_lines += self.nebular.line_fluxes(grid, t_bc,
                                                  model_comp["nebular"]["logU"])
 
-            # All stellar emission below 912A goes into nebular emission
-            spectrum_bc[self.wavelengths < 912.] = 0.
-            spectrum_bc += self.nebular.spectrum(grid, t_bc,
-                                                 model_comp["nebular"]["logU"])
+            # Stellar light below 912A is converted to nebular emission
+            if "fesc" in list(model_comp["nebular"]):
+                f_esc = model_comp["nebular"]["fesc"]
+            else:
+                f_esc = 0.
+
+            spectrum_bc[self.wavelengths < 912.] *= f_esc
+            logU = model_comp["nebular"]["logU"]
+            spectrum_bc += (1 - f_esc)*self.nebular.spectrum(grid, t_bc, logU)
 
         # Add attenuation due to stellar birth clouds.
         if self.dust_atten:

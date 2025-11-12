@@ -20,6 +20,8 @@ This includes a variety of new updates and bug fixes, most notably:
 
  - Improvements and bug fixes to the damped Lyman alpha system model.
 
+ - Escape fraction can now be varied with fit_info["nebular"]["fesc"], still defaults to zero.
+
  - The `Wild et al. (2007) <https://ui.adsabs.harvard.edu/abs/2007MNRAS.381..543W/abstract>`_ dust attenuation model is now available.
 
  - A variety of improved error/warning messages for common mistakes and issues.
