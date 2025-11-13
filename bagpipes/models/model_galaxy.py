@@ -50,7 +50,7 @@ class model_galaxy(object):
         angstrom, can also be set to "mujy" for microjanskys.
 
     phot_units : str - optional
-        The units the output spectrum will be returned in. Default is
+        The units the output photometry will be returned in. Default is
         "ergscma" for ergs per second per centimetre squared per
         angstrom, can also be set to "mujy" for microjanskys.
 

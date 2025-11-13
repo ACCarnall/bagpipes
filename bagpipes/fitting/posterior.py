@@ -165,8 +165,8 @@ class posterior(object):
                                          filt_list=self.galaxy.filt_list,
                                          spec_wavs=self.galaxy.spec_wavs,
                                          index_list=self.galaxy.index_list,
-                                         spec_units=self.galaxy.spec_units,
-                                         phot_units=self.galaxy.phot_units)
+                                         spec_units=self.galaxy.out_units,
+                                         phot_units=self.galaxy.out_units)
 
         all_names = ["photometry", "spectrum", "spectrum_full", "uvj",
                      "indices"]
@@ -180,7 +180,7 @@ class posterior(object):
 
         if self.galaxy.photometry_exists:
             self.samples["chisq_phot"] = np.zeros(self.n_samples)
-        
+
         if "dla" in list(self.fitted_model.model_components):
             size = self.model_galaxy.spectrum_full.shape[0]
             self.samples["dla_transmission"] = np.zeros((self.n_samples, size))
@@ -206,7 +206,7 @@ class posterior(object):
 
             if self.galaxy.photometry_exists:
                 self.samples["chisq_phot"][i] = self.fitted_model.chisq_phot
-            
+
             if "dla" in list(self.fitted_model.model_components):
                 self.samples["dla_transmission"][i] = self.fitted_model.model_galaxy.dla_trans
 

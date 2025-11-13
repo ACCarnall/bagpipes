@@ -8,7 +8,7 @@ I'm going to attempt to keep this page updated with news about the code, includi
 November 2025
 ------------
 
-**Wednesday 12th:** Version 1.3.0 of the code has been released today.
+**Thursday 13th:** Version 1.3.1 of the code has been released today.
 
 This includes a variety of new updates and bug fixes, most notably:
 
@@ -16,7 +16,7 @@ This includes a variety of new updates and bug fixes, most notably:
 
  - A bug in the way the Draine + Li (2007) dust emission models were implemented has been fixed. The gamma parameter was previously being incorrectly applied in a light-weighted sense rather than mass-weighted.
 
- - The code now incldues a variety of new modelling options from `Leung et al. (2024) <https://ui.adsabs.harvard.edu/abs/2024MNRAS.528.4029L/abstract>`_, including a new variety of Gaussian process noise model and various options for time-evolution of stellar metallicity.
+ - The code now includes a variety of new modelling options from `Leung et al. (2024) <https://ui.adsabs.harvard.edu/abs/2024MNRAS.528.4029L/abstract>`_, including a new variety of Gaussian process noise model and various options for time-evolution of stellar metallicity.
 
  - Improvements and bug fixes to the damped Lyman alpha system model.
 

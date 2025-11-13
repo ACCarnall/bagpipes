@@ -147,8 +147,8 @@ class fitted_model(object):
                                              filt_list=self.galaxy.filt_list,
                                              spec_wavs=self.galaxy.spec_wavs,
                                              index_list=self.galaxy.index_list,
-                                             spec_units=self.galaxy.spec_units,
-                                             phot_units=self.galaxy.phot_units)
+                                             spec_units=self.galaxy.out_units,
+                                             phot_units=self.galaxy.out_units)
 
         self.model_galaxy.update(self.model_components)
 
