@@ -122,3 +122,4 @@ A few of the excellent projects Bagpipes relies on are:
     fitting_galaxies.rst
     fit_instructions.rst
     fitting_catalogues.rst
+    extra_models.rst
