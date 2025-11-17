@@ -176,6 +176,10 @@ class fitted_model(object):
             print("Bagpipes: lnlike was nan, replaced with zero probability.")
             return -9.99*10**99
 
+        if not np.isfinite(lnlike):
+            print("Bagpipes: lnlike was infinite, replaced with zero probability.")
+            return -9.99*10**99
+
         # Functionality for timing likelihood calls.
         if self.time_calls:
             self.times[self.n_calls] = time.time() - time0
