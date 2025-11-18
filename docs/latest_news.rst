@@ -8,7 +8,7 @@ I'm going to attempt to keep this page updated with news about the code, includi
 November 2025
 ------------
 
-**Thursday 13th:** Version 1.3.1 of the code has been released today.
+**Tuesday 18th:** Version 1.3.2 of the code has been released today.
 
 This includes a variety of new updates and bug fixes, most notably:
 
