@@ -72,11 +72,10 @@ def _read_multinest_data(filename):
     # '0.148232-104'  -> 1.482320e-105
     # '0.148232E-10'  -> 1.482320e-011
     # '1.148232'      -> 1.48232e+000
-    convert = lambda s: float(re.sub(r'(\d)([\+\-])(\d)', r'\1E\2\3',
-                                     s.decode()))
+    convert = lambda s: float(re.sub(r'(\d)([\+\-])(\d)', r'\1E\2\3', s))
     converters = dict(zip(range(ncolumns), [convert] * ncolumns))
 
-    return np.genfromtxt(filename, converters=converters)
+    return np.genfromtxt(filename, converters=converters, encoding=None)
 
 
 class fit(object):
