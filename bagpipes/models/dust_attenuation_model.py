@@ -26,6 +26,7 @@ class dust_attenuation(object):
     type : str
         The type of dust model.
     """
+    __all__ = ['Calzetti', 'Cardelli', 'SMC', 'Salim', 'VW07']
 
     def __init__(self, wavelengths, param):
         self.wavelengths = wavelengths
@@ -232,3 +233,8 @@ class dust_attenuation(object):
         plt.show()
         """
         return A_lambda
+
+    @classmethod
+    def list_available_dust_attenuation_components(cls):
+        """Return list of available dust attenuation component types."""
+        return getattr(cls, '__all__', [])  # Safe fallback if __all__ missing

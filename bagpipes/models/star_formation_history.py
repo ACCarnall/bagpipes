@@ -45,6 +45,11 @@ class star_formation_history:
     log_sampling : float - optional
         the log of the age sampling of the SFH, defaults to 0.0025.
     """
+    __all__ = [
+        'burst', 'constant', 'exponential', 'delayed', 'lognormal',
+        'dblplaw', 'iyer', 'continuity', 'custom', 'const_exp', 
+        'iyer2019', 'psb_wild2020'
+    ]
 
     def __init__(self, model_components, log_sampling=0.0025):
 
@@ -371,3 +376,8 @@ class star_formation_history:
 
     def plot(self, show=True):
         return plotting.plot_sfh(self, show=show)
+
+    @classmethod
+    def list_available_sfh_components(cls):
+        """Return list of available star formation history component types."""
+        return getattr(cls, '__all__', [])  # Safe fallback if __all__ missing

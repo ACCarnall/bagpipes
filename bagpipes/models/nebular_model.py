@@ -17,6 +17,7 @@ class nebular(object):
     wavelengths : np.ndarray
         1D array of wavelength values desired for the stellar models.
     """
+    __all__ = ['velshift']
 
     def __init__(self, wavelengths, velshift):
         self.wavelengths = wavelengths
@@ -139,3 +140,8 @@ class nebular(object):
                     + spectrum_low_logU*logU_weight)
 
         return spectrum
+
+    @classmethod
+    def list_available_nebular_components(cls):
+        # check if function has a return statement
+        return getattr(cls, '__all__', [])  # Safe fallback if __all__ missing

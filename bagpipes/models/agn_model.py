@@ -15,6 +15,7 @@ class agn(object):
     param : dict
         Parameters for the AGN model.
     """
+    __all__ = ['alphalam', 'betalam', 'f5100A', 'hanorm', 'sigma']
 
     def __init__(self, wavelengths):
         self.wavelengths = wavelengths
@@ -52,3 +53,7 @@ class agn(object):
         gauss *= np.exp(-0.5*(x-central_wav)**2/sigma_aa**2)
 
         return gauss
+
+    @classmethod
+    def list_available_agn_components(cls):
+        return getattr(cls, '__all__', [])  # Safe fallback if __all__ missing

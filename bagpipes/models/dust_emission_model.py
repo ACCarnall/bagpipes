@@ -17,6 +17,8 @@ class dust_emission(object):
         1D array of wavelength values desired for the DL07 models.
     """
 
+    __all__ = ['qpah', 'umin', 'gamma']
+
     def __init__(self, wavelengths):
         self.wavelengths = wavelengths
 
@@ -57,3 +59,8 @@ class dust_emission(object):
 
         spectrum_norm = spectrum / np.trapezoid(spectrum, x=self.wavelengths)
         return spectrum_norm
+
+    @classmethod
+    def list_available_dust_emission_components(cls):
+        """Return list of available dust emission component types."""
+        return getattr(cls, '__all__', [])  # Safe fallback if __all__ missing
