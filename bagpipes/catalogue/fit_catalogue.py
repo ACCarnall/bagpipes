@@ -162,7 +162,7 @@ class fit_catalogue(object):
             if os.path.exists(cat_file):
                 self.cat = Table.read(cat_file).to_pandas()
                 self.cat.index = self.IDs
-                self.done = (self.cat.loc[:, "log_evidence"] != 0.).values
+                self.done = np.array(self.cat.loc[:, "log_evidence"] != 0.)
 
         if size > 1 and mpi_serial:
             self._fit_mpi_serial(n_live=n_live, track_backlog=track_backlog)
