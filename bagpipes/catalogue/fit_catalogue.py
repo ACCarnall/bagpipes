@@ -166,6 +166,13 @@ class fit_catalogue(object):
             to be added to the catalogue by the "zero" core that
             compiles results from all the others. High numbers mean
             cores are waiting around doing nothing.
+
+        sampler : string - optional
+            The sampler to use, "multinest" or "nautilus".
+
+        pool : int - optional
+            Number of processes nautilus uses to fit each object. With
+            mpi_serial, this is per MPI process, so usually leave it as 1.
         """
 
         if size == 1:
@@ -203,7 +210,8 @@ class fit_catalogue(object):
                 self.done = (self.cat.loc[:, "log_evidence"] != 0.).values
 
         if size > 1 and mpi_serial:
-            self._fit_mpi_serial(n_live=n_live, track_backlog=track_backlog)
+            self._fit_mpi_serial(n_live=n_live, track_backlog=track_backlog,
+                                 sampler=sampler, pool=pool)
             return
 
         for i in range(self.n_objects):
@@ -235,7 +243,7 @@ class fit_catalogue(object):
                       self.done.shape[0], "objects completed.")
 
     def _fit_mpi_serial(self, verbose=False, n_live=400,
-                        track_backlog=False, sampler="multinest"):
+                        track_backlog=False, sampler="multinest", pool=1):
         """ Run through the catalogue fitting multiple objects at once
         on different cores. """
 
@@ -314,7 +322,7 @@ class fit_catalogue(object):
                 # (which would leave process 0 waiting for it forever).
                 try:
                     self._run_fit(ID, use_MPI=False, verbose=False,
-                                  n_live=n_live, sampler=sampler)
+                                  n_live=n_live, sampler=sampler, pool=pool)
 
                     # Compute the catalogue row here, so that process 0
                     # does not have to reload the posterior to do this.
