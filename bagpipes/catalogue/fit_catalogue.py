@@ -2,8 +2,11 @@ from __future__ import print_function, division, absolute_import
 
 import numpy as np
 import os
+import sys
+import time
 import pandas as pd
 import copy
+import traceback
 
 from astropy.table import Table
 from astropy.io import fits
@@ -133,6 +136,9 @@ class fit_catalogue(object):
         # in full, after which rows are updated in place (see _save_catalogue).
         self._cat_layout = None
 
+        # IDs of objects which failed to fit (when using mpi_serial).
+        self.failed = []
+
         if rank == 0:
             utils.make_dirs(run=run)
 
@@ -161,6 +167,33 @@ class fit_catalogue(object):
             compiles results from all the others. High numbers mean
             cores are waiting around doing nothing.
         """
+
+        if size == 1:
+            self._fit(verbose=verbose, n_live=n_live, mpi_serial=mpi_serial,
+                      track_backlog=track_backlog, sampler=sampler, pool=pool)
+            return
+
+        # Under MPI, an unhandled error on one process would otherwise
+        # leave the others waiting for it forever, as Python's exit
+        # handler blocks in MPI_Finalize. Abort the whole job instead.
+        try:
+            self._fit(verbose=verbose, n_live=n_live, mpi_serial=mpi_serial,
+                      track_backlog=track_backlog, sampler=sampler, pool=pool)
+
+        except BaseException:
+            traceback.print_exc()
+            print("Bagpipes: unhandled error on MPI process " + str(rank)
+                  + ", aborting all processes.", flush=True)
+            sys.stderr.flush()
+
+            # Give mpirun time to forward the error output before the
+            # abort kills all processes, otherwise it can be lost.
+            time.sleep(2)
+            comm.Abort(1)
+
+    def _fit(self, verbose=False, n_live=400, mpi_serial=False,
+             track_backlog=False, sampler="multinest", pool=1):
+        """ Run through the catalogue fitting each object (see fit). """
 
         if rank == 0:
             cat_file = "pipes/cats/" + self.run + ".fits"
@@ -224,8 +257,10 @@ class fit_catalogue(object):
 
             while True:  # Add results to catalogue + distribute new IDs
                 # Wait for an object to be finished by any process, which
-                # also sends the catalogue row it has computed.
-                oldID, done_rank, cat_vars, row = comm.recv(source=MPI.ANY_SOURCE)
+                # also sends the catalogue row it has computed, or the
+                # error message if fitting the object failed.
+                msg = comm.recv(source=MPI.ANY_SOURCE)
+                oldID, done_rank, cat_vars, row, error = msg
                 self.done[self.IDs == oldID] += 1  # mark as done
 
                 if not np.min(self.done):  # Send new ID to process
@@ -237,8 +272,17 @@ class fit_catalogue(object):
                     comm.send(None, dest=done_rank)
 
                 # Add the results for the finished object to the catalogue
-                self._add_to_catalogue(oldID, cat_vars, row)
-                self._save_catalogue(oldID)
+                if error is None:
+                    self._add_to_catalogue(oldID, cat_vars, row)
+                    self._save_catalogue(oldID)
+
+                # The object failed: leave its catalogue row empty, so that
+                # it will be tried again if fit_catalogue is re-run.
+                else:
+                    self.failed.append(str(oldID))
+                    print("Bagpipes: fitting object " + str(oldID)
+                          + " failed on process " + str(done_rank) + ": "
+                          + error.strip().split("\n")[-1])
 
                 if track_backlog:
                     n_done = len(glob("pipes/posterior/" + self.run + "/*.h5"))
@@ -253,6 +297,9 @@ class fit_catalogue(object):
                           self.done.shape[0], "objects completed.")
 
                 if np.min(self.done) == 2:  # if all objects done end
+                    if self.failed:
+                        print("Bagpipes:", len(self.failed), "objects failed,"
+                              + " re-run to try them again:", self.failed)
                     return
 
         else:  # All ranks other than 0 fit objects as directed by 0
@@ -262,15 +309,28 @@ class fit_catalogue(object):
                 if ID is None:  # If no new ID is given then end
                     return
 
-                self._run_fit(ID, use_MPI=False, verbose=False,
-                              n_live=n_live, sampler=sampler)
+                # If something goes wrong with this object, report it to
+                # process 0 and move on, rather than stopping this process
+                # (which would leave process 0 waiting for it forever).
+                try:
+                    self._run_fit(ID, use_MPI=False, verbose=False,
+                                  n_live=n_live, sampler=sampler)
 
-                # Compute the catalogue row here, so that process 0 does
-                # not have to reload the posterior to do this.
-                row = self._get_catalogue_row(ID)
+                    # Compute the catalogue row here, so that process 0
+                    # does not have to reload the posterior to do this.
+                    row = self._get_catalogue_row(ID)
+                    msg = [ID, rank, self.vars, row, None]
+
+                except Exception:
+                    error = traceback.format_exc()
+                    print("Bagpipes: fitting object " + str(ID) + " failed"
+                          + " on process " + str(rank) + ":\n" + error,
+                          flush=True)
+
+                    msg = [ID, rank, None, None, error]
 
                 # Tell 0 object is done and send the results
-                comm.send([ID, rank, self.vars, row], dest=0)
+                comm.send(msg, dest=0)
 
     def _set_redshift(self, ID):
         """ Sets the corrrect redshift (range) in self.fit_instructions
