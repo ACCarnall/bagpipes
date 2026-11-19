@@ -6,6 +6,8 @@ from .. import config
 
 
 class chemical_enrichment_history(object):
+    __all__ = ['delta', 'metallicity_bins', 'metallicity_bins_continuity',
+               'exp', 'lognorm', 'constant', 'two_step', 'psb_two_step']
 
     def __init__(self, model_comp, sfh_weights):
 
@@ -300,3 +302,8 @@ class chemical_enrichment_history(object):
                                             nested=True)
 
         return zmet_comp*np.expand_dims(sfh, axis=0)
+
+    @staticmethod    
+    def list_available_ceh_components():
+        """Return list of available chemical enrichment history component types."""
+        return getattr(chemical_enrichment_history, '__all__', [])  # Safe fallback if __all__ missing  

@@ -112,3 +112,7 @@ Four dust attenuation models are implemented in Bagpipes, the Calzetti et al. (2
 	dust["qpah"] = 2.          # PAH mass fraction
 	dust["umin"] = 1.          # Lower limit of starlight intensity distribution
 	dust["gamma"] = 0.01       # Fraction of stars at umin
+
+
+To view a higher level summary of the available model components, 
+see the `list_available_components` function in the documentation for the ``bagpipes.models`` module.
