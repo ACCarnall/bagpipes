@@ -5,6 +5,13 @@ Latest News
 
 I'm going to attempt to keep this page updated with news about the code, including updates to the code and documentation, as well as issues people make me aware of.
 
+November 2026
+------------
+
+**Thursday 19th:** Version 1.4.0 of the code has been released today.
+
+ - This new version mainly contains updates made with the help of Claude Code to make bagpipes run faster. In my testing the speed-up for fitting photometry is approximately a factor of 5, and the code also scales much better now to fitting in parallel with MPI using larger numbers of cores (with the mpi_serial=True option). When combined with the new Spectres v3.0.0, fitting spectroscopy should be sped up by as much as a factor of 10.
+
 
 December 2025
 ------------
