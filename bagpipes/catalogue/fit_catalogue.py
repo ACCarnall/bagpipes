@@ -6,6 +6,7 @@ import pandas as pd
 import copy
 
 from astropy.table import Table
+from astropy.io import fits
 from glob import glob
 
 # detect if run through mpiexec/mpirun
@@ -128,6 +129,10 @@ class fit_catalogue(object):
         self.cat = None
         self.vars = None
 
+        # Layout of the saved catalogue file, set once it has been written
+        # in full, after which rows are updated in place (see _save_catalogue).
+        self._cat_layout = None
+
         if rank == 0:
             utils.make_dirs(run=run)
 
@@ -191,9 +196,7 @@ class fit_catalogue(object):
 
             # Save the updated output catalogue.
             if rank == 0:
-                save_cat = Table.from_pandas(self.cat)
-                save_cat.write("pipes/cats/" + self.run + ".fits",
-                               format="fits", overwrite=True)
+                self._save_catalogue(self.IDs[i])
 
                 print("Bagpipes:", np.sum(self.done), "out of",
                       self.done.shape[0], "objects completed.")
@@ -220,8 +223,9 @@ class fit_catalogue(object):
                 return
 
             while True:  # Add results to catalogue + distribute new IDs
-                # Wait for an object to be finished by any process
-                oldID, done_rank = comm.recv(source=MPI.ANY_SOURCE)
+                # Wait for an object to be finished by any process, which
+                # also sends the catalogue row it has computed.
+                oldID, done_rank, cat_vars, row = comm.recv(source=MPI.ANY_SOURCE)
                 self.done[self.IDs == oldID] += 1  # mark as done
 
                 if not np.min(self.done):  # Send new ID to process
@@ -232,13 +236,9 @@ class fit_catalogue(object):
                 else:  # Alternatively tell process all objects are done
                     comm.send(None, dest=done_rank)
 
-                # Load posterior for finished object to update catalogue
-                self._fit_object(oldID, use_MPI=False, verbose=False,
-                                 n_live=n_live, sampler=sampler)
-
-                save_cat = Table.from_pandas(self.cat)
-                save_cat.write("pipes/cats/" + self.run + ".fits",
-                               format="fits", overwrite=True)
+                # Add the results for the finished object to the catalogue
+                self._add_to_catalogue(oldID, cat_vars, row)
+                self._save_catalogue(oldID)
 
                 if track_backlog:
                     n_done = len(glob("pipes/posterior/" + self.run + "/*.h5"))
@@ -262,11 +262,15 @@ class fit_catalogue(object):
                 if ID is None:  # If no new ID is given then end
                     return
 
-                self.n_posterior = 5 # hacky, these don't get used
-                self._fit_object(ID, use_MPI=False, verbose=False,
-                                 n_live=n_live, sampler=sampler)
+                self._run_fit(ID, use_MPI=False, verbose=False,
+                              n_live=n_live, sampler=sampler)
 
-                comm.send([ID, rank], dest=0)  # Tell 0 object is done
+                # Compute the catalogue row here, so that process 0 does
+                # not have to reload the posterior to do this.
+                row = self._get_catalogue_row(ID)
+
+                # Tell 0 object is done and send the results
+                comm.send([ID, rank, self.vars, row], dest=0)
 
     def _set_redshift(self, ID):
         """ Sets the corrrect redshift (range) in self.fit_instructions
@@ -305,6 +309,18 @@ class fit_catalogue(object):
                     sampler="multinest", pool=1):
         """ Fit the specified object and update the catalogue. """
 
+        self._run_fit(ID, verbose=verbose, n_live=n_live, use_MPI=use_MPI,
+                      sampler=sampler, pool=pool)
+
+        if rank == 0:
+            row = self._get_catalogue_row(ID)
+            self._add_to_catalogue(ID, self.vars, row)
+
+    def _run_fit(self, ID, verbose=False, n_live=400, use_MPI=True,
+                 sampler="multinest", pool=1):
+        """ Fit the specified object (or load the results if it has
+        already been fitted). """
+
         # Set the correct redshift for this object
         self._set_redshift(ID)
 
@@ -330,55 +346,129 @@ class fit_catalogue(object):
         self.obj_fit.fit(verbose=verbose, n_live=n_live, use_MPI=use_MPI,
                          sampler=sampler, pool=pool)
 
-        if rank == 0:
-            if self.vars is None:
-                self._setup_vars()
+    def _get_catalogue_row(self, ID):
+        """ Run any analysis function and plotting for the most recently
+        fitted object, and return its row of the output catalogue as a
+        dictionary of column names and values. """
 
-            if self.cat is None:
-                self._setup_catalogue()
+        if self.vars is None:
+            self._setup_vars()
 
-            if self.analysis_function is not None:
-                self.analysis_function(self.obj_fit)
+        if self.analysis_function is not None:
+            self.analysis_function(self.obj_fit)
 
-            # Make plots if necessary
-            if self.make_plots:
-                self.obj_fit.plot_spectrum_posterior()
-                self.obj_fit.plot_corner()
-                self.obj_fit.plot_1d_posterior()
-                self.obj_fit.plot_sfh_posterior()
+        # Make plots if necessary
+        if self.make_plots:
+            self.obj_fit.plot_spectrum_posterior()
+            self.obj_fit.plot_corner()
+            self.obj_fit.plot_1d_posterior()
+            self.obj_fit.plot_sfh_posterior()
 
-                if "calib" in list(self.obj_fit.fitted_model.fit_instructions):
-                    self.obj_fit.plot_calibration()
+            if "calib" in list(self.obj_fit.fitted_model.fit_instructions):
+                self.obj_fit.plot_calibration()
 
-            # Add fitting results to output catalogue
-            if self.full_catalogue:
-                self.obj_fit.posterior.get_advanced_quantities()
+        # Calculate fitting results for the output catalogue
+        if self.full_catalogue:
+            self.obj_fit.posterior.get_advanced_quantities()
 
-            samples = self.obj_fit.posterior.samples
+        samples = self.obj_fit.posterior.samples
 
-            for v in self.vars:
+        row = {}
 
-                if v == "UV_colour":
-                    values = samples["uvj"][:, 0] - samples["uvj"][:, 1]
+        for v in self.vars:
 
-                elif v == "VJ_colour":
-                    values = samples["uvj"][:, 1] - samples["uvj"][:, 2]
+            if v == "UV_colour":
+                values = samples["uvj"][:, 0] - samples["uvj"][:, 1]
 
-                else:
-                    values = samples[v]
+            elif v == "VJ_colour":
+                values = samples["uvj"][:, 1] - samples["uvj"][:, 2]
 
-                self.cat.loc[ID, v + "_16"] = np.percentile(values, 16)
-                self.cat.loc[ID, v + "_50"] = np.percentile(values, 50)
-                self.cat.loc[ID, v + "_84"] = np.percentile(values, 84)
+            else:
+                values = samples[v]
 
-            results = self.obj_fit.results
-            self.cat.loc[ID, "log_evidence"] = results["lnz"]
-            self.cat.loc[ID, "log_evidence_err"] = results["lnz_err"]
+            row[v + "_16"] = np.percentile(values, 16)
+            row[v + "_50"] = np.percentile(values, 50)
+            row[v + "_84"] = np.percentile(values, 84)
 
-            if self.full_catalogue and self.photometry_exists:
-                self.cat.loc[ID, "chisq_phot"] = np.min(samples["chisq_phot"])
-                n_bands = np.sum(self.galaxy.photometry[:, 1] != 0.)
-                self.cat.loc[ID, "n_bands"] = n_bands
+        results = self.obj_fit.results
+        row["log_evidence"] = results["lnz"]
+        row["log_evidence_err"] = results["lnz_err"]
+
+        if self.full_catalogue and self.photometry_exists:
+            row["chisq_phot"] = np.min(samples["chisq_phot"])
+            row["n_bands"] = np.sum(self.galaxy.photometry[:, 1] != 0.)
+
+        return row
+
+    def _add_to_catalogue(self, ID, cat_vars, row):
+        """ Add a row of results (from _get_catalogue_row) for the object
+        ID to the output catalogue, setting the catalogue up if needed. """
+
+        if self.vars is None:
+            self.vars = cat_vars
+
+        if self.cat is None:
+            self._setup_catalogue()
+
+        for col, value in row.items():
+            self.cat.loc[ID, col] = value
+
+    def _save_catalogue(self, ID):
+        """ Save the output catalogue after the row for object ID has been
+        updated. The first save in each run writes the whole file, after
+        which only the updated row is written, in place. FITS binary
+        tables have fixed-width rows, so this is much faster than writing
+        the whole file every time, especially for large catalogues. """
+
+        cat_file = "pipes/cats/" + self.run + ".fits"
+
+        if self._cat_layout is None or not os.path.exists(cat_file):
+            self._write_full_catalogue(cat_file)
+            return
+
+        data_start, row_dtype = self._cat_layout
+
+        # Build the row in the on-disk format and write it at its offset.
+        row_ind = self.cat.index.get_loc(ID)
+        values = self.cat.iloc[row_ind].tolist()
+        row = np.array([tuple(values)], dtype=row_dtype)
+
+        offset = data_start + row_ind*row_dtype.itemsize
+
+        with open(cat_file, "r+b") as f:
+            f.seek(offset)
+            f.write(row.tobytes())
+
+    def _write_full_catalogue(self, cat_file):
+        """ Write the whole output catalogue, then record the file layout
+        so that later saves can update rows in place. The file is written
+        to a temporary name then renamed, so an interrupted write cannot
+        leave a corrupted or missing catalogue. """
+
+        tmp_file = cat_file + ".tmp"
+        Table.from_pandas(self.cat).write(tmp_file, format="fits",
+                                          overwrite=True)
+        os.replace(tmp_file, cat_file)
+
+        self._cat_layout = None
+
+        with fits.open(cat_file) as hdul:
+            hdu = hdul[1]
+
+            # Only update in place if the stored bytes are the values
+            # themselves (no scaled/boolean columns or checksums), and the
+            # columns are the same as in the catalogue.
+            simple = all(c.bscale is None and c.bzero is None
+                         and c.format[-1] != "L" for c in hdu.columns)
+            simple &= not any(k in hdu.header for k in ("CHECKSUM",
+                                                         "DATASUM"))
+            simple &= list(hdu.columns.names) == list(self.cat.columns)
+            simple &= hdu.header["NAXIS2"] == self.cat.shape[0]
+
+            if simple:
+                # FITS stores numbers big-endian, columns.dtype is native.
+                self._cat_layout = (hdu.fileinfo()["datLoc"],
+                                    hdu.columns.dtype.newbyteorder(">"))
 
     def _setup_vars(self):
         """ Set up list of variables to go in the output catalogue. """
