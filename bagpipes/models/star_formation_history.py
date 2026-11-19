@@ -65,12 +65,42 @@ class star_formation_history:
         self.components = ([k for k in comp_list if k in dir(self)]
                            + [k for k in comp_list if k[:-1] in dir(self)])
 
+        # Functions for each component (e.g. "burst2" uses "burst")
+        self.component_funcs = [k if k in dir(self) else k[:-1]
+                                for k in self.components]
+
         self.component_sfrs = {}  # SFR versus time for all components.
         self.component_weights = {}  # SSP weights for all components.
+
+        # Index of the SSP age bin each SFH age falls in, equivalent to
+        # np.histogram(self.ages, bins=config.age_bins), as these are fixed
+        n_bins = config.age_bins.shape[0] - 1
+        bin_inds = np.searchsorted(config.age_bins, self.ages,
+                                   side="right") - 1
+
+        bin_inds[self.ages == config.age_bins[-1]] = n_bins - 1
+        self.age_bin_mask = (bin_inds >= 0) & (bin_inds < n_bins)
+        self.age_bin_inds = bin_inds[self.age_bin_mask]
 
         self._resample_live_frac_grid()
 
         self.update(model_components)
+
+    # Quantities derived from the SFH, these are only calculated when
+    # first accessed after each update, as they are not needed for fitting
+    derived_quantities = ("stellar_mass", "formed_mass", "sfr", "ssfr",
+                          "nsfr", "mass_weighted_age", "tform", "tquench",
+                          "mass_weighted_zmet")
+
+    def __getattr__(self, name):
+        """ Calculate derived quantities when they are first accessed. """
+
+        if name in star_formation_history.derived_quantities:
+            self._calculate_derived_quantities()
+            return self.__dict__[name]
+
+        raise AttributeError("'star_formation_history' object has no "
+                             "attribute '" + name + "'")
 
     def update(self, model_components):
 
@@ -87,10 +117,7 @@ class star_formation_history:
         for i in range(len(self.components)):
 
             name = self.components[i]
-            func = self.components[i]
-
-            if name not in dir(self):
-                func = name[:-1]
+            func = self.component_funcs[i]
 
             self.component_sfrs[name] = np.zeros_like(self.ages)
             self.component_weights[name] = np.zeros_like(config.age_sampling)
@@ -107,9 +134,10 @@ class star_formation_history:
 
             # Sum up contributions to each age bin to create SSP weights
             weights = self.component_sfrs[name]*self.age_widths
-            self.component_weights[name] = np.histogram(self.ages,
-                                                        bins=config.age_bins,
-                                                        weights=weights)[0]
+            weights = weights[self.age_bin_mask]
+            self.component_weights[name] = np.bincount(
+                self.age_bin_inds, weights=weights,
+                minlength=config.age_bins.shape[0] - 1)
         # Check no stars formed before the Big Bang.
         if self.sfh[self.ages > self.age_of_universe].max() > 0.:
             self.unphysical = True
@@ -118,7 +146,9 @@ class star_formation_history:
         self.ceh = chemical_enrichment_history(self.model_components,
                                                self.component_weights)
 
-        self._calculate_derived_quantities()
+        # Clear derived quantities so they are recalculated when accessed
+        for name in star_formation_history.derived_quantities:
+            self.__dict__.pop(name, None)
 
     def _calculate_derived_quantities(self):
         self.stellar_mass = np.log10(np.sum(self.live_frac_grid*self.ceh.grid))

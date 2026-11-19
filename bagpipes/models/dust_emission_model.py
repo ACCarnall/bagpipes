@@ -20,6 +20,22 @@ class dust_emission(object):
     def __init__(self, wavelengths):
         self.wavelengths = wavelengths
 
+        # Native byte-order copies of the grids (FITS data are big-endian,
+        # which makes arithmetic with them much slower).
+        self.grid_umin_only = [self._native(g)
+                               for g in config.dust_grid_umin_only]
+
+        self.grid_umin_umax = [self._native(g)
+                               for g in config.dust_grid_umin_umax]
+
+        self.grid_wavs = self.grid_umin_only[1][:, 0]
+
+    def _native(self, grid):
+        if grid is None:
+            return None
+
+        return np.ascontiguousarray(grid, dtype=float)
+
     def spectrum(self, qpah, umin, gamma):
         """ Get the 1D spectrum for a given set of model parameters. """
 
@@ -36,13 +52,13 @@ class dust_emission(object):
 
         umin_w = np.array([(1 - umin_fact), umin_fact])
 
-        lqpah_only = config.dust_grid_umin_only[qpah_ind]
-        hqpah_only = config.dust_grid_umin_only[qpah_ind+1]
+        lqpah_only = self.grid_umin_only[qpah_ind]
+        hqpah_only = self.grid_umin_only[qpah_ind+1]
         tqpah_only = (qpah_fact*hqpah_only[:, umin_ind:umin_ind+2]
                       + (1-qpah_fact)*lqpah_only[:, umin_ind:umin_ind+2])
 
-        lqpah_umax = config.dust_grid_umin_umax[qpah_ind]
-        hqpah_umax = config.dust_grid_umin_umax[qpah_ind+1]
+        lqpah_umax = self.grid_umin_umax[qpah_ind]
+        hqpah_umax = self.grid_umin_umax[qpah_ind+1]
         tqpah_umax = (qpah_fact*hqpah_umax[:, umin_ind:umin_ind+2]
                       + (1-qpah_fact)*lqpah_umax[:, umin_ind:umin_ind+2])
 
@@ -52,7 +68,7 @@ class dust_emission(object):
         model = gamma*interp_umax + (1 - gamma)*interp_only
 
         spectrum = np.interp(self.wavelengths,
-                             config.dust_grid_umin_only[1][:, 0],
+                             self.grid_wavs,
                              model, left=0., right=0.)
 
         spectrum_norm = spectrum / np.trapezoid(spectrum, x=self.wavelengths)

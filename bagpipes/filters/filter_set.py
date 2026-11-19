@@ -92,6 +92,7 @@ class filter_set(object):
 
         # Array containing the width in wavelength space for each point
         self.widths = utils.make_bins(wavelengths)[1]
+        self.widths_wavs = self.widths*self.wavelengths
 
         for i in range(len(self.filt_list)):
             filt = self.filt_list[i]
@@ -99,6 +100,49 @@ class filter_set(object):
                                               self.filt_dict[filt][:, 0],
                                               self.filt_dict[filt][:, 1],
                                               left=0, right=0)
+
+        self._cached_redshift = None
+
+    def _set_redshift(self, redshift):
+        """ Calculate and store the quantities needed for photometry
+        which depend only on redshift. T(lambda*(1+z)) is a linear
+        interpolation between filt_array rows ind and ind+1 with weights
+        (1-frac) and frac. Rather than building blueshifted filter curves,
+        get_photometry moves the integration weights onto those rows,
+        which is equivalent and handles all filters at once. """
+
+        weights = self.widths_wavs
+
+        if redshift == 0.:
+            weights_z = weights
+
+        else:
+            redshifted_wavs = self.wavelengths*(1. + redshift)
+            n_wavs = self.wavelengths.shape[0]
+
+            ind = np.searchsorted(self.wavelengths, redshifted_wavs,
+                                  side="right") - 1
+            ind = np.clip(ind, 0, n_wavs - 2)
+
+            frac = ((redshifted_wavs - self.wavelengths[ind])
+                    / (self.wavelengths[ind+1] - self.wavelengths[ind]))
+
+            # Zero transmission beyond the range of the filter curves
+            inside = ((redshifted_wavs >= self.wavelengths[0])
+                      & (redshifted_wavs <= self.wavelengths[-1]))
+
+            self._ind = ind
+            self._inside = inside.astype(float)
+            self._high_frac = frac*self._inside
+
+            high = weights*self._high_frac
+            low = weights*self._inside - high
+            weights_z = (np.bincount(ind, low, n_wavs)
+                         + np.bincount(ind+1, high, n_wavs))
+
+        # Denominator of the photometry expression
+        self._norm = weights_z @ self.filt_array
+        self._cached_redshift = redshift
 
     def get_photometry(self, spectrum, redshift, unit_conv=None):
         """ Calculates photometric fluxes. The filters are first re-
@@ -123,24 +167,30 @@ class filter_set(object):
             raise ValueError("Please use resample_filter_curves method to set"
                              + " wavelengths before calculating photometry.")
 
-        redshifted_wavs = self.wavelengths*(1. + redshift)
+        # Integration weights (lambda*dlambda) for the numerator
+        weights = spectrum*self.widths_wavs
 
-        # Array containing blueshifted filter curves
-        filters_z = np.zeros_like(self.filt_array)
+        # Everything else depends only on redshift, so is re-used if the
+        # redshift does not change (e.g. when fitting at fixed redshift).
+        if redshift != self._cached_redshift:
+            self._set_redshift(redshift)
 
-        # blueshift filter curves to sample right bit of rest frame spec
-        for i in range(len(self.filt_list)):
-            filters_z[:, i] = np.interp(redshifted_wavs, self.wavelengths,
-                                        self.filt_array[:, i],
-                                        left=0, right=0)
+        # At zero redshift the filter curves need no blueshifting.
+        if redshift == 0.:
+            weights_z = weights
 
-        # Calculate numerator of expression
-        flux = np.expand_dims(spectrum*self.widths*self.wavelengths, axis=1)
-        flux = np.sum(flux*filters_z, axis=0)
+        # Otherwise move the integration weights onto the filt_array rows
+        # used to interpolate the blueshifted filter curves.
+        else:
+            n_wavs = self.wavelengths.shape[0]
+            high = weights*self._high_frac
+            low = weights*self._inside - high
+            weights_z = (np.bincount(self._ind, low, n_wavs)
+                         + np.bincount(self._ind+1, high, n_wavs))
 
-        # Calculate denominator of expression
-        norm = filters_z*np.expand_dims(self.widths*self.wavelengths, axis=1)
-        norm = np.sum(norm, axis=0)
+        # Calculate numerator and denominator of expression
+        flux = weights_z @ self.filt_array
+        norm = self._norm
 
         photometry = np.squeeze(flux/norm)
 

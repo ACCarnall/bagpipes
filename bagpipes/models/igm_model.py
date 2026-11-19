@@ -31,6 +31,11 @@ class igm(object):
 
         self.grid = self._resample_in_wavelength()
 
+        # Most recent redshift and transmission, re-used if the redshift
+        # does not change (e.g. when fitting at fixed redshift).
+        self._cached_redshift = None
+        self._cached_trans = None
+
     def _resample_in_wavelength(self):
         """ Resample the raw grid to the input wavelengths. """
 
@@ -51,7 +56,11 @@ class igm(object):
         return grid
 
     def trans(self, redshift):
-        """ Get the IGM transmission at a given redshift. """
+        """ Get the IGM transmission at a given redshift. The returned
+        array is cached, so should not be modified in place. """
+
+        if redshift == self._cached_redshift:
+            return self._cached_trans
 
         redshift_mask = (config.igm_redshifts < redshift)
         zred_ind = config.igm_redshifts[redshift_mask].shape[0]
@@ -66,5 +75,8 @@ class igm(object):
 
         weights = np.array([1. - zred_fact, zred_fact])
         igm_trans = np.sum(weights*self.grid[:, zred_ind-1:zred_ind+1], axis=1)
+
+        self._cached_redshift = redshift
+        self._cached_trans = igm_trans
 
         return igm_trans

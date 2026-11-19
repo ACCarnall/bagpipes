@@ -21,7 +21,14 @@ class stellar(object):
 
         # Resample the grid in wavelength and then in age.
         grid_raw_ages = self._resample_in_wavelength()
-        self.grid = self._resample_in_age(grid_raw_ages)
+        grid = self._resample_in_age(grid_raw_ages)
+
+        # Store the grid in memory as (metallicity*age, wavelength) for
+        # fast matrix products, self.grid is a view with the original
+        # (wavelength, metallicity, age) indexing.
+        n_wavs, n_zmet, n_ages = grid.shape
+        self.grid_T = np.ascontiguousarray(grid.reshape(n_wavs, -1).T)
+        self.grid = self.grid_T.reshape(n_zmet, n_ages, n_wavs).transpose(2, 0, 1)
 
     def _resample_in_wavelength(self):
         """ Resamples the raw stellar grids to the input wavs. """
@@ -121,8 +128,6 @@ class stellar(object):
         """
 
         t_bc *= 10**9
-        spectrum_young = np.zeros_like(self.wavelengths)
-        spectrum = np.zeros_like(self.wavelengths)
 
         index = config.age_bins[config.age_bins < t_bc].shape[0]
         old_weight = (config.age_bins[index] - t_bc)/config.age_widths[index-1]
@@ -130,22 +135,16 @@ class stellar(object):
         if index == 0:
             index += 1
 
-        for i in range(config.metallicities.shape[0]):
-            if sfh_ceh[i, :index].sum() > 0.:
-                sfh_ceh[:, index-1] *= (1. - old_weight)
+        # Weights for the young (row 0) and old (row 1) populations, the
+        # age bin containing t_bc is split between the two.
+        weights = np.zeros((2,) + sfh_ceh.shape)
+        weights[0, :, :index] = sfh_ceh[:, :index]
+        weights[0, :, index-1] *= (1. - old_weight)
+        weights[1, :, index-1:] = sfh_ceh[:, index-1:]
+        weights[1, :, index-1] *= old_weight
 
-                spectrum_young += np.sum(self.grid[:, i, :index]
-                                         * sfh_ceh[i, :index], axis=1)
-
-                sfh_ceh[:, index-1] /= (1. - old_weight)
-
-            if sfh_ceh[i, index-1:].sum() > 0.:
-                sfh_ceh[:, index-1] *= old_weight
-
-                spectrum += np.sum(self.grid[:, i, index-1:]
-                                   * sfh_ceh[i, index-1:], axis=1)
-
-                sfh_ceh[:, index-1] /= old_weight
+        # Sum over metallicity and age with a single matrix product.
+        spectrum_young, spectrum = weights.reshape(2, -1) @ self.grid_T
 
         if t_bc == 0.:
             return spectrum

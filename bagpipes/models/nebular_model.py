@@ -21,7 +21,20 @@ class nebular(object):
     def __init__(self, wavelengths, velshift):
         self.wavelengths = wavelengths
         self.velshift = velshift
-        self.combined_grid, self.line_grid = self._setup_grids()
+        combined_grid, line_grid = self._setup_grids()
+
+        # Store the grids in memory as (logU, metallicity, age, wavelength)
+        # for fast matrix products, but keep the same indexing order.
+        self.combined_grid = self._reorder(combined_grid)
+        self.line_grid = self._reorder(line_grid)
+
+    def _reorder(self, grid):
+        """ Reorder grid in memory to (logU, metallicity, age, wavelength),
+        return a view with the original index order (wavelength,
+        metallicity, logU, age). """
+
+        return np.ascontiguousarray(grid.transpose(2, 1, 3, 0)
+                                    ).transpose(3, 1, 0, 2)
 
     def _setup_grids(self):
         """ Loads Cloudy nebular continuum grid and resamples to the
@@ -113,9 +126,6 @@ class nebular(object):
         if logU == config.logU[0]:
             logU += 10**-10
 
-        spectrum_low_logU = np.zeros_like(grid[:, 0, 0, 0])
-        spectrum_high_logU = np.zeros_like(grid[:, 0, 0, 0])
-
         logU_ind = config.logU[config.logU < logU].shape[0]
         logU_weight = ((config.logU[logU_ind] - logU)
                        / (config.logU[logU_ind] - config.logU[logU_ind-1]))
@@ -123,17 +133,20 @@ class nebular(object):
         index = config.age_bins[config.age_bins < t_bc].shape[0]
         weight = 1 - (config.age_bins[index] - t_bc)/config.age_widths[index-1]
 
-        for i in range(config.metallicities.shape[0]):
-            if sfh_ceh[i, :index].sum() > 0.:
-                sfh_ceh[:, index-1] *= weight
+        # Weights for ages younger than t_bc, the age bin containing t_bc
+        # is only partially included.
+        weights = np.zeros((grid.shape[1], grid.shape[3]))
+        weights[:, :index] = sfh_ceh[:, :index]
+        weights[:, index-1] *= weight
+        weights = weights.ravel()
 
-                spectrum_low_logU += np.sum(grid[:, i, logU_ind-1, :index]
-                                            * sfh_ceh[i, :index], axis=1)
+        # Sum over metallicity and age with a matrix-vector product at
+        # the two logU values either side of the requested one.
+        grid_logU = grid.transpose(2, 1, 3, 0).reshape(grid.shape[2], -1,
+                                                      grid.shape[0])
 
-                spectrum_high_logU += np.sum(grid[:, i, logU_ind, :index]
-                                             * sfh_ceh[i, :index], axis=1)
-
-                sfh_ceh[:, index-1] /= weight
+        spectrum_low_logU = weights @ grid_logU[logU_ind-1]
+        spectrum_high_logU = weights @ grid_logU[logU_ind]
 
         spectrum = (spectrum_high_logU*(1 - logU_weight)
                     + spectrum_low_logU*logU_weight)

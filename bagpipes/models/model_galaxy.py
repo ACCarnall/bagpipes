@@ -297,7 +297,6 @@ class model_galaxy(object):
                           RuntimeWarning)
 
             self.spectrum_full = np.zeros_like(self.wavelengths)
-            self.uvj = np.zeros(3)
 
         else:
             self._calculate_full_spectrum(model_components)
@@ -327,8 +326,8 @@ class model_galaxy(object):
         if self.filt_list is not None:
             self._calculate_photometry(model_components["redshift"])
 
-        if not self.sfh.unphysical:
-            self._calculate_uvj_mags()
+        # UVJ magnitudes are calculated when first accessed (see below).
+        self._uvj = None
 
         # Deal with any spectral index calculations.
         if self.index_list is not None:
@@ -455,10 +454,11 @@ class model_galaxy(object):
         else:
             spectrum += spectrum_bc*(1.0 - fesc) + spectrum_bc_f100*fesc
 
-        spectrum *= self.igm.trans(model_comp["redshift"])
+        igm_trans = self.igm.trans(model_comp["redshift"])
+        spectrum *= igm_trans
 
         if self.dust_atten:
-            self.spectrum_bc *= self.igm.trans(model_comp["redshift"])
+            self.spectrum_bc *= igm_trans
 
         if "dla" in list(model_comp):
             if "redshift" in list(model_comp["dla"]):
@@ -586,7 +586,21 @@ class model_galaxy(object):
     def _calculate_uvj_mags(self):
         """ Obtain (unnormalised) rest-frame UVJ magnitudes. """
 
-        self.uvj = -2.5*np.log10(self._calculate_photometry(0., uvj=True))
+        self._uvj = -2.5*np.log10(self._calculate_photometry(0., uvj=True))
+
+    @property
+    def uvj(self):
+        """ Rest-frame UVJ magnitudes, only calculated when accessed as
+        they are not needed for fitting. """
+
+        if self._uvj is None:
+            if self.sfh.unphysical:
+                self._uvj = np.zeros(3)
+
+            else:
+                self._calculate_uvj_mags()
+
+        return self._uvj
 
     def plot(self, show=True, color="default"):
         return plotting.plot_model_galaxy(self, show=show, color=color)
