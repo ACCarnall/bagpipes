@@ -85,6 +85,13 @@ class model_galaxy(object):
         # Calculate the optimal wavelength sampling for the model.
         self.wavelengths = self._get_wavelength_sampling()
 
+        # Weights for trapezium-rule integrals over wavelength, so that
+        # np.trapezoid(y, x=self.wavelengths) = self._trap_weights @ y
+        dwavs = np.diff(self.wavelengths)
+        self._trap_weights = np.zeros_like(self.wavelengths)
+        self._trap_weights[:-1] += dwavs/2.
+        self._trap_weights[1:] += dwavs/2.
+
         # Resample the filter curves onto wavelengths.
         if filt_list is not None:
             self.filter_set.resample_filter_curves(self.wavelengths)
@@ -285,8 +292,6 @@ class model_galaxy(object):
 
         self.model_comp = model_components
         self.sfh.update(model_components)
-        if self.dust_atten:
-            self.dust_atten.update(model_components["dust"])
         if self.agn_dust_atten:
             self.agn_dust_atten.update(model_components["agn_dust"])
 
@@ -299,6 +304,9 @@ class model_galaxy(object):
             self.spectrum_full = np.zeros_like(self.wavelengths)
 
         else:
+            if self.dust_atten:
+                self.dust_atten.update(model_components["dust"])
+
             self._calculate_full_spectrum(model_components)
 
         if self.spec_wavs is not None:
@@ -324,7 +332,13 @@ class model_galaxy(object):
                 self.spectrum[:, 1] += agn_interp
 
         if self.filt_list is not None:
-            self._calculate_photometry(model_components["redshift"])
+            # The photometry of an unphysical model without an AGN is
+            # zero, so skip integrating over the filter curves.
+            if self.sfh.unphysical and not self.agn:
+                self.photometry = np.squeeze(np.zeros(len(self.filt_list)))
+
+            else:
+                self._calculate_photometry(model_components["redshift"])
 
         # UVJ magnitudes are calculated when first accessed (see below).
         self._uvj = None
@@ -387,23 +401,23 @@ class model_galaxy(object):
 
         # Add attenuation due to stellar birth clouds.
         if self.dust_atten:
-            dust_flux = 0.  # Total attenuated flux for energy balance.
+            # Transmission due to the diffuse ISM, 10**(-Av*A_cont/2.5),
+            # (np.exp is much faster than 10** for arrays).
+            Av_fact = -np.log(10.)*model_comp["dust"]["Av"]/2.5
+            trans = np.exp(Av_fact*self.dust_atten.A_cont)
 
             # Add extra attenuation to birth clouds.
             eta = 1.
+            bc_trans = trans
             if "eta" in list(model_comp["dust"]):
                 eta = model_comp["dust"]["eta"]
                 bc_Av_reduced = (eta - 1.)*model_comp["dust"]["Av"]
                 if self.dust_atten.type == "VW07":
-                    bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont_bc/2.5)
+                    bc_trans = trans*np.exp((eta - 1.)*Av_fact
+                                            * self.dust_atten.A_cont_bc)
+
                 else:
-                    bc_trans_red = 10**(-bc_Av_reduced*self.dust_atten.A_cont/2.5)
-
-                spectrum_bc_dust = spectrum_bc*bc_trans_red
-                dust_flux += np.trapezoid(spectrum_bc - spectrum_bc_dust,
-                                      x=self.wavelengths) * (1.0 - fesc)
-
-                spectrum_bc = spectrum_bc_dust
+                    bc_trans = np.exp(eta*Av_fact*self.dust_atten.A_cont)
 
             # Attenuate emission line fluxes.
             if self.dust_atten.type == "VW07":
@@ -422,20 +436,18 @@ class model_galaxy(object):
 
         # Add attenuation due to the diffuse ISM.
         if self.dust_atten:
-            trans = 10**(-model_comp["dust"]["Av"]*self.dust_atten.A_cont/2.5)
             dust_spectrum = spectrum*trans
-            dust_spectrum_bc = spectrum_bc*trans
+            dust_spectrum_bc = spectrum_bc*bc_trans
 
-            dust_flux += np.trapezoid(spectrum - dust_spectrum,
-                                      x=self.wavelengths)
-            dust_flux += np.trapezoid(spectrum_bc - dust_spectrum_bc,
-                                      x=self.wavelengths) * (1.0 - fesc)
+            # Total attenuated flux for energy balance.
+            dust_flux = (self._trap_weights @ (spectrum - dust_spectrum)
+                         + self._trap_weights @ (spectrum_bc - dust_spectrum_bc)
+                         * (1.0 - fesc))
 
-            spectrum = (dust_spectrum + dust_spectrum_bc*(1.0 - fesc)
-                        + spectrum_bc_f100*fesc)
-
-            self.spectrum_bc = ((spectrum_bc*trans) * (1.0 - fesc)
+            self.spectrum_bc = (dust_spectrum_bc*(1.0 - fesc)
                                 + spectrum_bc_f100*fesc)
+
+            spectrum = dust_spectrum + self.spectrum_bc
 
             # Add dust emission.
             qpah, umin, gamma = 2., 1., 0.01

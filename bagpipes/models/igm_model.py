@@ -29,7 +29,10 @@ class igm(object):
     def __init__(self, wavelengths):
         self.wavelengths = wavelengths
 
-        self.grid = self._resample_in_wavelength()
+        # Store the grid in memory as (redshift, wavelength) so that the
+        # two redshifts used for interpolation are contiguous rows, but
+        # keep the same (wavelength, redshift) indexing order.
+        self.grid = np.ascontiguousarray(self._resample_in_wavelength().T).T
 
         # Most recent redshift and transmission, re-used if the redshift
         # does not change (e.g. when fitting at fixed redshift).
@@ -73,8 +76,8 @@ class igm(object):
             zred_ind += 1
             zred_fact = 0.
 
-        weights = np.array([1. - zred_fact, zred_fact])
-        igm_trans = np.sum(weights*self.grid[:, zred_ind-1:zred_ind+1], axis=1)
+        igm_trans = ((1. - zred_fact)*self.grid[:, zred_ind-1]
+                     + zred_fact*self.grid[:, zred_ind])
 
         self._cached_redshift = redshift
         self._cached_trans = igm_trans

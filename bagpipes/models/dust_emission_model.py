@@ -28,6 +28,11 @@ class dust_emission(object):
         self.grid_umin_umax = [self._native(g)
                                for g in config.dust_grid_umin_umax]
 
+        # Most recent parameters and spectrum, re-used if the parameters
+        # do not change (e.g. when they are fixed during fitting).
+        self._cached_params = None
+        self._cached_spectrum = None
+
         self.grid_wavs = self.grid_umin_only[1][:, 0]
 
     def _native(self, grid):
@@ -37,7 +42,11 @@ class dust_emission(object):
         return np.ascontiguousarray(grid, dtype=float)
 
     def spectrum(self, qpah, umin, gamma):
-        """ Get the 1D spectrum for a given set of model parameters. """
+        """ Get the 1D spectrum for a given set of model parameters. The
+        returned array is cached, so should not be modified in place. """
+
+        if (qpah, umin, gamma) == self._cached_params:
+            return self._cached_spectrum
 
         qpah_ind = config.qpah_vals[config.qpah_vals < qpah].shape[0]
         umin_ind = config.umin_vals[config.umin_vals < umin].shape[0]
@@ -72,4 +81,8 @@ class dust_emission(object):
                              model, left=0., right=0.)
 
         spectrum_norm = spectrum / np.trapezoid(spectrum, x=self.wavelengths)
+
+        self._cached_params = (qpah, umin, gamma)
+        self._cached_spectrum = spectrum_norm
+
         return spectrum_norm
