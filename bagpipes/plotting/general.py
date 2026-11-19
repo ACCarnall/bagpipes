@@ -138,6 +138,11 @@ def hist1d(samples, ax, smooth=False, label=None, color="orange",
         color2 = "gray"
         alpha = 0.7
 
+    if color == "green":
+        color1 = "green"
+        color2 = "green"
+        alpha = 0.6
+
     if label is not None:
         x_label = fix_param_names([label])
         ax.set_xlabel(x_label)

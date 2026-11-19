@@ -57,7 +57,7 @@ class galaxy:
     load_line_fluxes : function - optional
         Load observed line fluxes for a galaxy. The function should
         return a list of line labels in Cloudy format, as well as an
-        array with a column of flux values in erg/s/cm^2/AA and a column
+        array with a column of flux values in erg/s/cm^2 and a column
         of corresponding uncertainties in the same units. It is not
         recommended to use this functionality at the same time as loading
         and fitting observed spectroscopic data with the code.

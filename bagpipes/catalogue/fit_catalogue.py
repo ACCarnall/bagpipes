@@ -19,7 +19,7 @@ try:
     rank = comm.Get_rank()
     size = comm.Get_size()
 
-except ImportError:
+except (ImportError, RuntimeError):
     rank = 0
     size = 1
 
