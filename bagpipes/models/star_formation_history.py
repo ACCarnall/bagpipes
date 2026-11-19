@@ -315,7 +315,10 @@ class star_formation_history:
         mask = self.ages < self.age_of_universe
         t = self.age_of_universe - self.ages[mask]
 
-        sfr[mask] = ((t/tau)**alpha + (t/tau)**-beta)**-1
+        # ((t/tau)**alpha + (t/tau)**-beta)**-1, using np.exp as it is much
+        # faster than **. Overflow gives inf and so zero SFR, as before.
+        log_t_tau = np.log(t/tau)
+        sfr[mask] = 1./(np.exp(alpha*log_t_tau) + np.exp(-beta*log_t_tau))
 
         # Added 1.5* after Hin tests showing SFH shape was being restricted
         if tau > 1.5*self.age_of_universe:

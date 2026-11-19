@@ -101,6 +101,9 @@ class filter_set(object):
                                               self.filt_dict[filt][:, 1],
                                               left=0, right=0)
 
+        # Index of each wavelength, used to find interpolation indices.
+        self._wav_inds = np.arange(wavelengths.shape[0], dtype=float)
+
         self._cached_redshift = None
 
     def _set_redshift(self, redshift):
@@ -120,9 +123,12 @@ class filter_set(object):
             redshifted_wavs = self.wavelengths*(1. + redshift)
             n_wavs = self.wavelengths.shape[0]
 
-            ind = np.searchsorted(self.wavelengths, redshifted_wavs,
-                                  side="right") - 1
-            ind = np.clip(ind, 0, n_wavs - 2)
+            # Index of the wavelength below each redshifted wavelength.
+            # np.interp is faster than np.searchsorted here as it uses
+            # the previous result as a starting guess for sorted inputs.
+            ind = np.interp(redshifted_wavs, self.wavelengths,
+                            self._wav_inds).astype(int)
+            ind = np.minimum(ind, n_wavs - 2)
 
             frac = ((redshifted_wavs - self.wavelengths[ind])
                     / (self.wavelengths[ind+1] - self.wavelengths[ind]))
@@ -131,18 +137,26 @@ class filter_set(object):
             inside = ((redshifted_wavs >= self.wavelengths[0])
                       & (redshifted_wavs <= self.wavelengths[-1]))
 
-            self._ind = ind
+            # Rows receiving the low and high interpolation weights.
+            self._ind_low_high = np.concatenate([ind, ind+1])
             self._inside = inside.astype(float)
             self._high_frac = frac*self._inside
 
-            high = weights*self._high_frac
-            low = weights*self._inside - high
-            weights_z = (np.bincount(ind, low, n_wavs)
-                         + np.bincount(ind+1, high, n_wavs))
+            weights_z = self._move_weights(weights)
 
         # Denominator of the photometry expression
         self._norm = weights_z @ self.filt_array
         self._cached_redshift = redshift
+
+    def _move_weights(self, weights):
+        """ Move integration weights onto the filt_array rows used to
+        interpolate the blueshifted filter curves (see _set_redshift). """
+
+        high = weights*self._high_frac
+        low = weights*self._inside - high
+
+        return np.bincount(self._ind_low_high, np.concatenate([low, high]),
+                           self.wavelengths.shape[0])
 
     def get_photometry(self, spectrum, redshift, unit_conv=None):
         """ Calculates photometric fluxes. The filters are first re-
@@ -182,11 +196,7 @@ class filter_set(object):
         # Otherwise move the integration weights onto the filt_array rows
         # used to interpolate the blueshifted filter curves.
         else:
-            n_wavs = self.wavelengths.shape[0]
-            high = weights*self._high_frac
-            low = weights*self._inside - high
-            weights_z = (np.bincount(self._ind, low, n_wavs)
-                         + np.bincount(self._ind+1, high, n_wavs))
+            weights_z = self._move_weights(weights)
 
         # Calculate numerator and denominator of expression
         flux = weights_z @ self.filt_array

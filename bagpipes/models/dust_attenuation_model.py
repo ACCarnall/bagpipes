@@ -49,6 +49,14 @@ class dust_attenuation(object):
             self.A_cont_calz = self._calzetti(wavelengths)
             self.A_line_calz = self._calzetti(config.line_wavs)
 
+            # Pre-compute the parameter-independent parts of the curve:
+            # log(lambda/5500) for the power-law slope, and the shape of
+            # the Drude profile for the 2175A bump (scaled by B).
+            self._log_wavs = np.log(wavelengths/5500.)
+            self._log_line_wavs = np.log(config.line_wavs/5500.)
+            self._drude_cont = self._drude(wavelengths)
+            self._drude_line = self._drude(config.line_wavs)
+
         elif self.type == "VW07":
             self.A_cont, self.A_line_bc, self.A_cont_bc, self.A_line_ism = self.VW07()
 
@@ -77,17 +85,20 @@ class dust_attenuation(object):
         B = param["B"]
         Rv_m = 4.05/((4.05+1)*(4400./5500.)**delta - 4.05)
 
-        drude = B*self.wavelengths**2*350.**2
-        drude /= (self.wavelengths**2 - 2175.**2)**2 + self.wavelengths**2*350.**2
-        A_cont = self.A_cont_calz*Rv_m*(self.wavelengths/5500.)**delta + drude
-        A_cont /= Rv_m
+        # (lambda/5500)**delta, using np.exp as it is much faster than **
+        A_cont = (self.A_cont_calz*np.exp(delta*self._log_wavs)
+                  + (B/Rv_m)*self._drude_cont)
 
-        drude = B*config.line_wavs**2*350.**2
-        drude /= (config.line_wavs**2 - 2175.**2)**2 + config.line_wavs**2*350.**2
-        A_line = self.A_line_calz*Rv_m*(config.line_wavs/5500.)**delta + drude
-        A_line /= Rv_m
+        A_line = (self.A_line_calz*np.exp(delta*self._log_line_wavs)
+                  + (B/Rv_m)*self._drude_line)
 
         return A_cont, A_line
+
+    def _drude(self, wavs):
+        """ Shape of the Drude profile for the 2175A bump in the Salim
+        dust curve, to be multiplied by the bump strength B. """
+
+        return wavs**2*350.**2/((wavs**2 - 2175.**2)**2 + wavs**2*350.**2)
 
     def VW07(self):
         """
